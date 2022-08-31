@@ -10,29 +10,15 @@ public class Tests {
         final String code = """
                 pub? true = 1b;
                 pub? false = 0b;
-                
+                                
                 STANDARDLIB_MU_FINISH_CODE;
-               
-                
-                module std {
-                    
-                    module math {
-                        pub fn test~ () {
-                        
-                        }
-                    }
-                    
-                }
-               
-                module testing {
+                               
+                module helloworld {
                 
                     pub fn main {
-                        ? a = 0xBEEF;
-                        std.math.test();
+                        std.println("Hello, world!");
                     }
-                    
-                    
-                    
+                                
                 }
                 """;
 

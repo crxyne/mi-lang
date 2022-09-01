@@ -10,9 +10,17 @@ public class Tests {
         final String code = """
                 pub? true = 1b;
                 pub? false = 0b;
+                
+                module std {
+                
+                    pub fn println~ (string s) {
+                        // java communication (native functions) not implemented yet
+                    }
+                    
+                }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
-                               
+                
                 module helloworld {
                 
                     pub fn main {

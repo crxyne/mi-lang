@@ -153,7 +153,7 @@ public class ParserEvaluator {
                     parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error");
                     return null;
                 }
-                parser.checkAccessValidity(globalMod, IdentifierType.FUNCTION, identifier.token(), globalVar.modifiers());
+                parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier.token(), globalVar.modifiers());
             }
         }
         return new Node(NodeType.VAR_SET_VALUE,

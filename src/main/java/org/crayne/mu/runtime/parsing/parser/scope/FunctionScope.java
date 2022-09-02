@@ -1,6 +1,5 @@
 package org.crayne.mu.runtime.parsing.parser.scope;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.lang.LocalVariable;
@@ -10,6 +9,7 @@ import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.Parser;
+import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
 import org.crayne.mu.runtime.parsing.parser.ValueParser;
 import org.jetbrains.annotations.NotNull;
 
@@ -122,10 +122,7 @@ public class FunctionScope extends Scope {
         final String identifier = identifierTok.token();
         // if we couldn't find any local variable, check if theres a global one (if there is, return from the function with 'false' with no error so the parser can do the rest)
         final Module globalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
-        if (globalMod != null &&
-                globalMod.findVariableByName(
-                        identifier.contains(".") ? StringUtils.substringAfterLast(identifier, ".") : identifier
-                ) != null) return;
+        if (globalMod != null && globalMod.findVariableByName(ParserEvaluator.identOf(identifier)) != null) return;
 
         final Optional<String> closestMatch = localVariables
                 .stream()

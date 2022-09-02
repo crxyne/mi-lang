@@ -244,30 +244,11 @@ public class Parser {
         return foundModule;
     }
 
-    protected <T> void checkAccessValidity(@NotNull final Module module, @NotNull final T identifier, @NotNull final IdentifierType type) {
-        if (!skimming) return;
-        final Module currentModule = lastModule();
-        if (currentModule == parentModule)
-            return; // at root level access to anything is allowed, because only the stdlib can do this anyway
-
-        //TODO add checks for variables, enums
-        //noinspection SwitchStatementWithTooFewBranches
-        switch (type) {
-            case FUNCTION -> {
-                if (!(identifier instanceof final FunctionDefinition def))
-                    throw new IllegalArgumentException("Expected FunctionDefinition as identifier");
-                final List<Modifier> modifiers = def.modifiers();
-                checkBasicAccessValidity(module, type, def.name(), modifiers);
-            }
-            default -> parserError("Access checking not implemented yet");
-        }
-    }
-
     public ParserEvaluator evaluator() {
         return evaluator;
     }
 
-    private void checkBasicAccessValidity(@NotNull final Module module, @NotNull final IdentifierType type, @NotNull final String identifier, @NotNull final List<Modifier> modifiers) {
+    protected void checkAccessValidity(@NotNull final Module module, @NotNull final IdentifierType type, @NotNull final String identifier, @NotNull final List<Modifier> modifiers) {
         final Module currentModule = lastModule();
 
         if (module == currentModule) return;

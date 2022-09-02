@@ -140,13 +140,35 @@ public class ParserEvaluator {
                 return null;
             }
             final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
-            if (!success && parser.encounteredError) return null; // localVariableValue() returns null if the needed variable is global but does not actually print an error into the logs
+            if (!success) {
+                if (parser.encounteredError) return null; // localVariableValue() returns null if the needed variable is global but does not actually print an error into the logs
+
+                final Module globalMod = parser.findModuleFromIdentifier(identifier.token(), identifier, false);
+                if (globalMod == null) {
+                    parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error");
+                    return null;
+                }
+                final Variable globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier.token()));
+                if (globalVar == null) {
+                    parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error");
+                    return null;
+                }
+                parser.checkAccessValidity(globalMod, IdentifierType.FUNCTION, identifier.token(), globalVar.modifiers());
+            }
         }
         return new Node(NodeType.VAR_SET_VALUE,
                 new Node(NodeType.IDENTIFIER, identifier),
                 new Node(NodeType.OPERATOR, equal),
                 new Node(NodeType.VALUE, value.node())
         );
+    }
+
+    public static String moduleOf(@NotNull final String identifier) {
+        return StringUtils.substringBeforeLast(identifier, ".");
+    }
+
+    public static String identOf(@NotNull final String identifier) {
+        return identifier.contains(".") ? StringUtils.substringAfterLast(identifier, ".") : identifier;
     }
 
     public Node evalFunctionCall(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -159,10 +181,10 @@ public class ParserEvaluator {
 
         if (parser.skimming) {
             final String identifier = identifierTok.token();
-            final String moduleAsString = StringUtils.substringBeforeLast(identifier, ".");
+            final String moduleAsString = moduleOf(identifier);
             final Module functionModule = parser.findModuleFromIdentifier(identifier, identifierTok, true);
             if (functionModule == null) return null;
-            final String function = identifier.contains(".") ? StringUtils.substringAfterLast(identifier, ".") : identifier;
+            final String function = identOf(identifier);
             final FunctionConcept funcConcept = functionModule.findFunctionConceptByName(function);
 
             if (funcConcept == null) {
@@ -179,7 +201,7 @@ public class ParserEvaluator {
                 parser.parserError("Cannot find any implementation for function '" + function + "' with argument types " + callArgsToString(params), identifierTok, true);
                 return null;
             }
-            parser.checkAccessValidity(functionModule, def, IdentifierType.FUNCTION);
+            parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.modifiers());
         }
         return new Node(NodeType.FUNCTION_CALL,
                 new Node(NodeType.IDENTIFIER, identifierTok),

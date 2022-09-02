@@ -139,28 +139,40 @@ public class ParserEvaluator {
                 parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'");
                 return null;
             }
-            final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
-            if (!success) {
-                if (parser.encounteredError) return null; // localVariableValue() returns null if the needed variable is global but does not actually print an error into the logs
-
-                final Module globalMod = parser.findModuleFromIdentifier(identifier.token(), identifier, false);
-                if (globalMod == null) {
-                    parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error");
-                    return null;
-                }
-                final Variable globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier.token()));
-                if (globalVar == null) {
-                    parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error");
-                    return null;
-                }
-                parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier.token(), globalVar.modifiers());
-            }
+            final Variable foundVariable = findVariable(identifier);
         }
         return new Node(NodeType.VAR_SET_VALUE,
                 new Node(NodeType.IDENTIFIER, identifier),
                 new Node(NodeType.OPERATOR, equal),
                 new Node(NodeType.VALUE, value.node())
         );
+    }
+
+    protected Variable findVariable(@NotNull final Token identifierTok) {
+        final String identifier = identifierTok.token();
+        final Scope currentScope = parser.scope();
+        if (!(currentScope instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", "Enclose your statement inside of a function");
+            return null;
+        }
+        final Variable var = functionScope.localVariable(parser, identifierTok);
+        if (var == null) {
+            if (parser.encounteredError) return null; // localVariable() returns null if the needed variable is global but does not actually print an error into the logs
+
+            final Module globalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
+            if (globalMod == null) {
+                parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error");
+                return null;
+            }
+            final Variable globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier));
+            if (globalVar == null) {
+                parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error");
+                return null;
+            }
+            parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.modifiers());
+            return globalVar;
+        }
+        return var;
     }
 
     public static String moduleOf(@NotNull final String identifier) {

@@ -1,6 +1,7 @@
 package org.crayne.mu.runtime.parsing.parser;
 
 import org.crayne.mu.lang.Datatype;
+import org.crayne.mu.lang.Variable;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
@@ -199,7 +200,10 @@ public class ValueParser {
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER) {
-            final TypedNode result = new TypedNode(Datatype.INT, new Node(NodeType.IDENTIFIER, currentToken));
+            final Variable findVar = parserParent.evaluator().findVariable(currentToken);
+            if (findVar == null) return new TypedNode(null, new Node(NodeType.VALUE));
+
+            final TypedNode result = new TypedNode(findVar.type(), new Node(NodeType.IDENTIFIER, currentToken));
             nextPart();
             return result;
         }

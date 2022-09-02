@@ -31,7 +31,6 @@ public class Parser {
     protected boolean skimming = true;
     private int scopeIndent = 0;
     protected final int stdlibFinishLine;
-
     protected boolean stdlib = true;
 
     private final List<Scope> currentScope = new ArrayList<>() {{

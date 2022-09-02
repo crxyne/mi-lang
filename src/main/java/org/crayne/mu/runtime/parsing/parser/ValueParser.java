@@ -182,6 +182,11 @@ public class ValueParser {
             final TypedNode fact = parseFactor();
             currentToken = new Node(NodeType.DECREMENT, fact.node).value();
         }
+        if (NodeType.of(currentToken).isDatatype()) {
+            final String datatype = currentToken.token();
+            nextPart();
+            return castValue(parseFactor(), Token.of(datatype));
+        }
         return null;
     }
 
@@ -221,14 +226,6 @@ public class ValueParser {
                 final List<TypedNode> parsedArgs = parseArgs();
                 if (parsedArgs == null) return new TypedNode(null, new Node(NodeType.VALUE));
 
-                if (NodeType.of(identifier).isDatatype()) {
-                    if (parsedArgs.size() != 1) {
-                        parserError("Expected exactly one argument for cast function '" + identifier + "', but got " + parsedArgs.size() + " instead");
-                        return new TypedNode(null, new Node(NodeType.VALUE));
-                    }
-                    nextPart();
-                    return castValue(parsedArgs.get(0), Token.of(identifier));
-                }
                 return new TypedNode(null, new Node(NodeType.FUNCTION_CALL,
                         new Node(NodeType.IDENTIFIER, Token.of(identifier)),
                         new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())

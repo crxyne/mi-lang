@@ -5,10 +5,18 @@ import org.jetbrains.annotations.NotNull;
 public class Scope {
 
     private final int scopeIndent;
-    private final ScopeType type;
+    protected final int actualIndent;
+    protected final ScopeType type;
 
-    public Scope(@NotNull final ScopeType type, int scopeIndent) {
+    public Scope(@NotNull final ScopeType type) {
+        this.scopeIndent = -1;
+        this.actualIndent = -1;
+        this.type = type;
+    }
+
+    public Scope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent) {
         this.scopeIndent = scopeIndent;
+        this.actualIndent = actualIndent;
         this.type = type;
     }
 

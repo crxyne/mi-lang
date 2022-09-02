@@ -7,6 +7,7 @@ import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
 import org.crayne.mu.runtime.parsing.parser.scope.Scope;
 import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
 import org.jetbrains.annotations.NotNull;
@@ -30,11 +31,12 @@ public class Parser {
     protected boolean encounteredError = false;
     protected boolean skimming = true;
     private int scopeIndent = 0;
+    private int actualIndent = 0;
     protected final int stdlibFinishLine;
     protected boolean stdlib = true;
 
     private final List<Scope> currentScope = new ArrayList<>() {{
-        add(new Scope(ScopeType.PARENT, 0));
+        add(new Scope(ScopeType.PARENT, 0, 0));
     }};
 
     public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine) {
@@ -72,7 +74,7 @@ public class Parser {
         currentToken = null;
         scopeIndent = 0;
         currentScope.clear();
-        currentScope.add(new Scope(ScopeType.PARENT, 0));
+        currentScope.add(new Scope(ScopeType.PARENT, 0, 0));
 
         skimming = false;
     }
@@ -112,6 +114,7 @@ public class Parser {
                     parserError("Could not parse scoped statement", firstToken);
                     return null;
                 }
+                if (result.type() != NodeType.NOOP) actualIndent++;
                 parseScope(result);
                 if (skimming && result.type() == NodeType.FUNCTION_DEFINITION) {
                     evaluator.addFunctionFromResult(result);
@@ -121,16 +124,26 @@ public class Parser {
                 result = evalUnscoped(tokens, first, Collections.emptyList());
                 if (skimming && result != null) {
                     final Scope current = scope();
-                    if (current == null || current.type() == ScopeType.MODULE || current.type() == ScopeType.PARENT) {
-                        switch (result.type()) {
-                            case VAR_DEFINITION -> {
-                                final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
-                                if (Variable.isConstant(modifiers))
-                                    parserError("Expected value, global constant might not have been initialized yet");
-                                evaluator.addGlobalVarFromResult(result);
+                    if (current != null) {
+                        switch (current.type()) {
+                            case MODULE, PARENT -> {
+                                switch (result.type()) {
+                                    case VAR_DEFINITION -> {
+                                        final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
+                                        if (Variable.isConstant(modifiers))
+                                            parserError("Expected value, global constant might not have been initialized yet");
+                                        evaluator.addGlobalVarFromResult(result);
+                                    }
+                                    case VAR_DEF_AND_SET_VALUE -> evaluator.addGlobalVarFromResult(result);
+                                }
                             }
-                            case VAR_DEF_AND_SET_VALUE -> evaluator.addGlobalVarFromResult(result);
+                            case FUNCTION -> {
+                                switch (result.type()) {
+                                    case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> evaluator.addLocalVarFromResult(result);
+                                }
+                            }
                         }
+
                     }
                 }
             }
@@ -142,6 +155,10 @@ public class Parser {
     }
 
     public Node evalScoped(@NotNull final List<Token> tokens, @NotNull final NodeType first, @NotNull final List<Node> modifiers) {
+        if (tokens.size() == 1) {
+            scope(ScopeType.NORMAL);
+            return new Node(NodeType.NOOP);
+        }
         if (first.isModifier()) return evalScopedWithModifiers(tokens);
         switch (first) {
             case LITERAL_MODULE -> {
@@ -177,7 +194,7 @@ public class Parser {
         };
     }
 
-    protected Module findModuleFromIdentifier(@NotNull String identifier, @NotNull final Token identifierTok) {
+    public Module findModuleFromIdentifier(@NotNull String identifier, @NotNull final Token identifierTok, final boolean panic) {
         if (identifier.endsWith(".")) {
             parserError("Expected identifier after '.'", identifierTok, true);
             return null;
@@ -213,7 +230,7 @@ public class Parser {
                 foundModule = Module.findModuleByName(foundModule.subModules(), mod);
             }
         }
-        if (foundModule == null) {
+        if (panic && foundModule == null) {
             if (relative) {
                 parserError("Cannot find submodule '" + moduleAsString + "'", identifierTok,
                         "The parser goes in order from top to bottom. It is suggested to have all needed submodules at the top of your module and the functions below it.");
@@ -227,24 +244,28 @@ public class Parser {
         return foundModule;
     }
 
-     protected <T> void checkAccessValidity(@NotNull final Module module, @NotNull final T identifier, @NotNull final IdentifierType type) {
-         if (!skimming) return;
-         final Module currentModule = lastModule();
-         if (currentModule == parentModule)
-             return; // at root level access to anything is allowed, because only the stdlib can do this anyway
+    protected <T> void checkAccessValidity(@NotNull final Module module, @NotNull final T identifier, @NotNull final IdentifierType type) {
+        if (!skimming) return;
+        final Module currentModule = lastModule();
+        if (currentModule == parentModule)
+            return; // at root level access to anything is allowed, because only the stdlib can do this anyway
 
-         //TODO add checks for variables, enums
-         //noinspection SwitchStatementWithTooFewBranches
-         switch (type) {
-             case FUNCTION -> {
-                 if (!(identifier instanceof final FunctionDefinition def))
-                     throw new IllegalArgumentException("Expected FunctionDefinition as identifier");
-                 final List<Modifier> modifiers = def.modifiers();
-                 checkBasicAccessValidity(module, type, def.name(), modifiers);
-             }
-             default -> parserError("Access checking not implemented yet");
-         }
-     }
+        //TODO add checks for variables, enums
+        //noinspection SwitchStatementWithTooFewBranches
+        switch (type) {
+            case FUNCTION -> {
+                if (!(identifier instanceof final FunctionDefinition def))
+                    throw new IllegalArgumentException("Expected FunctionDefinition as identifier");
+                final List<Modifier> modifiers = def.modifiers();
+                checkBasicAccessValidity(module, type, def.name(), modifiers);
+            }
+            default -> parserError("Access checking not implemented yet");
+        }
+    }
+
+    public ParserEvaluator evaluator() {
+        return evaluator;
+    }
 
     private void checkBasicAccessValidity(@NotNull final Module module, @NotNull final IdentifierType type, @NotNull final String identifier, @NotNull final List<Modifier> modifiers) {
         final Module currentModule = lastModule();
@@ -306,7 +327,11 @@ public class Parser {
     }
 
     protected void scope(@NotNull final ScopeType type) {
-        if (skimming) currentScope.add(new Scope(type, scopeIndent + 1));
+        if (skimming) {
+            if (type == ScopeType.FUNCTION) currentScope.add(new FunctionScope(type, null, lastModule()));
+            else if (scope() instanceof FunctionScope) currentScope.add(new FunctionScope(type, (FunctionScope) scope(), lastModule()));
+            else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
+        }
     }
 
     protected Scope scope() {
@@ -375,6 +400,7 @@ public class Parser {
     public void closeScope() {
         scopeIndent--;
         final Scope current = scope();
+        if (current != null && current.type() != ScopeType.NORMAL) actualIndent--;
         if (skimming) {
             if (currentScope.isEmpty()) {
                 parserError("Unexpected token '}'");
@@ -452,20 +478,20 @@ public class Parser {
         return result;
     }
 
-    protected void parserError(@NotNull final String message, @NotNull final String... quickFixes) {
+    public void parserError(@NotNull final String message, @NotNull final String... quickFixes) {
         parserError(message, currentToken, quickFixes);
     }
 
-    protected void parserError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
+    public void parserError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
         output.astHelperError(message, line, column, stdlibFinishLine, quickFixes);
         encounteredError = true;
     }
 
-    protected void parserError(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
+    public void parserError(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
         parserError(message, token, false, quickFixes);
     }
 
-    protected void parserError(@NotNull final String message, @NotNull final Token token, final boolean skipToEndOfToken, @NotNull final String... quickFixes) {
+    public void parserError(@NotNull final String message, @NotNull final Token token, final boolean skipToEndOfToken, @NotNull final String... quickFixes) {
         if (!stdlib) {
             output.astHelperError(message, token.line(), token.column() + (skipToEndOfToken ? token.token().length() : 0), stdlibFinishLine, quickFixes);
         } else {

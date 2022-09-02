@@ -13,7 +13,7 @@ import java.util.List;
 
 public class Runtime {
 
-    private static final List<String> multiTokens = Arrays.asList("<<", ">>", "->", "&&", "||", "==", "!=", "::", "<=", ">=", "++", "--", "+=", "*=", "/=", "-=", "<<=", ">>=");
+    private static final List<String> multiTokens = Arrays.asList("<<", ">>", "->", "&&", "||", "==", "!=", "::", "<=", ">=", "++", "--", "+=", "*=", "/=", "-=", "%=", "<<=", ">>=", "&=", "|=");
     private final MessageHandler out;
 
     public Runtime(@NotNull final PrintStream out, final boolean enableColor) {

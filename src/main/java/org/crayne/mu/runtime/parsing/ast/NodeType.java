@@ -1,6 +1,7 @@
 package org.crayne.mu.runtime.parsing.ast;
 
 import org.crayne.mu.lang.Datatype;
+import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.lexer.Tokenizer;
 import org.jetbrains.annotations.NotNull;
@@ -59,6 +60,7 @@ public enum NodeType {
     VAR_SET_VALUE(null),
     VAR_DEF_AND_SET_VALUE(null),
     VALUE(null),
+    OPERATOR(null),
     TYPE(null),
     IDENTIFIER(null),
     MEMBER(null),
@@ -172,6 +174,22 @@ public enum NodeType {
             case STRING -> LITERAL_STRING;
             case BOOL -> LITERAL_BOOL;
             case VOID -> LITERAL_VOID;
+        };
+    }
+
+    public static NodeType of(@NotNull final EqualOperation eq) {
+        return switch (eq) {
+            case EQUAL -> null;
+            case OR -> BIT_OR;
+            case ADD -> ADD;
+            case AND -> BIT_AND;
+            case DIV -> DIVIDE;
+            case MOD -> MODULUS;
+            case SUB -> SUBTRACT;
+            case MULT -> MULTIPLY;
+            case SHIFTL -> LSHIFT;
+            case SHIFTR -> RSHIFT;
+            case XOR -> XOR;
         };
     }
 

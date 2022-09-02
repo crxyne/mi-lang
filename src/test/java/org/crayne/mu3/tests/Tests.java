@@ -23,8 +23,13 @@ public class Tests {
                 
                 module helloworld {
                 
+                    pub mut? a = 5;
+                
                     pub fn main {
-                        std.println("Hello, world!");
+                        int i;
+                        {
+                            b = 2;
+                        }
                     }
                                 
                 }

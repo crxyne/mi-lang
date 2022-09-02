@@ -62,12 +62,7 @@ public class Module {
     }
 
     public Variable findVariableByName(@NotNull final String name) {
-        return findVariableByName(globalModuleVariables, name);
-    }
-
-    public static Variable findVariableByName(@NotNull final List<Variable> globalModuleVariables, @NotNull final String name) {
-        for (final Variable var : globalModuleVariables) if (var.name().equals(name)) return var;
-        return null;
+        return Variable.findVariableByName(globalModuleVariables, name);
     }
 
     public static boolean foundModuleByName(@NotNull final Set<Module> modules, @NotNull final String mod) {

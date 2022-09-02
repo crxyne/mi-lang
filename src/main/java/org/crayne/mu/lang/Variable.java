@@ -11,13 +11,23 @@ public class Variable {
     private final List<Modifier> modifiers;
     private final Datatype type;
     private final String name;
-    private final Node value;
+    private Node value;
 
     public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Node value) {
         this.name = name;
         this.type = type;
         this.value = value;
         this.modifiers = modifiers;
+    }
+
+    public static Variable findVariableByName(@NotNull final List<Variable> globalModuleVariables, @NotNull final String name) {
+        for (final Variable var : globalModuleVariables) if (var.name().equals(name)) return var;
+        return null;
+    }
+
+    public static LocalVariable findLocalVariableByName(@NotNull final List<LocalVariable> localVariables, @NotNull final String name) {
+        for (final LocalVariable var : localVariables) if (var.name().equals(name)) return var;
+        return null;
     }
 
     public String name() {
@@ -28,7 +38,15 @@ public class Variable {
         return type;
     }
 
-    public List<Modifier> getmodifiers() {
+    public Node value() {
+        return value;
+    }
+
+    public void value(@NotNull final Node value) {
+        this.value = value;
+    }
+
+    public List<Modifier> modifiers() {
         return modifiers;
     }
 

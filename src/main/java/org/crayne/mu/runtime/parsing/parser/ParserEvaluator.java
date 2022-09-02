@@ -6,6 +6,7 @@ import org.crayne.mu.lang.*;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
 import org.crayne.mu.runtime.parsing.parser.scope.Scope;
 import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
 import org.jetbrains.annotations.NotNull;
@@ -41,6 +42,30 @@ public class ParserEvaluator {
             return;
         }
         module.addGlobalVariable(new Variable(
+                result.child(1).value().token(),
+                NodeType.of(result.child(2).value()).getAsDataType(),
+                modifiers,
+                null
+        ));
+    }
+
+    public void addLocalVarFromResult(@NotNull final Node result) {
+        final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
+        final Scope current = parser.scope();
+        if (!(current instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function");
+            return;
+        }
+        if (result.children().size() == 4) {
+            functionScope.addLocalVariable(parser, new Variable(
+                    result.child(1).value().token(),
+                    NodeType.of(result.child(2).value()).getAsDataType(),
+                    modifiers,
+                    result.child(3)
+            ));
+            return;
+        }
+        functionScope.addLocalVariable(parser, new Variable(
                 result.child(1).value().token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
                 modifiers,
@@ -89,16 +114,39 @@ public class ParserEvaluator {
 
         final NodeType second = NodeType.of(secondToken);
         if (second == NodeType.LPAREN) return evalFunctionCall(tokens, modifiers);
-        else if (second == NodeType.SET) return evalVariableChange(tokens, modifiers);
+        else if (EqualOperation.of(second.getAsString()) != null) return evalVariableChange(tokens, modifiers);
         return null;
     }
 
-    @SuppressWarnings("unused")
     public Node evalVariableChange(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        //TODO add variable change
-        //noinspection IfStatementWithIdenticalBranches
         if (unexpectedModifiers(modifiers)) return null;
-        return null;
+        final Token identifier = Parser.tryAndGet(tokens, 0);
+        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
+        final Token equal = Parser.tryAndGet(tokens, 1);
+        if (parser.expect(equal, equal, NodeType.SET, NodeType.SET_ADD, NodeType.SET_AND, NodeType.SET_DIV, NodeType.SET_LSHIFT,
+                NodeType.SET_MOD, NodeType.SET_MULT, NodeType.SET_OR, NodeType.SET_RSHIFT, NodeType.SET_SUB, NodeType.SET_XOR) || equal == null) return null;
+
+        final ValueParser.TypedNode value = parseExpression(tokens.subList(2, tokens.size() - 1));
+
+        if (parser.skimming) {
+            final Scope currentScope = parser.scope();
+            if (!(currentScope instanceof final FunctionScope functionScope)) {
+                parser.parserError("Unexpected parsing error, expected statement to be inside of a function", "Enclose your statement inside of a function");
+                return null;
+            }
+            final EqualOperation eq = EqualOperation.of(equal.token());
+            if (eq == null) {
+                parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'");
+                return null;
+            }
+            final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
+            if (!success && parser.encounteredError) return null; // localVariableValue() returns null if the needed variable is global but does not actually print an error into the logs
+        }
+        return new Node(NodeType.VAR_SET_VALUE,
+                new Node(NodeType.IDENTIFIER, identifier),
+                new Node(NodeType.OPERATOR, equal),
+                new Node(NodeType.VALUE, value.node())
+        );
     }
 
     public Node evalFunctionCall(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -112,7 +160,7 @@ public class ParserEvaluator {
         if (parser.skimming) {
             final String identifier = identifierTok.token();
             final String moduleAsString = StringUtils.substringBeforeLast(identifier, ".");
-            final Module functionModule = parser.findModuleFromIdentifier(identifier, identifierTok);
+            final Module functionModule = parser.findModuleFromIdentifier(identifier, identifierTok, true);
             if (functionModule == null) return null;
             final String function = identifier.contains(".") ? StringUtils.substringAfterLast(identifier, ".") : identifier;
             final FunctionConcept funcConcept = functionModule.findFunctionConceptByName(function);

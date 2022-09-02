@@ -140,6 +140,10 @@ public class ParserEvaluator {
                 return null;
             }
             final Variable foundVariable = findVariable(identifier);
+            if (foundVariable == null) return null;
+
+            final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
+            if (!success && parser.encounteredError) return null;
         }
         return new Node(NodeType.VAR_SET_VALUE,
                 new Node(NodeType.IDENTIFIER, identifier),

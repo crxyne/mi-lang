@@ -30,6 +30,22 @@ public class FunctionParameter {
         return modifiers;
     }
 
+    public static boolean equalParams(@NotNull final List<FunctionParameter> params, @NotNull final List<FunctionParameter> other) {
+        if (params.size() != other.size()) return false;
+
+        boolean equalParams = true;
+        for (int i = 0; i < params.size(); i++) {
+            final FunctionParameter defParam = params.get(i);
+            final FunctionParameter otherParam = other.get(i);
+
+            if (defParam.type() != otherParam.type()) {
+                equalParams = false;
+                break;
+            }
+        }
+        return equalParams;
+    }
+
     @Override
     public String toString() {
         return "FunctionParameter{" +

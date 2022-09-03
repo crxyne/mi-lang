@@ -85,9 +85,10 @@ public class ParserEvaluator {
                     n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
             )).toList();
 
+            final Token nameToken = result.child(0).value();
             if (result.children().size() == 5) {
-                module.addFunction(new FunctionDefinition(
-                        result.child(0).value().token(),
+                module.addFunction(parser, nameToken, new FunctionDefinition(
+                        nameToken.token(),
                         Datatype.valueOf(result.child(1).value().token().toUpperCase()),
                         params,
                         modifiers,
@@ -95,8 +96,8 @@ public class ParserEvaluator {
                 ));
                 return;
             }
-            module.addFunction(new FunctionDefinition(
-                    result.child(0).value().token(),
+            module.addFunction(parser, nameToken, new FunctionDefinition(
+                    nameToken.token(),
                     Datatype.valueOf(result.child(1).value().token().toUpperCase()),
                     params,
                     modifiers

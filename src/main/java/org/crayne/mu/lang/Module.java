@@ -1,5 +1,6 @@
 package org.crayne.mu.lang;
 
+import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,10 +39,16 @@ public class Module {
         return parent;
     }
 
-    public void addFunction(@NotNull final FunctionDefinition def) {
+    public void addFunction(@NotNull final Parser parser, @NotNull final Token at, @NotNull final FunctionDefinition def) {
+        //System.out.println("ADD FUNC " + def);
         final FunctionConcept concept = new FunctionConcept(def.name(), def.returnType());
         for (@NotNull final FunctionConcept functionConcept : functionConcepts) {
             if (functionConcept.equals(concept)) {
+                final FunctionDefinition alreadyExistingDef = functionConcept.definitionByParameters(def.parameters());
+                if (alreadyExistingDef != null) {
+                    parser.parserError("A function with the same parameters already exists", at, "Change either of the function names");
+                    return;
+                }
                 functionConcept.addDefinition(def.parameters(), def.modifiers(), def.scope());
                 return;
             }

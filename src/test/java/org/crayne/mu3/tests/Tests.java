@@ -19,6 +19,10 @@ public class Tests {
                         // java communication (native functions) not implemented yet
                     }
                     
+                    pub fn println~ (string test) {
+                        
+                    }
+                    
                 }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
@@ -27,7 +31,6 @@ public class Tests {
                 
                     pub fn main {
                         int b = std.a;
-                        int b;
                     }
                                 
                 }

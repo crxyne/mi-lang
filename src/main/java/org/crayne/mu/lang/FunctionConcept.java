@@ -29,7 +29,9 @@ public class FunctionConcept {
     }
 
     public FunctionDefinition definitionByParameters(@NotNull final List<FunctionParameter> parameters) {
-        for (@NotNull final FunctionDefinition def : definitions) if (def.parameters().equals(parameters)) return def;
+        for (@NotNull final FunctionDefinition def : definitions) {
+            if (FunctionParameter.equalParams(def.parameters(), parameters)) return def;
+        }
         return null;
     }
 
@@ -55,6 +57,10 @@ public class FunctionConcept {
 
     public boolean isDefined(@NotNull final List<FunctionParameter> withParams) {
         return definitionByParameters(withParams) != null;
+    }
+
+    public boolean equals(@NotNull final FunctionConcept other) {
+        return other.name.equals(name) && other.returnType.equals(returnType);
     }
 
     @Override

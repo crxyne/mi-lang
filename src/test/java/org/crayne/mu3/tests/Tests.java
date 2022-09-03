@@ -26,10 +26,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main ~ () {
-                        for mut? i = 0, i < 10, i++ {
-                        
-                        }
-                        for mut? i = 0, i < 10, i++ {
+                        for mut? i = 0, i -> 10 {
                         
                         }
                     }

@@ -473,7 +473,22 @@ public class ParserEvaluator {
 
     // for mut? i = 0, i -> 10 // i goes in a transition to 10, exactly the same as above example but written differently
     public Node evalTransitionalForStatement(@NotNull final List<List<Token>> exprs) {
-        return null;
+        final List<Token> transition = exprs.get(1);
+        final Token identifier = Parser.tryAndGet(transition, 0);
+        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
+        final Token arrow = Parser.tryAndGet(transition, 1);
+        if (parser.expect(arrow, arrow, NodeType.BECOMES)) return null;
+        final List<Token> val = transition.subList(2, transition.size());
+
+        final List<Token> condition = new ArrayList<>(Arrays.asList(identifier, Token.of("<"), Token.of("(")));
+        condition.addAll(val);
+        condition.addAll(Arrays.asList(Token.of(")"), Token.of(";"))); // semicolon needed as splitByComma() automatically puts those & evalTraditionalForStatement thinks there always is a semicolon
+
+        return evalTraditionalForStatement(Arrays.asList(
+                exprs.get(0),
+                condition,
+                Arrays.asList(identifier, Token.of("++"))
+        ));
     }
 
     private List<List<Token>> splitByComma(@NotNull final List<Token> tokens) {

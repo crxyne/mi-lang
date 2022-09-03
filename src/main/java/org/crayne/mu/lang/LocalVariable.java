@@ -12,12 +12,12 @@ public class LocalVariable extends Variable {
     private FunctionScope changedAt;
 
     public LocalVariable(final @NotNull String name, final @NotNull Datatype type, final @NotNull List<Modifier> modifiers, final Node value, @NotNull final FunctionScope parent) {
-        super(name, type, modifiers, value);
+        super(name, type, modifiers);
         this.parent = parent;
     }
 
     public LocalVariable(@NotNull final Variable variable, @NotNull final FunctionScope parent) {
-        super(variable.name(), variable.type(), variable.modifiers(), variable.value());
+        super(variable.name(), variable.type(), variable.modifiers());
         this.parent = parent;
     }
 
@@ -30,7 +30,7 @@ public class LocalVariable extends Variable {
     }
 
     public Variable variable() {
-        return new Variable(name(), type(), modifiers(), value());
+        return new Variable(name(), type(), modifiers());
     }
 
     public void changedAt(@NotNull final FunctionScope scope) {

@@ -1,6 +1,5 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.ast.Node;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -11,12 +10,10 @@ public class Variable {
     private final List<Modifier> modifiers;
     private final Datatype type;
     private final String name;
-    private Node value;
 
-    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Node value) {
+    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers) {
         this.name = name;
         this.type = type;
-        this.value = value;
         this.modifiers = modifiers;
     }
 
@@ -38,14 +35,6 @@ public class Variable {
         return type;
     }
 
-    public Node value() {
-        return value;
-    }
-
-    public void value(@NotNull final Node value) {
-        this.value = value;
-    }
-
     public List<Modifier> modifiers() {
         return modifiers;
     }
@@ -64,7 +53,6 @@ public class Variable {
                 "modifiers=" + modifiers +
                 ", type=" + type +
                 ", name='" + name + '\'' +
-                ", value=" + value +
                 '}';
     }
 }

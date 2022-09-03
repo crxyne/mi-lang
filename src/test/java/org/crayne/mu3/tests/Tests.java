@@ -19,18 +19,23 @@ public class Tests {
                         // java communication (native functions) not implemented yet
                     }
                     
-                    pub fn println~ (string test) {
-                        
-                    }
-                    
                 }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
                 
                 module helloworld {
                 
-                    pub fn main {
-                        int b = std.a;
+                    pub fn main ~ () {
+                        for mut? i = 0, i < 10, i++ {
+                        
+                        }
+                        for mut? i = 0, i < 10, i++ {
+                        
+                        }
+                    }
+                    
+                    pub fn test {
+                    
                     }
                                 
                 }

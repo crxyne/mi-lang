@@ -23,15 +23,15 @@ public class FunctionScope extends Scope {
     private final FunctionScope parent;
     private final Module module;
 
-    public FunctionScope(@NotNull final ScopeType type, final FunctionScope parent, @NotNull final Module module) {
-        super(type);
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final Module module) {
+        super(type, scopeIndent, actualIndent);
         this.localVariables = new ArrayList<>();
         this.parent = parent;
         this.module = module;
     }
 
-    public FunctionScope(@NotNull final ScopeType type, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent, @NotNull final Module module) {
-        super(type);
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent, @NotNull final Module module) {
+        super(type, scopeIndent, actualIndent);
         this.localVariables = localVariables;
         this.parent = parent;
         this.module = module;
@@ -80,7 +80,7 @@ public class FunctionScope extends Scope {
                                 )
                         )
                 );
-        var.value(newVal);
+
         var.changedAt(this);
         return true;
     }
@@ -99,7 +99,7 @@ public class FunctionScope extends Scope {
                 return null;
             }
             // search in the parent scope, because you can do that and find local vars there
-            return parent.localVariable(parser, identifierTok);
+            return parent.localVariable(parser, identifierTok, panic);
         }
         return var;
     }
@@ -157,4 +157,13 @@ public class FunctionScope extends Scope {
         parser.parserError("Cannot find variable '" + identifier + "'.", identifierTok);
     }
 
+    @Override
+    public String toString() {
+        return "FunctionScope{" +
+                "localVariables=" + localVariables +
+                ", parent=" + parent +
+                ", module=" + module +
+                ", type=" + type +
+                '}';
+    }
 }

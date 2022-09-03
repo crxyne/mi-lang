@@ -32,20 +32,10 @@ public class ParserEvaluator {
             return;
         }
 
-        if (result.children().size() == 4) {
-            module.addGlobalVariable(parser, new Variable(
-                    result.child(1).value().token(),
-                    NodeType.of(result.child(2).value()).getAsDataType(),
-                    modifiers,
-                    result.child(3)
-            ));
-            return;
-        }
         module.addGlobalVariable(parser, new Variable(
                 result.child(1).value().token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
-                modifiers,
-                null
+                modifiers
         ));
     }
 
@@ -56,20 +46,10 @@ public class ParserEvaluator {
             parser.parserError("Unexpected parsing error, expected statement to be inside of a function");
             return;
         }
-        if (result.children().size() == 4) {
-            functionScope.addLocalVariable(parser, new Variable(
-                    result.child(1).value().token(),
-                    NodeType.of(result.child(2).value()).getAsDataType(),
-                    modifiers,
-                    result.child(3)
-            ));
-            return;
-        }
         functionScope.addLocalVariable(parser, new Variable(
                 result.child(1).value().token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
-                modifiers,
-                null
+                modifiers
         ));
     }
 
@@ -125,9 +105,14 @@ public class ParserEvaluator {
         if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
         final Token equal = Parser.tryAndGet(tokens, 1);
         if (parser.expect(equal, equal, NodeType.SET, NodeType.SET_ADD, NodeType.SET_AND, NodeType.SET_DIV, NodeType.SET_LSHIFT,
-                NodeType.SET_MOD, NodeType.SET_MULT, NodeType.SET_OR, NodeType.SET_RSHIFT, NodeType.SET_SUB, NodeType.SET_XOR) || equal == null) return null;
+                NodeType.SET_MOD, NodeType.SET_MULT, NodeType.SET_OR, NodeType.SET_RSHIFT, NodeType.SET_SUB, NodeType.SET_XOR,
+                NodeType.INCREMENT_LITERAL, NodeType.DECREMENT_LITERAL) || equal == null) return null;
 
-        final ValueParser.TypedNode value = parseExpression(tokens.subList(2, tokens.size() - 1));
+        final ValueParser.TypedNode value = NodeType.of(equal) == NodeType.INCREMENT_LITERAL || NodeType.of(equal) == NodeType.DECREMENT_LITERAL ?
+                new ValueParser.TypedNode(Datatype.INT,
+                        new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1"))
+                )
+                : parseExpression(tokens.subList(2, tokens.size() - 1));
 
         if (parser.skimming) {
             final Scope currentScope = parser.scope();
@@ -146,9 +131,16 @@ public class ParserEvaluator {
             final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
             if (!success && parser.encounteredError) return null;
         }
+        final NodeType eqType = NodeType.of(equal);
+        final Token finalEq = switch (eqType) {
+            case INCREMENT_LITERAL -> Token.of("+=");
+            case DECREMENT_LITERAL -> Token.of("-=");
+            default -> equal;
+        };
+
         return new Node(NodeType.VAR_SET_VALUE,
                 new Node(NodeType.IDENTIFIER, identifier),
-                new Node(NodeType.OPERATOR, equal),
+                new Node(NodeType.OPERATOR, finalEq),
                 new Node(NodeType.VALUE, value.node())
         );
     }
@@ -256,9 +248,10 @@ public class ParserEvaluator {
             );
         }
         final ValueParser.TypedNode value = parseExpression(tokens.subList(3, tokens.size() - 1));
+        if (value.type() == null) return null;
+
         final Node finalType = indefinite ? new Node(NodeType.TYPE, Token.of(NodeType.of(value.type()).getAsString())) : new Node(NodeType.TYPE, datatype);
 
-        if (value.type() == null) return null;
         if (!indefinite && !ValueParser.validVarset(value.type(), NodeType.of(datatype).getAsDataType())) {
             parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type().getName() + " to a " + datatype.token() + " variable.", datatype,
                     "Change the datatype to the correct one, try casting values inside the expression to the needed datatype or set the variable type to '?'.");
@@ -355,8 +348,8 @@ public class ParserEvaluator {
             return null;
         }
         final NodeType ret = NodeType.of(retDef);
-        final Scope current = parser.scope();
         if (parser.skimming) {
+            final Scope current = parser.scope();
             if (current == null) {
                 parser.parserError("Unexpected parsing error", "Could not create function at root level");
                 return null;
@@ -409,6 +402,111 @@ public class ParserEvaluator {
                 new Node(NodeType.TYPE, Token.of(returnType.name().toLowerCase())),
                 new Node(NodeType.MODIFIERS, modifiers),
                 new Node(NodeType.PARAMETERS, params)
+        );
+    }
+
+    public Node evalIfStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        return evalConditional(tokens, modifiers, NodeType.LITERAL_IF);
+    }
+
+    public Node evalWhileStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        return evalConditional(tokens, modifiers, NodeType.LITERAL_WHILE);
+    }
+
+    public Node evalForStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final List<List<Token>> exprs = splitByComma(tokens.subList(1, tokens.size() - 1));
+        if (exprs.isEmpty()) {
+            parser.parserError("Expected expression after 'for' statement");
+            return null;
+        }
+        return switch (exprs.size()) {
+            case 2 -> evalTransitionalForStatement(exprs);
+            case 3 -> evalTraditionalForStatement(exprs);
+            default -> {
+                final int atIndex = exprs.subList(0, exprs.size() - 1).stream().map(l -> l.size() + 1).reduce(0, Integer::sum) - 1;
+                final Token at = tokens.get(atIndex);
+                parser.parserError("Unexpected token '" + at.token() + "'", at, "Expected 2 or 3 expressions, so remove any trailing ones, or add a second expression if you only have 1.");
+                yield null;
+            }
+        };
+    }
+
+    // for mut? i = 0, i < 10, i++
+    public Node evalTraditionalForStatement(@NotNull final List<List<Token>> exprs) {
+        parser.scope(ScopeType.FAKE);
+        parser.scopeIndent++;
+        parser.actualIndent++;
+        final Node createVariable = parser.evalUnscoped(exprs.get(0), NodeType.of(exprs.get(0).get(0)), Collections.emptyList());
+
+        if (createVariable == null) return null;
+        if (createVariable.type() != NodeType.VAR_DEF_AND_SET_VALUE) {
+            parser.parserError("Expected variable definition", exprs.get(0).get(0));
+            return null;
+        }
+        addLocalVarFromResult(createVariable);
+
+        final ValueParser.TypedNode condition = parseExpression(exprs.get(1).subList(0, exprs.get(1).size() - 1));
+
+        if (condition == null || condition.type() == null) return null;
+        if (condition.type() != Datatype.BOOL) {
+            parser.parserError("Expected boolean condition", "Cast condition to 'bool' or change the condition to be a bool on its own");
+            return null;
+        }
+
+        final Node loopStatement = parser.evalUnscoped(exprs.get(2), NodeType.of(exprs.get(2).get(0)), Collections.emptyList());
+
+        if (loopStatement == null) return null;
+        if (loopStatement.type() != NodeType.VAR_SET_VALUE && loopStatement.type() != NodeType.FUNCTION_CALL) {
+            parser.parserError("Expected variable set or function call as for loop instruct", exprs.get(0).get(0));
+            return null;
+        }
+        parser.scope(ScopeType.FOR);
+        return new Node(NodeType.NOOP, new Node(NodeType.SCOPE,
+                new Node(NodeType.FOR_STATEMENT,
+                        createVariable,
+                        new Node(NodeType.CONDITION, condition.node()),
+                        new Node(NodeType.FOR_INSTRUCT, loopStatement)
+                ))
+        );
+    }
+
+    // for mut? i = 0, i -> 10 // i goes in a transition to 10, exactly the same as above example but written differently
+    public Node evalTransitionalForStatement(@NotNull final List<List<Token>> exprs) {
+        return null;
+    }
+
+    private List<List<Token>> splitByComma(@NotNull final List<Token> tokens) {
+        final List<List<Token>> result = new ArrayList<>();
+        List<Token> current = new ArrayList<>();
+
+        for (@NotNull final Token token : tokens) {
+            if (NodeType.of(token) == NodeType.COMMA) {
+                current.add(Token.of(";"));
+                result.add(current);
+                current = new ArrayList<>();
+                continue;
+            }
+            current.add(token);
+        }
+        if (!current.isEmpty()) result.add(current);
+        return result;
+    }
+
+    private Node evalConditional(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, @NotNull final NodeType condType) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final Token first = Parser.tryAndGet(tokens, 0);
+        if (parser.expect(first, first, condType)) return null;
+        final ValueParser.TypedNode expr = parseExpression(tokens.subList(1, tokens.size() - 1));
+        if (expr == null) return null;
+        if (expr.type() != Datatype.BOOL) {
+            parser.parserError("Expected boolean condition after '" + condType.getAsString() + "'", "Cast condition to 'bool' or change the expression to be a bool on its own");
+            return null;
+        }
+        return new Node(NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT"),
+                new Node(NodeType.CONDITION,
+                        new Node(NodeType.VALUE, expr.node())
+                )
         );
     }
 

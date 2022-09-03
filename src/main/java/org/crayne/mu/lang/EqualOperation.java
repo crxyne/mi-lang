@@ -29,6 +29,8 @@ public enum EqualOperation {
     }
 
     public static EqualOperation of(@NotNull final String op) {
+        if (op.equals("++")) return ADD;
+        if (op.equals("--")) return SUB;
         return op.isEmpty() ? null : Arrays.stream(values()).filter(v -> v.op.equals(op.substring(0, op.length() - 1))).findFirst().orElse(null);
     }
 

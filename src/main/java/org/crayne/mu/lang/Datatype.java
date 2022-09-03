@@ -4,7 +4,9 @@ import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -108,6 +110,14 @@ public enum Datatype {
         public boolean notequalsDefined(final Datatype y) {return y == ENUM;}
     },
     VOID("Void");
+
+    private static final List<String> comparatorOperators = Arrays.asList(
+            "<", "<=", ">", ">=", "!=", "=="
+    );
+
+    public static boolean isComparator(@NotNull final String op) {
+        return comparatorOperators.contains(op);
+    }
 
     private final String name;
 

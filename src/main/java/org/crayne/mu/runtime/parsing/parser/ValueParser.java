@@ -41,13 +41,14 @@ public class ValueParser {
         final TypedNode x = parseExpression();
         if (parsingPosition < expr.size()) {
             final Token val = expr.get(parsingPosition);
-            parserError("Unexpected token '" + expr.get(parsingPosition).token() + "', couldn't parse expression", val.line(), val.column());
+            parserError("Unexpected token '" + expr.get(parsingPosition).token() + "', couldn't parse expression", val);
         }
         return x;
     }
 
     protected void parserError(@NotNull final String message, @NotNull final String... quickFixes) {
-        parserError(message, currentToken, quickFixes);
+        if (currentToken == null) parserError(message, parserParent.currentToken(), quickFixes);
+        else parserError(message, currentToken, quickFixes);
     }
 
     private void parserError(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
@@ -96,7 +97,7 @@ public class ValueParser {
             parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op.line(), op.column());
             return null;
         }
-        return new TypedNode(getHeavierType(x.type, y.type), new Node(NodeType.of(op.token()), x.node, y.node));
+        return new TypedNode(Datatype.isComparator(op.token()) ? Datatype.BOOL : getHeavierType(x.type, y.type), new Node(NodeType.of(op.token()), x.node, y.node));
     }
 
     private static final List<List<NodeType>> operatorPrecedence = Arrays.asList(
@@ -175,15 +176,7 @@ public class ValueParser {
             final TypedNode fact = parseFactor();
             return new TypedNode(fact.type, new Node(NodeType.BOOL_NOT, fact.node));
         }
-        if (eat("++")) {
-            final TypedNode fact = parseFactor();
-            currentToken = new Node(NodeType.INCREMENT, fact.node).value();
-        }
-        if (eat("--")) {
-            final TypedNode fact = parseFactor();
-            currentToken = new Node(NodeType.DECREMENT, fact.node).value();
-        }
-        if (NodeType.of(currentToken).isDatatype()) {
+        if (currentToken != null && NodeType.of(currentToken).isDatatype()) {
             final String datatype = currentToken.token();
             nextPart();
             return castValue(parseFactor(), Token.of(datatype));

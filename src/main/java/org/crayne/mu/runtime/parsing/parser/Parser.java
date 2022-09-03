@@ -30,8 +30,8 @@ public class Parser {
     private ParserEvaluator evaluator;
     protected boolean encounteredError = false;
     protected boolean skimming = true;
-    private int scopeIndent = 0;
-    private int actualIndent = 0;
+    protected int scopeIndent = 0;
+    protected int actualIndent = 0;
     protected final int stdlibFinishLine;
     protected boolean stdlib = true;
 
@@ -161,15 +161,14 @@ public class Parser {
             return new Node(NodeType.NOOP);
         }
         if (first.isModifier()) return evalScopedWithModifiers(tokens);
-        switch (first) {
-            case LITERAL_MODULE -> {
-                return evaluator.evalModuleDefinition(tokens, modifiers);
-            }
-            case LITERAL_FN -> {
-                return evaluator.evalFunctionDefinition(tokens, modifiers);
-            }
-        }
-        return null;
+        return switch (first) {
+            case LITERAL_MODULE -> evaluator.evalModuleDefinition(tokens, modifiers);
+            case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);
+            case LITERAL_IF -> evaluator.evalIfStatement(tokens, modifiers);
+            case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers);
+            case LITERAL_FOR -> evaluator.evalForStatement(tokens, modifiers);
+            default -> null;
+        };
     }
 
     public Node evalScopedWithModifiers(@NotNull final List<Token> tokens) {
@@ -309,8 +308,8 @@ public class Parser {
     }
 
     protected void scope(@NotNull final ScopeType type) {
-        if (type == ScopeType.FUNCTION) currentScope.add(new FunctionScope(type, null, lastModule()));
-        else if (scope() instanceof FunctionScope) currentScope.add(new FunctionScope(type, (FunctionScope) scope(), lastModule()));
+        if (type == ScopeType.FUNCTION) currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, null, lastModule()));
+        else if (scope() instanceof FunctionScope) currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope(), lastModule()));
         else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
     }
 
@@ -382,10 +381,12 @@ public class Parser {
     }
 
     public void closeScope() {
-        scopeIndent--;
         final Scope current = scope();
+        boolean removeForLoopVariable = false;
         if (current != null) {
+            scopeIndent--;
             if (current.type() != ScopeType.NORMAL) actualIndent--;
+            if (current.type() == ScopeType.FOR) removeForLoopVariable = true;
             current.scopeEnd();
         }
         if (currentScope.isEmpty()) {
@@ -393,6 +394,7 @@ public class Parser {
             return;
         }
         currentScope.remove(currentScope.size() - 1);
+        if (removeForLoopVariable) closeScope(); // for loops have a hidden scope wrapped around them
 
         final Module lastModule = lastModule();
         if (current != null && current.type() != ScopeType.MODULE) return;
@@ -478,6 +480,10 @@ public class Parser {
     }
 
     public void parserError(@NotNull final String message, @NotNull final Token token, final boolean skipToEndOfToken, @NotNull final String... quickFixes) {
+        if (token.line() == -1 || token.column() == -1) {
+            parserError(message, currentToken, skipToEndOfToken, quickFixes);
+            return;
+        }
         if (!stdlib) {
             output.astHelperError(message, token.line(), token.column() + (skipToEndOfToken ? token.token().length() : 0), stdlibFinishLine, false, quickFixes);
         } else {

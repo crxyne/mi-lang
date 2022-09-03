@@ -46,16 +46,28 @@ public class FunctionScope extends Scope {
     }
 
     public void addLocalVariable(@NotNull final Parser parser, @NotNull final Variable var) {
-        this.localVariables.add(new LocalVariable(var, this));
+        final String name = var.name();
+        final Variable existingVar = localVariable(parser, Token.of(name), false);
+        if (existingVar != null) {
+            parser.parserError("A variable with name '" + name + "' already exists in this scope.",
+                    "Enclose the already existing variable into its own local scope or rename it.",
+                    "Renaming your new variable works too.");
+            return;
+        }
+        localVariables.add(new LocalVariable(var, this));
+    }
+
+    public void scopeEnd() {
+        localVariables.clear();
     }
 
     public boolean localVariableValue(@NotNull final Parser parser, @NotNull final Token identifierTok, @NotNull final ValueParser.TypedNode value, @NotNull final EqualOperation eq) {
         final LocalVariable var = localVariable(parser, identifierTok);
         if (var == null) return false;
 
-        if (immutable(parser, var)) return false;
+        if (immutable(parser, var, identifierTok)) return false;
         if (!ValueParser.validVarset(value.type(), var.type())) {
-            parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName());
+            parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName(), identifierTok);
             return false;
         }
         final Node newVal = eq == EqualOperation.EQUAL
@@ -74,12 +86,16 @@ public class FunctionScope extends Scope {
     }
 
     public LocalVariable localVariable(@NotNull final Parser parser, @NotNull final Token identifierTok) {
+        return localVariable(parser, identifierTok, true);
+    }
+
+    public LocalVariable localVariable(@NotNull final Parser parser, @NotNull final Token identifierTok, final boolean panic) {
         final String identifier = identifierTok.token();
         final LocalVariable var = Variable.findLocalVariableByName(localVariables, identifier);
 
         if (var == null) {
             if (parent == null) {
-                handleUndefinedLocalVariable(parser, identifierTok);
+                if (panic) handleUndefinedLocalVariable(parser, identifierTok);
                 return null;
             }
             // search in the parent scope, because you can do that and find local vars there
@@ -88,7 +104,7 @@ public class FunctionScope extends Scope {
         return var;
     }
 
-    private boolean immutable(@NotNull final Parser parser, @NotNull final LocalVariable var) {
+    private boolean immutable(@NotNull final Parser parser, @NotNull final LocalVariable var, @NotNull final Token identifierTok) {
         if (var.isConstant()) {
             final FunctionScope changedAt = var.changedAt();
             if (changedAt == null) return false; /*
@@ -99,7 +115,7 @@ public class FunctionScope extends Scope {
 
             final ScopeType changedAtType = changedAt.type;
             if (changedAtType == ScopeType.NORMAL || changedAtType == ScopeType.FUNCTION) {
-                parser.parserError("Local variable '" + var.name() + "' is constant and has already been assigned to, cannot not change value.");
+                parser.parserError("Local variable '" + var.name() + "' is constant and has already been assigned to, cannot not change value.", identifierTok);
                 return true;
             }
             if (changedAtType == ScopeType.IF) {
@@ -112,7 +128,7 @@ public class FunctionScope extends Scope {
                 if (searchElseParent.type == ScopeType.ELSE) return false;
                 // allow changing constants that changed in conditional 'if', only if the change happens inside of an 'else' directly linked to the conditional
             }
-            parser.parserError("Local variable '" + var.name() + "' is constant and may have been changed already, cannot change value.");
+            parser.parserError("Local variable '" + var.name() + "' is constant and may have been changed already, cannot change value.", identifierTok);
             return true;
         }
         return false;
@@ -135,10 +151,10 @@ public class FunctionScope extends Scope {
 
         // suggest variable names that resemble the wanted variable name (if there was a typo/spelling mistake)
         if (closestMatch.isPresent()) {
-            parser.parserError("Cannot find variable '" + identifier + "'.", "Did you mean '" + closestMatch.get() + "'?");
+            parser.parserError("Cannot find variable '" + identifier + "'.", identifierTok, "Did you mean '" + closestMatch.get() + "'?");
             return;
         }
-        parser.parserError("Cannot find variable '" + identifier + "'.");
+        parser.parserError("Cannot find variable '" + identifier + "'.", identifierTok);
     }
 
 }

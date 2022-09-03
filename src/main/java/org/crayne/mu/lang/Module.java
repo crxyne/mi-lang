@@ -1,5 +1,6 @@
 package org.crayne.mu.lang;
 
+import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -57,7 +58,14 @@ public class Module {
         return foundModuleByName(subModules, mod);
     }
 
-    public void addGlobalVariable(@NotNull final Variable var) {
+    public void addGlobalVariable(@NotNull final Parser parser, @NotNull final Variable var) {
+        final String name = var.name();
+        final Variable alreadyExisting = findVariableByName(name);
+        if (alreadyExisting != null) {
+            parser.parserError("A global variable with the name '" + name + "' already exists in this module.", parser.currentToken(),
+                    "Rename either the existing variable or the new one.");
+            return;
+        }
         globalModuleVariables.add(var);
     }
 

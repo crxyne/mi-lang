@@ -98,12 +98,12 @@ public class Tokenizer {
     }
 
     private void lexerError(@NotNull final String message, @NotNull final String... quickFixes) {
-        output.astHelperError(message, line, column, stdlibFinishLine, quickFixes);
+        output.astHelperError(message, line, column, stdlibFinishLine, countIndices, quickFixes);
         encounteredError = true;
     }
 
     private void lexerError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
-        output.astHelperError(message, line, column, stdlibFinishLine, quickFixes);
+        output.astHelperError(message, line, column, stdlibFinishLine, countIndices, quickFixes);
         encounteredError = true;
     }
 

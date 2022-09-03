@@ -13,7 +13,7 @@ public class Tests {
                 
                 module std {
                     
-                    priv mut? a = 5;
+                    pub mut? a = 5;
                 
                     pub fn println~ (string s) {
                         // java communication (native functions) not implemented yet
@@ -26,7 +26,8 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        std.a = 2;
+                        int b = std.a;
+                        int b;
                     }
                                 
                 }

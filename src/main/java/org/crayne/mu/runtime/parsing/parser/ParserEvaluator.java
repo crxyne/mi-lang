@@ -33,7 +33,7 @@ public class ParserEvaluator {
         }
 
         if (result.children().size() == 4) {
-            module.addGlobalVariable(new Variable(
+            module.addGlobalVariable(parser, new Variable(
                     result.child(1).value().token(),
                     NodeType.of(result.child(2).value()).getAsDataType(),
                     modifiers,
@@ -41,7 +41,7 @@ public class ParserEvaluator {
             ));
             return;
         }
-        module.addGlobalVariable(new Variable(
+        module.addGlobalVariable(parser, new Variable(
                 result.child(1).value().token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
                 modifiers,
@@ -156,7 +156,7 @@ public class ParserEvaluator {
         final String identifier = identifierTok.token();
         final Scope currentScope = parser.scope();
         if (!(currentScope instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", "Enclose your statement inside of a function");
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", identifierTok, "Enclose your statement inside of a function");
             return null;
         }
         final Variable var = functionScope.localVariable(parser, identifierTok);
@@ -165,12 +165,12 @@ public class ParserEvaluator {
 
             final Module globalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
             if (globalMod == null) {
-                parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error");
+                parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error", identifierTok);
                 return null;
             }
             final Variable globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier));
             if (globalVar == null) {
-                parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error");
+                parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
                 return null;
             }
             parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.modifiers());
@@ -257,6 +257,7 @@ public class ParserEvaluator {
         final ValueParser.TypedNode value = parseExpression(tokens.subList(3, tokens.size() - 1));
         final Node finalType = indefinite ? new Node(NodeType.TYPE, Token.of(NodeType.of(value.type()).getAsString())) : new Node(NodeType.TYPE, datatype);
 
+        if (value.type() == null) return null;
         if (!indefinite && !ValueParser.validVarset(value.type(), NodeType.of(datatype).getAsDataType())) {
             parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type().getName() + " to a " + datatype.token() + " variable.", datatype,
                     "Change the datatype to the correct one, try casting values inside the expression to the needed datatype or set the variable type to '?'.");
@@ -370,8 +371,8 @@ public class ParserEvaluator {
                         "Cannot define functions inside of other functions either");
                 return null;
             }
-            parser.scope(ScopeType.FUNCTION);
         }
+        parser.scope(ScopeType.FUNCTION);
 
         if (ret == NodeType.LBRACE) {
             return new Node(NodeType.FUNCTION_DEFINITION,
@@ -437,8 +438,8 @@ public class ParserEvaluator {
                 parser.parserError("Expected module definition to be at root level or inside of another module");
                 return null;
             }
-            parser.scope(ScopeType.MODULE);
         }
+        parser.scope(ScopeType.MODULE);
 
         return new Node(NodeType.CREATE_MODULE,
                 new Node(NodeType.IDENTIFIER, identifier)

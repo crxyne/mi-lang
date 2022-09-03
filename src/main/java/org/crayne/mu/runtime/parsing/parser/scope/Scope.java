@@ -28,6 +28,10 @@ public class Scope {
         return type;
     }
 
+    public void scopeEnd() {
+
+    }
+
     @Override
     public String toString() {
         return "Scope{" +

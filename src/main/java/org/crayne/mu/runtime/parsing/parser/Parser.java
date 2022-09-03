@@ -73,6 +73,7 @@ public class Parser {
         currentTokenIndex = 0;
         currentToken = null;
         scopeIndent = 0;
+        actualIndent = 0;
         currentScope.clear();
         currentScope.add(new Scope(ScopeType.PARENT, 0, 0));
 
@@ -308,14 +309,12 @@ public class Parser {
     }
 
     protected void scope(@NotNull final ScopeType type) {
-        if (skimming) {
-            if (type == ScopeType.FUNCTION) currentScope.add(new FunctionScope(type, null, lastModule()));
-            else if (scope() instanceof FunctionScope) currentScope.add(new FunctionScope(type, (FunctionScope) scope(), lastModule()));
-            else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
-        }
+        if (type == ScopeType.FUNCTION) currentScope.add(new FunctionScope(type, null, lastModule()));
+        else if (scope() instanceof FunctionScope) currentScope.add(new FunctionScope(type, (FunctionScope) scope(), lastModule()));
+        else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
     }
 
-    protected Scope scope() {
+    public Scope scope() {
         return currentScope.isEmpty() ? null : currentScope.get(currentScope.size() - 1);
     }
 
@@ -378,17 +377,23 @@ public class Parser {
         return currentModule.isEmpty() ? parentModule : currentModule.get(currentModule.size() - 1);
     }
 
+    public Token currentToken() {
+        return currentToken;
+    }
+
     public void closeScope() {
         scopeIndent--;
         final Scope current = scope();
-        if (current != null && current.type() != ScopeType.NORMAL) actualIndent--;
-        if (skimming) {
-            if (currentScope.isEmpty()) {
-                parserError("Unexpected token '}'");
-                return;
-            }
-            currentScope.remove(currentScope.size() - 1);
+        if (current != null) {
+            if (current.type() != ScopeType.NORMAL) actualIndent--;
+            current.scopeEnd();
         }
+        if (currentScope.isEmpty()) {
+            parserError("Unexpected token '}'");
+            return;
+        }
+        currentScope.remove(currentScope.size() - 1);
+
         final Module lastModule = lastModule();
         if (current != null && current.type() != ScopeType.MODULE) return;
         if (buildCurrentModule != null) {
@@ -464,7 +469,7 @@ public class Parser {
     }
 
     public void parserError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
-        output.astHelperError(message, line, column, stdlibFinishLine, quickFixes);
+        output.astHelperError(message, line, column, stdlibFinishLine, stdlib, quickFixes);
         encounteredError = true;
     }
 
@@ -474,10 +479,10 @@ public class Parser {
 
     public void parserError(@NotNull final String message, @NotNull final Token token, final boolean skipToEndOfToken, @NotNull final String... quickFixes) {
         if (!stdlib) {
-            output.astHelperError(message, token.line(), token.column() + (skipToEndOfToken ? token.token().length() : 0), stdlibFinishLine, quickFixes);
+            output.astHelperError(message, token.line(), token.column() + (skipToEndOfToken ? token.token().length() : 0), stdlibFinishLine, false, quickFixes);
         } else {
             output.astHelperError("StandardLib error encountered, please contact the developer of this standard library to fix this issue:\n" + message,
-                    token.actualLine(), token.column() + (skipToEndOfToken ? token.token().length() : 0), 1, quickFixes);
+                    token.actualLine(), token.column() + (skipToEndOfToken ? token.token().length() : 0), 1, true, quickFixes);
         }
         encounteredError = true;
     }

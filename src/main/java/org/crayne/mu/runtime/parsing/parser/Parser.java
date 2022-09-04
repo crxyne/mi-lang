@@ -82,12 +82,23 @@ public class Parser {
 
     public Node parseStatement() {
         final List<Token> statement = new ArrayList<>();
+        Token previous = null;
         iter: for (; currentTokenIndex < tokens.size() && !encounteredError; currentTokenIndex++) {
             currentToken = tokens.get(currentTokenIndex);
             statement.add(currentToken);
             switch (currentToken.token()) {
-                case SEMI, SCOPE_BEGIN, SCOPE_END -> {break iter;}
+                case SEMI, SCOPE_BEGIN -> {break iter;}
+                case SCOPE_END -> {
+                    if (statement.size() == 1) break iter;
+                    if (previous == null) {
+                        parserError("Expected ';' after statement");
+                        break iter;
+                    }
+                    parserError("Expected ';' after statement", previous);
+                    break iter;
+                }
             }
+            previous = currentToken;
         }
         skipToken();
         return evalStatement(statement);

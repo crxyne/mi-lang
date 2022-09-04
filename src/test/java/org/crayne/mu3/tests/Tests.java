@@ -33,12 +33,8 @@ public class Tests {
                         } else {
                             if 2 == 3 {
                                 i = 2;
-                                
-                                
-                                
-                                
-                            } else if 0 == 34 {
-                                i = 6;
+                            } else {
+                                i = 6
                             }
                         }
                         std.println("" + i);

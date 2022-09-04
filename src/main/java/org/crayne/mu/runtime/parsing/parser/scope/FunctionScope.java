@@ -110,6 +110,7 @@ public class FunctionScope extends Scope {
                     }
                 }
                 if (searchNotNormal.type != ScopeType.IF) var.initialize();
+                System.out.println("NOT CHANGED");
                 return false;
             }                                    /* allow changing constants if they have not been initialized yet (if both declaration and definition are in same actual scope):
                                                     int i; // (yes, this is constant because everything here is constant by default, so add 'mut' to make it mutable)

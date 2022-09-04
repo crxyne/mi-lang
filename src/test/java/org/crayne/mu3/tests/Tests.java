@@ -26,18 +26,9 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main ~ () {
-                        int i;
+                        for int i = 0, i < 10, i++ {
                         
-                        if 4 == 5 {
-                            i = 3;
-                        } else {
-                            if 2 == 3 {
-                                i = 2;
-                            } else {
-                                i = 6
-                            }
                         }
-                        std.println("" + i);
                     }
                                 
                 }

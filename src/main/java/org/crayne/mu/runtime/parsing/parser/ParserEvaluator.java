@@ -416,12 +416,23 @@ public class ParserEvaluator {
 
     public Node evalIfStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         parser.scope(ScopeType.IF);
-        return evalConditional(tokens, modifiers, NodeType.LITERAL_IF);
+        return evalConditional(tokens, modifiers, NodeType.LITERAL_IF, false);
     }
 
-    public Node evalWhileStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        parser.scope(ScopeType.WHILE);
-        return evalConditional(tokens, modifiers, NodeType.LITERAL_WHILE);
+    public Node evalWhileStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final boolean unscoped) {
+        if (!unscoped) parser.scope(ScopeType.WHILE);
+        return evalConditional(tokens, modifiers, NodeType.LITERAL_WHILE, unscoped);
+    }
+
+    public Node evalDoStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final Token doToken = Parser.tryAndGet(tokens, 0);
+        if (parser.expect(doToken, doToken, NodeType.LITERAL_DO)) return null;
+        final Token scopeToken = Parser.tryAndGet(tokens, 1);
+        if (parser.expect(scopeToken, scopeToken, NodeType.LBRACE)) return null;
+
+        parser.scope(ScopeType.DO);
+        return new Node(NodeType.DO_STATEMENT);
     }
 
     public Node evalForStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -519,7 +530,7 @@ public class ParserEvaluator {
         return result;
     }
 
-    private Node evalConditional(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, @NotNull final NodeType condType) {
+    private Node evalConditional(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, @NotNull final NodeType condType, final boolean unscoped) {
         if (unexpectedModifiers(modifiers)) return null;
         final Token first = Parser.tryAndGet(tokens, 0);
         if (parser.expect(first, first, condType)) return null;
@@ -529,7 +540,7 @@ public class ParserEvaluator {
             parser.parserError("Expected boolean condition after '" + condType.getAsString() + "'", "Cast condition to 'bool' or change the expression to be a bool on its own");
             return null;
         }
-        return new Node(NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT"),
+        return new Node(NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")),
                 new Node(NodeType.CONDITION,
                         new Node(NodeType.VALUE, expr.node())
                 )

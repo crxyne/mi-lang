@@ -26,10 +26,11 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main ~ () {
-                        mut int i = 0;
-                        int j = (i += 3 + 5) + 5;
+                        do {
+                        
+                        } while 1b;
                     }
-                                
+                    
                 }
                 """;
 

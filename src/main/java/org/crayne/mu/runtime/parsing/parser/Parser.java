@@ -56,7 +56,7 @@ public class Parser {
         skim();
         final Node parent = new Node(NodeType.PARENT);
         while (currentTokenIndex < tokens.size() && !encounteredError) {
-            final Node statement = parseStatement();
+            final Node statement = parseStatement(false);
             if (statement == null) break;
             parent.addChildren(statement);
         }
@@ -68,7 +68,7 @@ public class Parser {
     public void skim() {
         skimming = true;
         while (currentTokenIndex < tokens.size() && !encounteredError) {
-            parseStatement();
+            parseStatement(false);
         }
         currentTokenIndex = 0;
         currentToken = null;
@@ -80,7 +80,7 @@ public class Parser {
         skimming = false;
     }
 
-    public Node parseStatement() {
+    public Node parseStatement(final boolean expectedUnscopedWhile) {
         final List<Token> statement = new ArrayList<>();
         Token previous = null;
         iter: for (; currentTokenIndex < tokens.size() && !encounteredError; currentTokenIndex++) {
@@ -101,7 +101,7 @@ public class Parser {
             previous = currentToken;
         }
         skipToken();
-        return evalStatement(statement);
+        return evalStatement(statement, expectedUnscopedWhile);
     }
 
     private void skipToken() {
@@ -109,7 +109,7 @@ public class Parser {
         currentToken = currentTokenIndex < tokens.size() ? tokens.get(currentTokenIndex) : null;
     }
 
-    public Node evalStatement(@NotNull final List<Token> tokens) {
+    public Node evalStatement(@NotNull final List<Token> tokens, final boolean expectedUnscopedWhile) {
         if (tokens.isEmpty()) return null;
         Node result = null;
 
@@ -146,16 +146,33 @@ public class Parser {
                             scope(ScopeType.ELSE);
                             scopeIndent++;
                             actualIndent++;
-                            final Node elseStatement = parseStatement();
+                            final Node elseStatement = parseStatement(false);
                             if (elseStatement == null) return null;
                             result.addChildren(new Node(NodeType.ELSE_STATEMENT, new Node(NodeType.SCOPE, elseStatement)));
                         }
+                    }
+                    case DO_STATEMENT -> {
+                        if (NodeType.of(currentToken) != NodeType.LITERAL_WHILE) {
+                            parserError("Expected 'while' after 'do' statement scope", currentToken);
+                            return null;
+                        }
+                        final Node whileStatement = parseStatement(true);
+                        if (whileStatement == null) return null;
+                        if (whileStatement.type() != NodeType.WHILE_STATEMENT_UNSCOPED || whileStatement.children().size() != 1) {
+                            parserError("Expected ';' after 'while' statement of 'do' statement scope");
+                            return null;
+                        }
+                        result.addChildren(whileStatement.child(0));
                     }
                 }
             }
             case SEMI -> {
                 result = evalUnscoped(tokens, first, Collections.emptyList());
                 if (result != null) {
+                    if (result.type() == NodeType.WHILE_STATEMENT_UNSCOPED && !expectedUnscopedWhile) {
+                        parserError("Expected '{' after 'while' statement", lastToken);
+                        return null;
+                    }
                     final Scope current = scope();
                     if (current != null) {
                         switch (current.type()) {
@@ -198,8 +215,9 @@ public class Parser {
             case LITERAL_MODULE -> evaluator.evalModuleDefinition(tokens, modifiers);
             case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);
             case LITERAL_IF -> evaluator.evalIfStatement(tokens, modifiers);
-            case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers);
+            case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, false);
             case LITERAL_FOR -> evaluator.evalForStatement(tokens, modifiers);
+            case LITERAL_DO -> evaluator.evalDoStatement(tokens, modifiers);
             case LITERAL_ELSE -> {
                 parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
                 yield null;
@@ -227,6 +245,7 @@ public class Parser {
         return switch (first) {
             case STANDARDLIB_MU_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
             case IDENTIFIER -> evaluator.evalFirstIdentifier(tokens, modifiers);
+            case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, true);
             case LITERAL_ELSE -> {
                 parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
                 yield null;
@@ -401,12 +420,12 @@ public class Parser {
             currentToken = tokens.get(currentTokenIndex);
             if (currentToken.token().equals(SCOPE_END)) {
                 closeScope();
-                final Node statement = parseStatement();
+                final Node statement = parseStatement(false);
                 if (statement == null) break;
                 parent.addChildren(statement);
                 return;
             }
-            final Node statement = parseStatement();
+            final Node statement = parseStatement(false);
             if (statement == null) break;
             scope.addChildren(statement);
         }

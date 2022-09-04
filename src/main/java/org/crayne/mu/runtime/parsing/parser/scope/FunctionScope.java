@@ -63,6 +63,11 @@ public class FunctionScope extends Scope {
         final LocalVariable var = localVariable(parser, identifierTok);
         if (var == null) return false;
 
+        if (eq != EqualOperation.EQUAL && !var.initialized()) {
+            parser.parserError("Variable '" + identifierTok.token() + "' might not have been initialized yet", identifierTok, "Set the value of the variable upon declaration");
+            return false;
+        }
+
         if (immutable(parser, var, identifierTok)) return false;
         if (!ValueParser.validVarset(value.type(), var.type())) {
             parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName(), identifierTok);

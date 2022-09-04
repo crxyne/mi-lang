@@ -26,9 +26,8 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main ~ () {
-                        for int i = 0, i < 10, i++ {
-                        
-                        }
+                        mut int i = 0;
+                        int j = (i += 3 + 5) + 5;
                     }
                                 
                 }

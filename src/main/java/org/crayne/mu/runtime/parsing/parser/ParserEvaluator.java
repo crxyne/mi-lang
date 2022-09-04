@@ -117,18 +117,24 @@ public class ParserEvaluator {
                 : parseExpression(tokens.subList(2, tokens.size() - 1));
 
 
+        final Variable foundVariable = findVariable(identifier);
+        if (foundVariable == null) return null;
+
+        return evalVariableChange(identifier, value, equal);
+    }
+
+    public Node evalVariableChange(@NotNull final Token identifier, @NotNull final ValueParser.TypedNode value, @NotNull final Token equal) {
         final Scope currentScope = parser.scope();
         if (!(currentScope instanceof final FunctionScope functionScope)) {
             parser.parserError("Unexpected parsing error, #2 expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
             return null;
         }
+
         final EqualOperation eq = EqualOperation.of(equal.token());
         if (eq == null) {
             parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'", equal);
             return null;
         }
-        final Variable foundVariable = findVariable(identifier);
-        if (foundVariable == null) return null;
 
         final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
         if (!success && parser.encounteredError) return null;
@@ -251,7 +257,7 @@ public class ParserEvaluator {
             );
         }
         final ValueParser.TypedNode value = parseExpression(tokens.subList(3, tokens.size() - 1));
-        if (value.type() == null) return null;
+        if (value.type() == null || value.node() == null) return null;
 
         final Node finalType = indefinite ? new Node(NodeType.TYPE, Token.of(NodeType.of(value.type()).getAsString())) : new Node(NodeType.TYPE, datatype);
 

@@ -1,6 +1,7 @@
 package org.crayne.mu.runtime.parsing.parser;
 
 import org.crayne.mu.lang.Datatype;
+import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.lang.Variable;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
@@ -195,9 +196,26 @@ public class ValueParser {
             parserError("Unexpected parsing error");
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
+        final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER) {
             final Variable findVar = parserParent.evaluator().findVariable(currentToken);
             if (findVar == null) return new TypedNode(null, new Node(NodeType.VALUE));
+
+            if (nextPart != null) {
+                final EqualOperation eq = EqualOperation.of(nextPart.token());
+                if (eq != null) {
+                    final Token identifier = currentToken;
+                    nextPart();
+                    nextPart();
+
+                    final TypedNode val = nextPart.token().equals("++") || nextPart.token().equals("--")
+                            ? new TypedNode(Datatype.INT, new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1")))
+                            : parseExpression();
+
+                    return new TypedNode(findVar.type(), parserParent.evaluator().evalVariableChange(identifier, val, nextPart));
+                }
+            }
+
             if (!findVar.initialized()) {
                 parserError("Variable '" + currentToken.token() + "' might not have been initialized yet", currentToken, "Set the value of the variable upon declaration");
                 return new TypedNode(null, new Node(NodeType.VALUE));
@@ -207,7 +225,6 @@ public class ValueParser {
             nextPart();
             return result;
         }
-        final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
         if (nextPart != null && nextPart.token().equals("::") && parsingPosition + 2 < expr.size()) {
             final Token enumMember = expr.get(parsingPosition + 2);
             final Token enumName = currentToken;

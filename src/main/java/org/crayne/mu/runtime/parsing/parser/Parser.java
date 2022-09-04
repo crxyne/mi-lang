@@ -144,19 +144,21 @@ public class Parser {
             }
             case SEMI -> {
                 result = evalUnscoped(tokens, first, Collections.emptyList());
-                if (skimming && result != null) {
+                if (result != null) {
                     final Scope current = scope();
                     if (current != null) {
                         switch (current.type()) {
                             case MODULE, PARENT -> {
-                                switch (result.type()) {
-                                    case VAR_DEFINITION -> {
-                                        final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
-                                        if (Variable.isConstant(modifiers))
-                                            parserError("Expected value, global constant might not have been initialized yet");
-                                        evaluator.addGlobalVarFromResult(result);
+                                if (skimming) {
+                                    switch (result.type()) {
+                                        case VAR_DEFINITION -> {
+                                            final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
+                                            if (Variable.isConstant(modifiers))
+                                                parserError("Expected value, global constant might not have been initialized yet");
+                                            evaluator.addGlobalVarFromResult(result);
+                                        }
+                                        case VAR_DEF_AND_SET_VALUE -> evaluator.addGlobalVarFromResult(result);
                                     }
-                                    case VAR_DEF_AND_SET_VALUE -> evaluator.addGlobalVarFromResult(result);
                                 }
                             }
                             case FUNCTION -> {
@@ -165,7 +167,6 @@ public class Parser {
                                 }
                             }
                         }
-
                     }
                 }
             }
@@ -415,7 +416,9 @@ public class Parser {
         if (current != null) {
             scopeIndent--;
             if (current.type() != ScopeType.NORMAL) actualIndent--;
-            if (current.type() == ScopeType.FOR || current.type() == ScopeType.ELSE) removeFakeScope = true;
+            if (current.type() == ScopeType.FOR || current.type() == ScopeType.ELSE) {
+                removeFakeScope = true;
+            }
             current.scopeEnd();
         }
         if (currentScope.isEmpty()) {
@@ -500,6 +503,7 @@ public class Parser {
     }
 
     public void parserError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
+        if (encounteredError) return;
         output.astHelperError(message, line, column, stdlibFinishLine, stdlib, quickFixes);
         encounteredError = true;
     }
@@ -509,6 +513,7 @@ public class Parser {
     }
 
     public void parserError(@NotNull final String message, @NotNull final Token token, final boolean skipToEndOfToken, @NotNull final String... quickFixes) {
+        if (encounteredError) return;
         if (token.line() == -1 || token.column() == -1) {
             parserError(message, currentToken, skipToEndOfToken, quickFixes);
             return;

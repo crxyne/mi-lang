@@ -52,11 +52,13 @@ public class ValueParser {
     }
 
     private void parserError(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
+        if (parserParent.encounteredError) return;
         parserParent.output.astHelperError(message, token.line(), token.column(), parserParent.stdlibFinishLine, parserParent.stdlib, quickFixes);
         parserParent.encounteredError = true;
     }
 
     private void parserError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
+        if (parserParent.encounteredError) return;
         parserParent.output.astHelperError(message, line, column, parserParent.stdlibFinishLine, parserParent.stdlib, quickFixes);
         parserParent.encounteredError = true;
     }
@@ -84,6 +86,7 @@ public class ValueParser {
     }
 
     private TypedNode evalExpression(final TypedNode x, final TypedNode y, final Token op) {
+        if (parserParent.encounteredError) return null;
         if (op.token().equals("?")) return evalTernaryOperator(x, y);
         boolean operatorDefined = false;
         try {

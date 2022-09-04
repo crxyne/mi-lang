@@ -116,23 +116,23 @@ public class ParserEvaluator {
                 )
                 : parseExpression(tokens.subList(2, tokens.size() - 1));
 
-        if (parser.skimming) {
-            final Scope currentScope = parser.scope();
-            if (!(currentScope instanceof final FunctionScope functionScope)) {
-                parser.parserError("Unexpected parsing error, #2 expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
-                return null;
-            }
-            final EqualOperation eq = EqualOperation.of(equal.token());
-            if (eq == null) {
-                parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'", equal);
-                return null;
-            }
-            final Variable foundVariable = findVariable(identifier);
-            if (foundVariable == null) return null;
 
-            final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
-            if (!success && parser.encounteredError) return null;
+        final Scope currentScope = parser.scope();
+        if (!(currentScope instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, #2 expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
+            return null;
         }
+        final EqualOperation eq = EqualOperation.of(equal.token());
+        if (eq == null) {
+            parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'", equal);
+            return null;
+        }
+        final Variable foundVariable = findVariable(identifier);
+        if (foundVariable == null) return null;
+
+        final boolean success = functionScope.localVariableValue(parser, identifier, value, eq);
+        if (!success && parser.encounteredError) return null;
+
         final NodeType eqType = NodeType.of(equal);
         final Token finalEq = switch (eqType) {
             case INCREMENT_LITERAL -> Token.of("+=");
@@ -231,7 +231,7 @@ public class ParserEvaluator {
 
     public Node evalVariableDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         final Token identifier = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER)) return null;
+        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
         final Token equalsOrSemi = Parser.tryAndGet(tokens, 2);
         if (parser.expect(equalsOrSemi, equalsOrSemi, NodeType.SET, NodeType.SEMI) || equalsOrSemi == null) return null;
         final Token datatype = tokens.get(0);

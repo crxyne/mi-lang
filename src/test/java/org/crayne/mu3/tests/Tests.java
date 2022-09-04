@@ -26,7 +26,22 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main ~ () {
+                        int i;
                         
+                        if 4 == 5 {
+                            i = 3;
+                        } else {
+                            if 2 == 3 {
+                                i = 2;
+                                
+                                
+                                
+                                
+                            } else if 0 == 34 {
+                                i = 6;
+                            }
+                        }
+                        std.println("" + i);
                     }
                                 
                 }

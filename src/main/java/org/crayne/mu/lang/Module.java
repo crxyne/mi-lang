@@ -40,7 +40,6 @@ public class Module {
     }
 
     public void addFunction(@NotNull final Parser parser, @NotNull final Token at, @NotNull final FunctionDefinition def) {
-        //System.out.println("ADD FUNC " + def);
         final FunctionConcept concept = new FunctionConcept(def.name(), def.returnType());
         for (@NotNull final FunctionConcept functionConcept : functionConcepts) {
             if (functionConcept.equals(concept)) {

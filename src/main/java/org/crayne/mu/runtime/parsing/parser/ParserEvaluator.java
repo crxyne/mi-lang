@@ -35,7 +35,8 @@ public class ParserEvaluator {
         module.addGlobalVariable(parser, new Variable(
                 result.child(1).value().token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
-                modifiers
+                modifiers,
+                result.children().size() == 4
         ));
     }
 
@@ -49,7 +50,8 @@ public class ParserEvaluator {
         functionScope.addLocalVariable(parser, new Variable(
                 result.child(1).value().token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
-                modifiers
+                modifiers,
+                result.children().size() == 4
         ));
     }
 
@@ -201,6 +203,7 @@ public class ParserEvaluator {
                 return null;
             }
             final FunctionDefinition def = funcConcept.definitionByCallParameters(params);
+            if (parser.encounteredError) return null;
 
             if (def == null) {
                 if (params.isEmpty()) {

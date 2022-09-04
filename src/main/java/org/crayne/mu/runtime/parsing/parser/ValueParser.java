@@ -195,6 +195,10 @@ public class ValueParser {
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER) {
             final Variable findVar = parserParent.evaluator().findVariable(currentToken);
             if (findVar == null) return new TypedNode(null, new Node(NodeType.VALUE));
+            if (!findVar.initialized()) {
+                parserError("Variable '" + currentToken.token() + "' might not have been initialized yet", currentToken, "Set the value of the variable upon declaration");
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
 
             final TypedNode result = new TypedNode(findVar.type(), new Node(NodeType.IDENTIFIER, currentToken));
             nextPart();
@@ -221,7 +225,7 @@ public class ValueParser {
             if (currentToken != null) {
                 final String identifier = currentToken.token();
                 final List<TypedNode> parsedArgs = parseArgs();
-                if (parsedArgs == null) return new TypedNode(null, new Node(NodeType.VALUE));
+                if (parsedArgs == null || parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
 
                 return new TypedNode(null, new Node(NodeType.FUNCTION_CALL,
                         new Node(NodeType.IDENTIFIER, Token.of(identifier)),

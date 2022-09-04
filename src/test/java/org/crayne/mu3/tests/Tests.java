@@ -27,7 +27,6 @@ public class Tests {
                 
                     pub fn main ~ () {
                         
-                        
                     }
                                 
                 }

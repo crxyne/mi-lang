@@ -97,12 +97,23 @@ public class FunctionScope extends Scope {
 
     private boolean immutable(@NotNull final Parser parser, @NotNull final LocalVariable var, @NotNull final Token identifierTok) {
         if (var.isConstant()) {
+            FunctionScope searchNotNormal = this;
+            while (searchNotNormal.type == ScopeType.NORMAL) {
+                searchNotNormal = searchNotNormal.parent;
+            }
             final FunctionScope changedAt = var.changedAt();
-            if (changedAt == null) return false; /*
-                                                    allow changing constants if they have not been initialized yet (if both declaration and definition are in same actual scope):
+            if (changedAt == null) {
+                switch (searchNotNormal.type) {
+                    case WHILE, FOR -> {
+                        parser.parserError("Local variable '" + var.name() + "' is constant and may have been changed already, cannot change value.", identifierTok);
+                        return true;
+                    }
+                }
+                if (searchNotNormal.type != ScopeType.IF) var.initialize();
+                return false;
+            }                                    /* allow changing constants if they have not been initialized yet (if both declaration and definition are in same actual scope):
                                                     int i; // (yes, this is constant because everything here is constant by default, so add 'mut' to make it mutable)
-                                                    i = 5;
-                                                    */
+                                                    i = 5; */
 
             final ScopeType changedAtType = changedAt.type;
             if (changedAtType == ScopeType.NORMAL || changedAtType == ScopeType.FUNCTION) {
@@ -116,7 +127,10 @@ public class FunctionScope extends Scope {
                     searchElseParent = searchElseParent.parent;
                     indent = searchElseParent.actualIndent;
                 }
-                if (searchElseParent.type == ScopeType.ELSE) return false;
+                if (searchElseParent.type == ScopeType.ELSE) {
+                    if (searchNotNormal.type != ScopeType.IF) var.initialize();
+                    return false;
+                }
                 // allow changing constants that changed in conditional 'if', only if the change happens inside of an 'else' directly linked to the conditional
             }
             parser.parserError("Local variable '" + var.name() + "' is constant and may have been changed already, cannot change value.", identifierTok);

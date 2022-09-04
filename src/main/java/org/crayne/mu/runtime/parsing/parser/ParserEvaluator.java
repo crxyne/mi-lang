@@ -43,7 +43,7 @@ public class ParserEvaluator {
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
         final Scope current = parser.scope();
         if (!(current instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, expected statement to be inside of a function");
+            parser.parserError("Unexpected parsing error, #1 expected statement to be inside of a function");
             return;
         }
         functionScope.addLocalVariable(parser, new Variable(
@@ -117,12 +117,12 @@ public class ParserEvaluator {
         if (parser.skimming) {
             final Scope currentScope = parser.scope();
             if (!(currentScope instanceof final FunctionScope functionScope)) {
-                parser.parserError("Unexpected parsing error, expected statement to be inside of a function", "Enclose your statement inside of a function");
+                parser.parserError("Unexpected parsing error, #2 expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
                 return null;
             }
             final EqualOperation eq = EqualOperation.of(equal.token());
             if (eq == null) {
-                parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'");
+                parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'", equal);
                 return null;
             }
             final Variable foundVariable = findVariable(identifier);
@@ -149,7 +149,7 @@ public class ParserEvaluator {
         final String identifier = identifierTok.token();
         final Scope currentScope = parser.scope();
         if (!(currentScope instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", identifierTok, "Enclose your statement inside of a function");
+            parser.parserError("Unexpected parsing error, #3 expected statement to be inside of a function", identifierTok, "Enclose your statement inside of a function");
             return null;
         }
         final Variable var = functionScope.localVariable(parser, identifierTok);
@@ -406,10 +406,12 @@ public class ParserEvaluator {
     }
 
     public Node evalIfStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        parser.scope(ScopeType.IF);
         return evalConditional(tokens, modifiers, NodeType.LITERAL_IF);
     }
 
     public Node evalWhileStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        parser.scope(ScopeType.WHILE);
         return evalConditional(tokens, modifiers, NodeType.LITERAL_WHILE);
     }
 
@@ -462,12 +464,12 @@ public class ParserEvaluator {
             return null;
         }
         parser.scope(ScopeType.FOR);
-        return new Node(NodeType.NOOP, new Node(NodeType.SCOPE,
+        return new Node(NodeType.FOR_FAKE_SCOPE,
                 new Node(NodeType.FOR_STATEMENT,
                         createVariable,
                         new Node(NodeType.CONDITION, condition.node()),
                         new Node(NodeType.FOR_INSTRUCT, loopStatement)
-                ))
+                )
         );
     }
 

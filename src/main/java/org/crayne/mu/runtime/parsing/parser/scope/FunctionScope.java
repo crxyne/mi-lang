@@ -5,8 +5,6 @@ import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.lang.LocalVariable;
 import org.crayne.mu.lang.Module;
 import org.crayne.mu.lang.Variable;
-import org.crayne.mu.runtime.parsing.ast.Node;
-import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
@@ -70,18 +68,11 @@ public class FunctionScope extends Scope {
             parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName(), identifierTok);
             return false;
         }
-        final Node newVal = eq == EqualOperation.EQUAL
-                ? new Node(NodeType.VALUE, value.node())
-                : new Node(NodeType.VALUE,
-                        new Node(NodeType.of(eq),
-                                new Node(NodeType.IDENTIFIER, Token.of(var.name())),
-                                new Node(NodeType.VALUE,
-                                        value.node()
-                                )
-                        )
-                );
-
-        var.changedAt(this);
+        FunctionScope searchNotNormal = this;
+        while (searchNotNormal.type == ScopeType.NORMAL) {
+            searchNotNormal = searchNotNormal.parent;
+        }
+        var.changedAt(searchNotNormal);
         return true;
     }
 
@@ -121,7 +112,7 @@ public class FunctionScope extends Scope {
             if (changedAtType == ScopeType.IF) {
                 int indent = actualIndent;
                 FunctionScope searchElseParent = this;
-                while (indent >= changedAt.actualIndent) {
+                while (indent > changedAt.actualIndent) {
                     searchElseParent = searchElseParent.parent;
                     indent = searchElseParent.actualIndent;
                 }

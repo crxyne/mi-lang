@@ -89,8 +89,13 @@ public class Parser {
                 case SEMI, SCOPE_BEGIN, SCOPE_END -> {break iter;}
             }
         }
-        currentTokenIndex++;
+        skipToken();
         return evalStatement(statement);
+    }
+
+    private void skipToken() {
+        currentTokenIndex++;
+        currentToken = currentTokenIndex < tokens.size() ? tokens.get(currentTokenIndex) : null;
     }
 
     public Node evalStatement(@NotNull final List<Token> tokens) {
@@ -117,8 +122,24 @@ public class Parser {
                 }
                 if (result.type() != NodeType.NOOP) actualIndent++;
                 parseScope(result);
-                if (skimming && result.type() == NodeType.FUNCTION_DEFINITION) {
-                    evaluator.addFunctionFromResult(result);
+
+                switch (result.type()) {
+                    case FUNCTION_DEFINITION -> {
+                        if (skimming) {
+                            evaluator.addFunctionFromResult(result);
+                        }
+                    }
+                    case IF_STATEMENT -> {
+                        if (NodeType.of(currentToken) == NodeType.LITERAL_ELSE) {
+                            skipToken();
+                            scope(ScopeType.ELSE);
+                            scopeIndent++;
+                            actualIndent++;
+                            final Node elseStatement = parseStatement();
+                            if (elseStatement == null) return null;
+                            result.addChildren(new Node(NodeType.ELSE_STATEMENT, new Node(NodeType.SCOPE, elseStatement)));
+                        }
+                    }
                 }
             }
             case SEMI -> {
@@ -167,6 +188,10 @@ public class Parser {
             case LITERAL_IF -> evaluator.evalIfStatement(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers);
             case LITERAL_FOR -> evaluator.evalForStatement(tokens, modifiers);
+            case LITERAL_ELSE -> {
+                parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
+                yield null;
+            }
             default -> null;
         };
     }
@@ -190,6 +215,10 @@ public class Parser {
         return switch (first) {
             case STANDARDLIB_MU_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
             case IDENTIFIER -> evaluator.evalFirstIdentifier(tokens, modifiers);
+            case LITERAL_ELSE -> {
+                parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
+                yield null;
+            }
             default -> null;
         };
     }
@@ -382,11 +411,11 @@ public class Parser {
 
     public void closeScope() {
         final Scope current = scope();
-        boolean removeForLoopVariable = false;
+        boolean removeFakeScope = false;
         if (current != null) {
             scopeIndent--;
             if (current.type() != ScopeType.NORMAL) actualIndent--;
-            if (current.type() == ScopeType.FOR) removeForLoopVariable = true;
+            if (current.type() == ScopeType.FOR || current.type() == ScopeType.ELSE) removeFakeScope = true;
             current.scopeEnd();
         }
         if (currentScope.isEmpty()) {
@@ -394,7 +423,7 @@ public class Parser {
             return;
         }
         currentScope.remove(currentScope.size() - 1);
-        if (removeForLoopVariable) closeScope(); // for loops have a hidden scope wrapped around them
+        if (removeFakeScope) closeScope(); // for loops have a hidden scope wrapped around them, which doesnt actually exist in the code. similarly for else statements, which always have a hidden scope next to them
 
         final Module lastModule = lastModule();
         if (current != null && current.type() != ScopeType.MODULE) return;

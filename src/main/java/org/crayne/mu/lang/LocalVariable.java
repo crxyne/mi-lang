@@ -4,6 +4,7 @@ import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Optional;
 
 public class LocalVariable extends Variable {
 
@@ -25,8 +26,8 @@ public class LocalVariable extends Variable {
         return parent;
     }
 
-    public FunctionScope changedAt() {
-        return changedAt;
+    public Optional<FunctionScope> changedAt() {
+        return Optional.ofNullable(changedAt);
     }
 
     public Variable variable() {

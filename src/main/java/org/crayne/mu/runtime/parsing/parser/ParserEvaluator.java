@@ -21,38 +21,81 @@ public class ParserEvaluator {
         this.parser = parser;
     }
 
+    private static boolean restrictedName(@NotNull final String name, @NotNull final IdentifierType identifierType) {
+        return (identifierType != IdentifierType.MODULE && name.contains(".")) || name.endsWith(".") || name.startsWith(".");
+    }
+
+    private boolean handleRestrictedName(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar) {
+        final String tok = name.token();
+        if (!restrictedName(tok, identifierType)) {
+            if (parser.skimming) warnUnconventional(name, identifierType, constVar);
+            return false;
+        }
+        parser.parserError("Cannot use restricted name '" + tok + "'", name,
+                "'.' characters are only allowed to be inserted into module identifiers",
+                "No identifier may start / end with a '.' character");
+        return true;
+    }
+
+    private void warnUnconventional(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar) {
+        final String tok = name.token();
+        final String nounder = tok.replace("_", "");
+        final String identName = identifierType.name().toLowerCase();
+
+        if (identifierType != IdentifierType.ENUM && !nounder.isEmpty() && StringUtils.isMixedCase(nounder) && Character.isUpperCase(nounder.charAt(0))) {
+            parser.parserWarning(
+                    "Name '" + tok + "' does not follow Mu conventions; Only enum names should be capitalized, but encountered a capitalized " + identName + " name",
+                    name, "Variable, module and function names should be uncapitalized");
+        }
+        if (!constVar && StringUtils.isAllUpperCase(nounder)) {
+            parser.parserWarning("Name '" + tok + "' does not follow Mu conventions; Only constant variables should be uppercase, but encountered an uppercase " + identName + " name",
+                    name, "Anything that is not constant should not be capitalized");
+        }
+    }
+
     protected void addGlobalVarFromResult(@NotNull final Node result) {
         final Module module = parser.lastModule();
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
 
-        final Scope current = parser.scope();
-        if (!parser.stdlib && (current == null || current.type() != ScopeType.MODULE)) {
+        final Optional<Scope> current = parser.scope();
+        if (!parser.stdlib && (current.isEmpty() || current.get().type() != ScopeType.MODULE)) {
             parser.parserError("Cannot define global variables at root level",
                     "Move your variable into a module or create a new module for it");
             return;
         }
 
-        module.addGlobalVariable(parser, new Variable(
-                result.child(1).value().token(),
+        final Token ident = result.child(1).value();
+        final Variable var = new Variable(
+                ident.token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
                 modifiers,
                 result.children().size() == 4
-        ));
+        );
+
+        if (handleRestrictedName(ident, IdentifierType.VARIABLE, var.isConstant())) return;
+
+        module.addGlobalVariable(parser, var);
     }
 
     public void addLocalVarFromResult(@NotNull final Node result) {
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
-        final Scope current = parser.scope();
-        if (!(current instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, #1 expected statement to be inside of a function");
+        final Optional<Scope> current = parser.scope();
+        if (current.isEmpty() || !(current.get() instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function");
             return;
         }
-        functionScope.addLocalVariable(parser, new Variable(
-                result.child(1).value().token(),
+
+        final Token ident = result.child(1).value();
+        final Variable var = new Variable(
+                ident.token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
                 modifiers,
                 result.children().size() == 4
-        ));
+        );
+
+        if (handleRestrictedName(ident, IdentifierType.VARIABLE, var.isConstant())) return;
+
+        functionScope.addLocalVariable(parser, var);
     }
 
     protected void addFunctionFromResult(@NotNull final Node result) {
@@ -68,6 +111,8 @@ public class ParserEvaluator {
             )).toList();
 
             final Token nameToken = result.child(0).value();
+            if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false)) return;
+
             if (result.children().size() == 5) {
                 module.addFunction(parser, nameToken, new FunctionDefinition(
                         nameToken.token(),
@@ -90,10 +135,21 @@ public class ParserEvaluator {
         }
     }
 
+    public Node evalReturnStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final Token ret = parser.getAndExpect(tokens, 0, NodeType.LITERAL_RET, NodeType.DOUBLE_COLON);
+        if (ret == null) return null;
+        if (tokens.size() == 2) return new Node(NodeType.RETURN_VALUE); // ret ; are two tokens
+
+        final ValueParser.TypedNode retVal = parseExpression(tokens.subList(1, tokens.size() - 1));
+        if (retVal == null || retVal.type() == null || retVal.node() == null) return null;
+        return new Node(NodeType.RETURN_VALUE, new Node(NodeType.VALUE, retVal.node()));
+    }
+
     public Node evalFirstIdentifier(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (tokens.size() <= 1) return null;
-        final Token secondToken = Parser.tryAndGet(tokens, 1);
-        if (secondToken == null) return null;
+        final Token secondToken = parser.getAny(tokens, 1);
+        if (Parser.anyNull(secondToken)) return null;
 
         final NodeType second = NodeType.of(secondToken);
         if (second == NodeType.LPAREN) return evalFunctionCall(tokens, modifiers);
@@ -103,30 +159,30 @@ public class ParserEvaluator {
 
     public Node evalVariableChange(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
-        final Token identifier = Parser.tryAndGet(tokens, 0);
-        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
-        final Token equal = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(equal, equal, NodeType.SET, NodeType.SET_ADD, NodeType.SET_AND, NodeType.SET_DIV, NodeType.SET_LSHIFT,
+        final Token identifier = parser.getAndExpect(tokens, 0, NodeType.IDENTIFIER);
+        final Token equal = parser.getAndExpect(tokens, 1, NodeType.SET, NodeType.SET_ADD, NodeType.SET_AND, NodeType.SET_DIV, NodeType.SET_LSHIFT,
                 NodeType.SET_MOD, NodeType.SET_MULT, NodeType.SET_OR, NodeType.SET_RSHIFT, NodeType.SET_SUB, NodeType.SET_XOR,
-                NodeType.INCREMENT_LITERAL, NodeType.DECREMENT_LITERAL) || equal == null) return null;
+                NodeType.INCREMENT_LITERAL, NodeType.DECREMENT_LITERAL);
 
-        final ValueParser.TypedNode value = NodeType.of(equal) == NodeType.INCREMENT_LITERAL || NodeType.of(equal) == NodeType.DECREMENT_LITERAL ?
-                new ValueParser.TypedNode(Datatype.INT,
+        if (Parser.anyNull(identifier, equal)) return null;
+
+        final ValueParser.TypedNode value = NodeType.of(equal) == NodeType.INCREMENT_LITERAL || NodeType.of(equal) == NodeType.DECREMENT_LITERAL
+                ? new ValueParser.TypedNode(Datatype.INT,
                         new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1"))
                 )
                 : parseExpression(tokens.subList(2, tokens.size() - 1));
 
 
-        final Variable foundVariable = findVariable(identifier);
-        if (foundVariable == null) return null;
+        final Optional<Variable> foundVariable = findVariable(identifier);
+        if (foundVariable.isEmpty()) return null;
 
         return evalVariableChange(identifier, value, equal);
     }
 
     public Node evalVariableChange(@NotNull final Token identifier, @NotNull final ValueParser.TypedNode value, @NotNull final Token equal) {
-        final Scope currentScope = parser.scope();
-        if (!(currentScope instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, #2 expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
+        final Optional<Scope> currentScope = parser.scope();
+        if (currentScope.isEmpty() || !(currentScope.get() instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
             return null;
         }
 
@@ -153,31 +209,30 @@ public class ParserEvaluator {
         );
     }
 
-    protected Variable findVariable(@NotNull final Token identifierTok) {
+    protected Optional<Variable> findVariable(@NotNull final Token identifierTok) {
         final String identifier = identifierTok.token();
-        final Scope currentScope = parser.scope();
-        if (!(currentScope instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, #3 expected statement to be inside of a function", identifierTok, "Enclose your statement inside of a function");
-            return null;
+        final Optional<Scope> currentScope = parser.scope();
+        if (currentScope.isEmpty() || !(currentScope.get() instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", identifierTok, "Enclose your statement inside of a function");
+            return Optional.empty();
         }
-        final Variable var = functionScope.localVariable(parser, identifierTok);
-        if (var == null) {
+        return Optional.ofNullable(functionScope.localVariable(parser, identifierTok).orElseGet(() -> {
             if (parser.encounteredError) return null; // localVariable() returns null if the needed variable is global but does not actually print an error into the logs
 
-            final Module globalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
-            if (globalMod == null) {
+            final Optional<Module> oglobalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
+            if (oglobalMod.isEmpty()) {
                 parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error", identifierTok);
                 return null;
             }
-            final Variable globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier));
-            if (globalVar == null) {
+            final Module globalMod = oglobalMod.get();
+            final Optional<Variable> globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier));
+            if (globalVar.isEmpty()) {
                 parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
                 return null;
             }
-            parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.modifiers());
-            return globalVar;
-        }
-        return var;
+            parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.get().modifiers());
+            return globalVar.get();
+        }));
     }
 
     public static String moduleOf(@NotNull final String identifier) {
@@ -191,27 +246,29 @@ public class ParserEvaluator {
     public Node evalFunctionCall(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
 
-        final Token identifierTok = Parser.tryAndGet(tokens, 0);
-        if (parser.expect(identifierTok, identifierTok, NodeType.IDENTIFIER)) return null;
-        if (identifierTok == null) return null;
+        final Token identifierTok = parser.getAndExpect(tokens, 0, NodeType.IDENTIFIER);
+        if (Parser.anyNull(identifierTok)) return null;
+
         final List<ValueParser.TypedNode> params = parseParametersCallFunction(tokens.subList(2, tokens.size() - 2));
 
         if (parser.skimming) {
             final String identifier = identifierTok.token();
             final String moduleAsString = moduleOf(identifier);
-            final Module functionModule = parser.findModuleFromIdentifier(identifier, identifierTok, true);
-            if (functionModule == null) return null;
-            final String function = identOf(identifier);
-            final FunctionConcept funcConcept = functionModule.findFunctionConceptByName(function);
+            final Optional<Module> ofunctionModule = parser.findModuleFromIdentifier(identifier, identifierTok, true);
+            if (ofunctionModule.isEmpty()) return null;
 
-            if (funcConcept == null) {
+            final Module functionModule = ofunctionModule.get();
+            final String function = identOf(identifier);
+            final Optional<FunctionConcept> funcConcept = functionModule.findFunctionConceptByName(function);
+
+            if (funcConcept.isEmpty()) {
                 parser.parserError("Cannot find any function called '" + function + "' in module '" + (moduleAsString.isEmpty() ? parser.lastModule().name() : moduleAsString) + "'", identifierTok.line(), identifierTok.column() + moduleAsString.length() + 1);
                 return null;
             }
-            final FunctionDefinition def = funcConcept.definitionByCallParameters(params);
+            final Optional<FunctionDefinition> def = funcConcept.get().definitionByCallParameters(params);
             if (parser.encounteredError) return null;
 
-            if (def == null) {
+            if (def.isEmpty()) {
                 if (params.isEmpty()) {
                     parser.parserError("Cannot find any implementation for function '" + function + "' with no arguments", identifierTok, true);
                     return null;
@@ -219,7 +276,7 @@ public class ParserEvaluator {
                 parser.parserError("Cannot find any implementation for function '" + function + "' with argument types " + callArgsToString(params), identifierTok, true);
                 return null;
             }
-            parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.modifiers());
+            parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.get().modifiers());
         }
         return new Node(NodeType.FUNCTION_CALL,
                 new Node(NodeType.IDENTIFIER, identifierTok),
@@ -236,10 +293,10 @@ public class ParserEvaluator {
     }
 
     public Node evalVariableDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        final Token identifier = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
-        final Token equalsOrSemi = Parser.tryAndGet(tokens, 2);
-        if (parser.expect(equalsOrSemi, equalsOrSemi, NodeType.SET, NodeType.SEMI) || equalsOrSemi == null) return null;
+        final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token equalsOrSemi = parser.getAndExpect(tokens, 2, NodeType.SET, NodeType.SEMI);
+        if (Parser.anyNull(identifier, equalsOrSemi)) return null;
+
         final Token datatype = tokens.get(0);
         final boolean indefinite = NodeType.of(datatype) == NodeType.QUESTION_MARK;
 
@@ -343,12 +400,10 @@ public class ParserEvaluator {
     }
 
     public Node evalFunctionDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        final Token fnToken = Parser.tryAndGet(tokens, 0);
-        if (parser.expect(fnToken, fnToken, NodeType.LITERAL_FN)) return null;
-        final Token identifier = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER)) return null;
-        final Token retDef = Parser.tryAndGet(tokens, 2);
-        if (parser.expect(retDef, retDef, NodeType.TILDE, NodeType.DOUBLE_COLON, NodeType.LBRACE) || retDef == null) return null;
+        final Token fnToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_FN);
+        final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token retDef = parser.getAndExpect(tokens, 2, NodeType.TILDE, NodeType.DOUBLE_COLON, NodeType.LBRACE);
+        if (Parser.anyNull(fnToken, identifier, retDef)) return null;
 
         final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
         if (firstMutabilityModif.isPresent()) {
@@ -358,12 +413,13 @@ public class ParserEvaluator {
         }
         final NodeType ret = NodeType.of(retDef);
         if (parser.skimming) {
-            final Scope current = parser.scope();
-            if (current == null) {
+            final Optional<Scope> current = parser.scope();
+            if (current.isEmpty()) {
                 parser.parserError("Unexpected parsing error", "Could not create function at root level");
                 return null;
             }
-            if (!parser.stdlib ? current.type() != ScopeType.MODULE : current.type() != ScopeType.PARENT && current.type() != ScopeType.MODULE) {
+            final ScopeType currentType = current.get().type();
+            if (!parser.stdlib ? currentType != ScopeType.MODULE : currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
                 if (parser.stdlib) {
                     parser.parserError("Expected function definition to be inside of a module or at root level",
                             "Cannot define functions inside of other functions");
@@ -390,20 +446,20 @@ public class ParserEvaluator {
         final Datatype returnType;
         if (extraIndex == 0) returnType = Datatype.VOID;
         else {
-            final Token returnToken = Parser.tryAndGet(tokens, 3);
-            if (parser.expect(returnToken, returnToken,
+            final Token returnToken = parser.getAndExpect(tokens, 3,
                     Arrays.stream(NodeType.values())
                     .filter(NodeType::isDatatype)
                     .toList()
-                    .toArray(new NodeType[0])
-            ) || returnToken == null) return null;
+                    .toArray(new NodeType[0]));
+            if (returnToken == null) return null;
+
             returnType = NodeType.of(returnToken).getAsDataType();
         }
 
-        final Token parenOpen = Parser.tryAndGet(tokens, 3 + extraIndex);
-        if (parser.expect(parenOpen, parenOpen, NodeType.LPAREN)) return null;
-        final Token parenClose = Parser.tryAndGet(tokens, tokens.size() - 2);
-        if (parser.expect(parenClose, parenClose, true, NodeType.RPAREN)) return null;
+        final Token parenOpen = parser.getAndExpect(tokens, 3 + extraIndex, NodeType.LPAREN);
+        final Token parenClose = parser.getAndExpect(tokens, tokens.size() - 2, true, NodeType.RPAREN);
+        if (parenOpen == null || parenClose == null) return null;
+
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 2));
 
         return new Node(NodeType.FUNCTION_DEFINITION,
@@ -426,10 +482,9 @@ public class ParserEvaluator {
 
     public Node evalDoStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
-        final Token doToken = Parser.tryAndGet(tokens, 0);
-        if (parser.expect(doToken, doToken, NodeType.LITERAL_DO)) return null;
-        final Token scopeToken = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(scopeToken, scopeToken, NodeType.LBRACE)) return null;
+        final Token doToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_DO);
+        final Token scopeToken = parser.getAndExpect(tokens, 1, NodeType.LBRACE);
+        if (Parser.anyNull(doToken, scopeToken)) return null;
 
         parser.scope(ScopeType.DO);
         return new Node(NodeType.DO_STATEMENT);
@@ -496,10 +551,10 @@ public class ParserEvaluator {
     // for mut? i = 0, i -> 10 // i goes in a transition to 10, exactly the same as above example but written differently
     public Node evalTransitionalForStatement(@NotNull final List<List<Token>> exprs) {
         final List<Token> transition = exprs.get(1);
-        final Token identifier = Parser.tryAndGet(transition, 0);
-        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER) || identifier == null) return null;
-        final Token arrow = Parser.tryAndGet(transition, 1);
-        if (parser.expect(arrow, arrow, NodeType.BECOMES)) return null;
+        final Token identifier = parser.getAndExpect(transition, 0, NodeType.IDENTIFIER);
+        final Token arrow = parser.getAndExpect(transition, 1, NodeType.BECOMES);
+        if (Parser.anyNull(arrow, identifier)) return null;
+
         final List<Token> val = transition.subList(2, transition.size());
 
         final List<Token> condition = new ArrayList<>(Arrays.asList(identifier, Token.of("<"), Token.of("(")));
@@ -532,8 +587,9 @@ public class ParserEvaluator {
 
     private Node evalConditional(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, @NotNull final NodeType condType, final boolean unscoped) {
         if (unexpectedModifiers(modifiers)) return null;
-        final Token first = Parser.tryAndGet(tokens, 0);
-        if (parser.expect(first, first, condType)) return null;
+        final Token first = parser.getAndExpect(tokens, 0, condType);
+        if (Parser.anyNull(first)) return null;
+
         final ValueParser.TypedNode expr = parseExpression(tokens.subList(1, tokens.size() - 1));
         if (expr == null) return null;
         if (expr.type() != Datatype.BOOL) {
@@ -559,23 +615,24 @@ public class ParserEvaluator {
     public Node evalModuleDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
 
-        final Token identifier = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(identifier, identifier, NodeType.IDENTIFIER)) return null;
-        final Token lbrace = Parser.tryAndGet(tokens, 2);
-        if (parser.expect(lbrace, lbrace, NodeType.LBRACE)) return null;
+        final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
+        if (Parser.anyNull(lbrace, identifier)) return null;
 
-        final Scope current = parser.scope();
+        final Optional<Scope> current = parser.scope();
         if (parser.skimming) {
-            if (current == null) {
+            if (current.isEmpty()) {
                 parser.parserError("Unexpected parsing error, could not create module at root level");
                 return null;
             }
-            if (current.type() != ScopeType.PARENT && current.type() != ScopeType.MODULE) {
+            final ScopeType currentType = current.get().type();
+            if (currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
                 parser.parserError("Expected module definition to be at root level or inside of another module");
                 return null;
             }
         }
         parser.scope(ScopeType.MODULE);
+        if (handleRestrictedName(identifier, IdentifierType.MODULE, false)) return null;
 
         return new Node(NodeType.CREATE_MODULE,
                 new Node(NodeType.IDENTIFIER, identifier)
@@ -585,10 +642,9 @@ public class ParserEvaluator {
     public Node evalStdLibFinish(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
 
-        final Token stdlibFinish = Parser.tryAndGet(tokens, 0);
-        if (parser.expect(stdlibFinish, stdlibFinish, NodeType.STANDARDLIB_MU_FINISH_CODE)) return null;
-        final Token semi = Parser.tryAndGet(tokens, 1);
-        if (parser.expect(semi, semi, NodeType.SEMI)) return null;
+        final Token stdlibFinish = parser.getAndExpect(tokens, 0, NodeType.STANDARDLIB_MU_FINISH_CODE);
+        final Token semi = parser.getAndExpect(tokens, 1, NodeType.SEMI);
+        if (stdlibFinish == null || semi == null) return null;
 
         parser.stdlib = false;
 

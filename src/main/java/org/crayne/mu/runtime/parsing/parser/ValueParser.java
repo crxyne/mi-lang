@@ -198,8 +198,8 @@ public class ValueParser {
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER) {
-            final Variable findVar = parserParent.evaluator().findVariable(currentToken);
-            if (findVar == null) return new TypedNode(null, new Node(NodeType.VALUE));
+            final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken);
+            if (findVar.isEmpty()) return new TypedNode(null, new Node(NodeType.VALUE));
 
             if (nextPart != null) {
                 final EqualOperation eq = EqualOperation.of(nextPart.token());
@@ -212,16 +212,16 @@ public class ValueParser {
                             ? new TypedNode(Datatype.INT, new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1")))
                             : parseExpression();
 
-                    return new TypedNode(findVar.type(), parserParent.evaluator().evalVariableChange(identifier, val, nextPart));
+                    return new TypedNode(findVar.get().type(), parserParent.evaluator().evalVariableChange(identifier, val, nextPart));
                 }
             }
 
-            if (!findVar.initialized()) {
+            if (!findVar.get().initialized()) {
                 parserError("Variable '" + currentToken.token() + "' might not have been initialized yet", currentToken, "Set the value of the variable upon declaration");
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
 
-            final TypedNode result = new TypedNode(findVar.type(), new Node(NodeType.IDENTIFIER, currentToken));
+            final TypedNode result = new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, currentToken));
             nextPart();
             return result;
         }

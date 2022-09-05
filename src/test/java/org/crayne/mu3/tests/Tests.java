@@ -26,9 +26,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main ~ () {
-                        do {
-                        
-                        } while 1b;
+                        ret 1;
                     }
                     
                 }

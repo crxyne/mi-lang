@@ -84,7 +84,6 @@ public enum NodeType {
     INCREMENT(null),
     DECREMENT(null),
     GET_ENUM_MEMBER(null),
-
     INTEGER_NUM_LITERAL(null, Datatype.INT),
     DOUBLE_NUM_LITERAL(null, Datatype.DOUBLE),
     FLOAT_NUM_LITERAL(null, Datatype.FLOAT),

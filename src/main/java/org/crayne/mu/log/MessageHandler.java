@@ -51,6 +51,21 @@ public class MessageHandler {
                 .print();
     }
 
+    public void astHelperWarning(@NotNull final String msg, final int line, final int column, final int stdlibFinishLine, final boolean stdlib, @NotNull final String... quickFixes) {
+        if (program == null) throw new RuntimeException("No program has been fed into MessageHandler instance " + this);
+        if (line > program.size() || line <= 0) throw new RuntimeException("Line is out of bounds of the program " + this);
+
+        final String atLine = program.get(line - 1 + stdlibFinishLine);
+        if (column > atLine.length() || column <= 0) throw new RuntimeException("Column (" + column + ") is out of bounds of line " + line + " (" + atLine + ")" + this);
+        final String helperArrow = " ".repeat(column - 1) + "^";
+
+        log("Encountered warning while parsing mu (µ) program\n>>> at line " + (line + (stdlib ? 1 : 0)) + ", column " + column, LogHandler.Level.WARN)
+                .extraInfo(msg)
+                .hints(atLine, helperArrow)
+                .possibleSolutions(quickFixes)
+                .print();
+    }
+
     public void setProgram(@NotNull final String code) {
         this.program = List.of(code.split("\n"));
     }

@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 
 public class FunctionConcept {
 
@@ -28,14 +29,14 @@ public class FunctionConcept {
         return name;
     }
 
-    public FunctionDefinition definitionByParameters(@NotNull final List<FunctionParameter> parameters) {
+    public Optional<FunctionDefinition> definitionByParameters(@NotNull final List<FunctionParameter> parameters) {
         for (@NotNull final FunctionDefinition def : definitions) {
-            if (FunctionParameter.equalParams(def.parameters(), parameters)) return def;
+            if (FunctionParameter.equalParams(def.parameters(), parameters)) return Optional.of(def);
         }
-        return null;
+        return Optional.empty();
     }
 
-    public FunctionDefinition definitionByCallParameters(@NotNull final List<ValueParser.TypedNode> parameters) {
+    public Optional<FunctionDefinition> definitionByCallParameters(@NotNull final List<ValueParser.TypedNode> parameters) {
         for (@NotNull final FunctionDefinition def : definitions) {
             final List<FunctionParameter> defParams = def.parameters();
             if (defParams.size() != parameters.size()) continue;
@@ -50,9 +51,9 @@ public class FunctionConcept {
                     break;
                 }
             }
-            if (equalParams) return def;
+            if (equalParams) return Optional.of(def);
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean isDefined(@NotNull final List<FunctionParameter> withParams) {

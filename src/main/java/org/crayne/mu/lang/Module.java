@@ -4,10 +4,7 @@ import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class Module {
 
@@ -43,8 +40,8 @@ public class Module {
         final FunctionConcept concept = new FunctionConcept(def.name(), def.returnType());
         for (@NotNull final FunctionConcept functionConcept : functionConcepts) {
             if (functionConcept.equals(concept)) {
-                final FunctionDefinition alreadyExistingDef = functionConcept.definitionByParameters(def.parameters());
-                if (alreadyExistingDef != null) {
+                final Optional<FunctionDefinition> alreadyExistingDef = functionConcept.definitionByParameters(def.parameters());
+                if (alreadyExistingDef.isPresent()) {
                     parser.parserError("A function with the same parameters already exists", at, "Change either of the function names");
                     return;
                 }
@@ -66,8 +63,8 @@ public class Module {
 
     public void addGlobalVariable(@NotNull final Parser parser, @NotNull final Variable var) {
         final String name = var.name();
-        final Variable alreadyExisting = findVariableByName(name);
-        if (alreadyExisting != null) {
+        final Optional<Variable> alreadyExisting = findVariableByName(name);
+        if (alreadyExisting.isPresent()) {
             parser.parserError("A global variable with the name '" + name + "' already exists in this module.", parser.currentToken(),
                     "Rename either the existing variable or the new one.");
             return;
@@ -75,7 +72,7 @@ public class Module {
         globalModuleVariables.add(var);
     }
 
-    public Variable findVariableByName(@NotNull final String name) {
+    public Optional<Variable> findVariableByName(@NotNull final String name) {
         return Variable.findVariableByName(globalModuleVariables, name);
     }
 
@@ -87,8 +84,8 @@ public class Module {
         return modules.stream().filter(m -> m.name.equals(mod)).findFirst().orElse(null);
     }
 
-    public FunctionConcept findFunctionConceptByName(@NotNull final String name) {
-        return functionConcepts.stream().filter(f -> f.name().equals(name)).findFirst().orElse(null);
+    public Optional<FunctionConcept> findFunctionConceptByName(@NotNull final String name) {
+        return functionConcepts.stream().filter(f -> f.name().equals(name)).findFirst();
     }
 
     public HashSet<Module> subModules() {

@@ -113,9 +113,9 @@ public class Parser {
         if (tokens.isEmpty()) return null;
         Node result = null;
 
-        final Token lastToken = tryAndGet(tokens, tokens.size() - 1);
-        final Token firstToken = tryAndGet(tokens, 0);
-        if (lastToken == null || firstToken == null) return null;
+        final Token lastToken = getAny(tokens, tokens.size() - 1);
+        final Token firstToken = getAny(tokens, 0);
+        if (anyNull(lastToken, firstToken)) return null;
 
         final String last = lastToken.token();
         final NodeType first = NodeType.of(firstToken);
@@ -173,9 +173,9 @@ public class Parser {
                         parserError("Expected '{' after 'while' statement", lastToken);
                         return null;
                     }
-                    final Scope current = scope();
-                    if (current != null) {
-                        switch (current.type()) {
+                    final Optional<Scope> current = scope();
+                    if (current.isPresent()) {
+                        switch (current.get().type()) {
                             case MODULE, PARENT -> {
                                 if (skimming) {
                                     switch (result.type()) {
@@ -246,6 +246,7 @@ public class Parser {
             case STANDARDLIB_MU_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
             case IDENTIFIER -> evaluator.evalFirstIdentifier(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, true);
+            case LITERAL_RET -> evaluator.evalReturnStatement(tokens, modifiers);
             case LITERAL_ELSE -> {
                 parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
                 yield null;
@@ -254,17 +255,17 @@ public class Parser {
         };
     }
 
-    public Module findModuleFromIdentifier(@NotNull String identifier, @NotNull final Token identifierTok, final boolean panic) {
+    public Optional<Module> findModuleFromIdentifier(@NotNull String identifier, @NotNull final Token identifierTok, final boolean panic) {
         if (identifier.endsWith(".")) {
             parserError("Expected identifier after '.'", identifierTok, true);
-            return null;
+            return Optional.empty();
         }
         char prev = 0;
         for (int i = 0; i < identifier.length(); i++) {
             final char current = identifier.charAt(i);
             if (prev == '.' && current == '.') {
                 parserError("Unexpected token '.'", identifierTok.line(), identifierTok.column() + i);
-                return null;
+                return Optional.empty();
             }
             prev = current;
         }
@@ -294,14 +295,14 @@ public class Parser {
             if (relative) {
                 parserError("Cannot find submodule '" + moduleAsString + "'", identifierTok,
                         "The parser goes in order from top to bottom. It is suggested to have all needed submodules at the top of your module and the functions below it.");
-                return null;
+                return Optional.empty();
             }
             parserError("Cannot find module '" + moduleAsString + "'", identifierTok,
                     "If you were not trying to use a module at root level, try to prefix the module with '.'. That way, the parser will search submodules relative to your current module.",
                     "The parser goes in order from top to bottom. It is suggested to have all needed submodules at the top of your module and the functions below it.");
-            return null;
+            return Optional.empty();
         }
-        return foundModule;
+        return Optional.ofNullable(foundModule);
     }
 
     public ParserEvaluator evaluator() {
@@ -344,12 +345,10 @@ public class Parser {
     }
 
     public void skimModuleDefinition(@NotNull final List<Token> tokens) {
-        final Token identifier = tryAndGet(tokens, 1);
-        if (expect(identifier, identifier, NodeType.IDENTIFIER)) return;
-        final Token lbrace = tryAndGet(tokens, 2);
-        if (expect(lbrace, lbrace, NodeType.LBRACE)) return;
+        final Token identifier = getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token lbrace = getAndExpect(tokens, 2, NodeType.LBRACE);
+        if (anyNull(identifier, lbrace)) return;
 
-        assert identifier != null;
         final Module mod = new Module(identifier.token(), scopeIndent, lastModule());
         final Module parent = lastModule();
         if (parent != null) {
@@ -367,30 +366,50 @@ public class Parser {
         currentModule.add(mod);
     }
 
+    public static boolean anyNull(final Token... tok) {
+        return Arrays.stream(tok).anyMatch(Objects::isNull);
+    }
+
     protected void scope(@NotNull final ScopeType type) {
-        if (type == ScopeType.FUNCTION) currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, null, lastModule()));
-        else if (scope() instanceof FunctionScope) currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope(), lastModule()));
-        else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
+        final Optional<Scope> current = scope();
+        if (type == ScopeType.FUNCTION)
+            currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, null, lastModule()));
+        else if (current.isPresent() && current.get() instanceof FunctionScope)
+            currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) current.get(), lastModule()));
+        else
+            currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
     }
 
-    public Scope scope() {
-        return currentScope.isEmpty() ? null : currentScope.get(currentScope.size() - 1);
+    public Optional<Scope> scope() {
+        return Optional.ofNullable(currentScope.isEmpty() ? null : currentScope.get(currentScope.size() - 1));
     }
 
-    public static Token tryAndGet(@NotNull final List<Token> tokens, final int index) {
-        return tokens.size() > 0 ? tokens.get(index) : null;
+    private static Optional<Token> tryAndGet(@NotNull final List<Token> tokens, final int index) {
+        return Optional.ofNullable(tokens.size() > 0 ? tokens.get(index) : null);
     }
 
-    public boolean expect(final Token token, final Token at, @NotNull final NodeType... toBe) {
+    public Token getAny(@NotNull final List<Token> tokens, final int index) {
+        return tryAndGet(tokens, index).orElse(null);
+    }
+
+    public Token getAndExpect(@NotNull final List<Token> tokens, final int index, @NotNull final NodeType... toBe) {
+        return getAndExpect(tokens, index, false, toBe);
+    }
+
+    public Token getAndExpect(@NotNull final List<Token> tokens, final int index, final boolean skipToEnd, @NotNull final NodeType... toBe) {
+        final Optional<Token> tok = tryAndGet(tokens, index);
+        final boolean unexpected = expect(tok.orElse(null), skipToEnd, toBe) || tok.isEmpty();
+        return unexpected ? null : tok.get();
+    }
+
+    public boolean expect(final Token token, final boolean skipToEnd, @NotNull final NodeType... toBe) {
         if (token != null && List.of(toBe).contains(NodeType.of(token))) return false;
-        parserError("Expected " + helperTypeToString(toBe), at, false);
+        parserError("Expected " + helperTypeToString(toBe), thisOrCurrent(token), skipToEnd);
         return true;
     }
 
-    public boolean expect(final Token token, final Token at, final boolean skipToEnd, @NotNull final NodeType... toBe) {
-        if (token != null && List.of(toBe).contains(NodeType.of(token))) return false;
-        parserError("Expected " + helperTypeToString(toBe), at, skipToEnd);
-        return true;
+    public Token thisOrCurrent(final Token token) {
+        return token == null ? currentToken : token;
     }
 
     public String helperTypeToString(@NotNull final NodeType... type) {
@@ -441,25 +460,30 @@ public class Parser {
     }
 
     public void closeScope() {
-        final Scope current = scope();
-        boolean removeFakeScope = false;
-        if (current != null) {
-            scopeIndent--;
-            if (current.type() != ScopeType.NORMAL) actualIndent--;
-            if (current.type() == ScopeType.FOR || current.type() == ScopeType.ELSE) {
-                removeFakeScope = true;
-            }
-            current.scopeEnd();
-        }
-        if (currentScope.isEmpty()) {
+        final Optional<Scope> ocurrent = scope();
+        if (currentScope.isEmpty() || ocurrent.isEmpty()) {
             parserError("Unexpected token '}'");
             return;
         }
+        boolean removeFakeScope = false;
+        final Scope current = ocurrent.get();
+        final ScopeType type = current.type();
+        scopeIndent--;
+        if (type != ScopeType.NORMAL) actualIndent--;
+        if (type == ScopeType.FOR || type == ScopeType.ELSE) {
+            removeFakeScope = true;
+        }
+        current.scopeEnd();
+
         currentScope.remove(currentScope.size() - 1);
         if (removeFakeScope) closeScope(); // for loops have a hidden scope wrapped around them, which doesnt actually exist in the code. similarly for else statements, which always have a hidden scope next to them
 
+        if (type != ScopeType.MODULE) return;
+        closeModule();
+    }
+
+    public void closeModule() {
         final Module lastModule = lastModule();
-        if (current != null && current.type() != ScopeType.MODULE) return;
         if (buildCurrentModule != null) {
             if (scopeIndent != 0) {
                 final Module parent = lastModule.parent();
@@ -555,6 +579,19 @@ public class Parser {
                     token.actualLine(), token.column() + (skipToEndOfToken ? token.token().length() : 0), 1, true, quickFixes);
         }
         encounteredError = true;
+    }
+
+    public void parserWarning(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
+        if (encounteredError) return;
+        if (token.line() == -1 || token.column() == -1) {
+            parserWarning(message, currentToken, quickFixes);
+            return;
+        }
+        if (!stdlib) {
+            output.astHelperWarning(message, token.line(), token.column(), stdlibFinishLine, false, quickFixes);
+        } else {
+            output.astHelperWarning(message, token.actualLine(), token.column(), 1, true, quickFixes);
+        }
     }
 
 

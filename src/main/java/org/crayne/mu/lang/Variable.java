@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public class Variable {
 
@@ -25,14 +26,16 @@ public class Variable {
         this.initialized = initialized;
     }
 
-    public static Variable findVariableByName(@NotNull final List<Variable> globalModuleVariables, @NotNull final String name) {
-        for (final Variable var : globalModuleVariables) if (var.name().equals(name)) return var;
-        return null;
+    public static Optional<Variable> findVariableByName(@NotNull final List<Variable> globalModuleVariables, @NotNull final String name) {
+        Variable result = null;
+        for (final Variable var : globalModuleVariables) if (var.name().equals(name)) result = var;
+        return Optional.ofNullable(result);
     }
 
-    public static LocalVariable findLocalVariableByName(@NotNull final List<LocalVariable> localVariables, @NotNull final String name) {
-        for (final LocalVariable var : localVariables) if (var.name().equals(name)) return var;
-        return null;
+    public static Optional<LocalVariable> findLocalVariableByName(@NotNull final List<LocalVariable> localVariables, @NotNull final String name) {
+        LocalVariable result = null;
+        for (final LocalVariable var : localVariables) if (var.name().equals(name)) result = var;
+        return Optional.ofNullable(result);
     }
 
     public void initialize() {
@@ -71,4 +74,5 @@ public class Variable {
                 ", name='" + name + '\'' +
                 '}';
     }
+
 }

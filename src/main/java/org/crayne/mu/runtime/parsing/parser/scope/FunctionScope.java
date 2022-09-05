@@ -20,6 +20,7 @@ public class FunctionScope extends Scope {
     private final List<LocalVariable> localVariables;
     private final FunctionScope parent;
     private final Module module;
+    private boolean reachedEnd = false;
 
     public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final Module module) {
         super(type, scopeIndent, actualIndent);
@@ -43,10 +44,14 @@ public class FunctionScope extends Scope {
         return localVariables;
     }
 
+    public void returnFromFunction() {
+        reachedEnd = true;
+    }
+
     public void addLocalVariable(@NotNull final Parser parser, @NotNull final Variable var) {
         final String name = var.name();
-        final Variable existingVar = localVariable(parser, Token.of(name), false);
-        if (existingVar != null) {
+        final Optional<LocalVariable> existingVar = localVariable(parser, Token.of(name), false);
+        if (existingVar.isPresent()) {
             parser.parserError("A variable with name '" + name + "' already exists in this scope.",
                     "Enclose the already existing variable into its own local scope or rename it.",
                     "Renaming your new variable works too.");
@@ -60,9 +65,10 @@ public class FunctionScope extends Scope {
     }
 
     public boolean localVariableValue(@NotNull final Parser parser, @NotNull final Token identifierTok, @NotNull final ValueParser.TypedNode value, @NotNull final EqualOperation eq) {
-        final LocalVariable var = localVariable(parser, identifierTok);
-        if (var == null) return false;
+        final Optional<Variable> ovar = localVariable(parser, identifierTok);
+        if (ovar.isEmpty()) return false;
 
+        final LocalVariable var = (LocalVariable) ovar.get();
         if (eq != EqualOperation.EQUAL && !var.initialized()) {
             parser.parserError("Variable '" + identifierTok.token() + "' might not have been initialized yet", identifierTok, "Set the value of the variable upon declaration");
             return false;
@@ -73,26 +79,41 @@ public class FunctionScope extends Scope {
             parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName(), identifierTok);
             return false;
         }
-        FunctionScope searchNotNormal = this;
-        while (searchNotNormal.type == ScopeType.NORMAL) {
-            searchNotNormal = searchNotNormal.parent;
-        }
+        final FunctionScope searchNotNormal = anyAbnormal();
         var.changedAt(searchNotNormal);
         return true;
     }
 
-    public LocalVariable localVariable(@NotNull final Parser parser, @NotNull final Token identifierTok) {
-        return localVariable(parser, identifierTok, true);
+    private FunctionScope anyAbnormal() {
+        FunctionScope searchNotNormal = this;
+        while (searchNotNormal.type == ScopeType.NORMAL) {
+            searchNotNormal = searchNotNormal.parent;
+        }
+        return searchNotNormal;
     }
 
-    public LocalVariable localVariable(@NotNull final Parser parser, @NotNull final Token identifierTok, final boolean panic) {
-        final String identifier = identifierTok.token();
-        final LocalVariable var = Variable.findLocalVariableByName(localVariables, identifier);
+    private FunctionScope anyEqualIndent(@NotNull final FunctionScope at) {
+        int indent = actualIndent;
+        FunctionScope searchParent = this;
+        while (indent > at.actualIndent) {
+            searchParent = searchParent.parent;
+            indent = searchParent.actualIndent;
+        }
+        return searchParent;
+    }
 
-        if (var == null) {
+    public Optional<Variable> localVariable(@NotNull final Parser parser, @NotNull final Token identifierTok) {
+        return Optional.ofNullable(localVariable(parser, identifierTok, true).orElse(null));
+    }
+
+    public Optional<LocalVariable> localVariable(@NotNull final Parser parser, @NotNull final Token identifierTok, final boolean panic) {
+        final String identifier = identifierTok.token();
+        final Optional<LocalVariable> var = Variable.findLocalVariableByName(localVariables, identifier);
+
+        if (var.isEmpty()) {
             if (parent == null) {
                 if (panic) handleUndefinedLocalVariable(parser, identifierTok);
-                return null;
+                return var;
             }
             // search in the parent scope, because you can do that and find local vars there
             return parent.localVariable(parser, identifierTok, panic);
@@ -102,37 +123,29 @@ public class FunctionScope extends Scope {
 
     private boolean immutable(@NotNull final Parser parser, @NotNull final LocalVariable var, @NotNull final Token identifierTok) {
         if (var.isConstant()) {
-            FunctionScope searchNotNormal = this;
-            while (searchNotNormal.type == ScopeType.NORMAL) {
-                searchNotNormal = searchNotNormal.parent;
-            }
-            final FunctionScope changedAt = var.changedAt();
-            if (changedAt == null) {
+            final FunctionScope searchNotNormal = anyAbnormal();
+            final Optional<FunctionScope> ochangedAt = var.changedAt();
+            if (ochangedAt.isEmpty()) {
                 switch (searchNotNormal.type) {
-                    case WHILE, FOR -> {
+                    case WHILE, FOR, DO -> {
                         parser.parserError("Local variable '" + var.name() + "' is constant and may have been changed already, cannot change value.", identifierTok);
                         return true;
                     }
                 }
                 if (searchNotNormal.type != ScopeType.IF) var.initialize();
-                System.out.println("NOT CHANGED");
                 return false;
             }                                    /* allow changing constants if they have not been initialized yet (if both declaration and definition are in same actual scope):
                                                     int i; // (yes, this is constant because everything here is constant by default, so add 'mut' to make it mutable)
                                                     i = 5; */
 
+            final FunctionScope changedAt = ochangedAt.get();
             final ScopeType changedAtType = changedAt.type;
             if (changedAtType == ScopeType.NORMAL || changedAtType == ScopeType.FUNCTION) {
                 parser.parserError("Local variable '" + var.name() + "' is constant and has already been assigned to, cannot not change value.", identifierTok);
                 return true;
             }
             if (changedAtType == ScopeType.IF) {
-                int indent = actualIndent;
-                FunctionScope searchElseParent = this;
-                while (indent > changedAt.actualIndent) {
-                    searchElseParent = searchElseParent.parent;
-                    indent = searchElseParent.actualIndent;
-                }
+                final FunctionScope searchElseParent = anyEqualIndent(changedAt);
                 if (searchElseParent.type == ScopeType.ELSE) {
                     if (searchNotNormal.type != ScopeType.IF) var.initialize();
                     return false;
@@ -148,8 +161,10 @@ public class FunctionScope extends Scope {
     private void handleUndefinedLocalVariable(@NotNull final Parser parser, @NotNull final Token identifierTok) {
         final String identifier = identifierTok.token();
         // if we couldn't find any local variable, check if theres a global one (if there is, return from the function with 'false' with no error so the parser can do the rest)
-        final Module globalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
-        if (globalMod != null && globalMod.findVariableByName(ParserEvaluator.identOf(identifier)) != null) return;
+        final Optional<Module> globalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
+        if (globalMod.isPresent() && globalMod.get()
+                .findVariableByName(ParserEvaluator.identOf(identifier))
+                .isPresent()) return;
 
         final Optional<String> closestMatch = localVariables
                 .stream()

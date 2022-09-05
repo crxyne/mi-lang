@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 public enum IdentifierType {
 
-    FUNCTION("Function"), VARIABLE("Variable"), ENUM("Enum");
+    FUNCTION("Function"), VARIABLE("Variable"), ENUM("Enum"), MODULE("Module");
 
     private final String toString;
 

@@ -1,10 +1,8 @@
 package org.crayne.mu.runtime.parsing.parser.scope;
 
 import org.apache.commons.text.similarity.LevenshteinDistance;
-import org.crayne.mu.lang.EqualOperation;
-import org.crayne.mu.lang.LocalVariable;
+import org.crayne.mu.lang.*;
 import org.crayne.mu.lang.Module;
-import org.crayne.mu.lang.Variable;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
@@ -20,7 +18,7 @@ public class FunctionScope extends Scope {
     private final List<LocalVariable> localVariables;
     private final FunctionScope parent;
     private final Module module;
-    private boolean reachedEnd = false;
+    private boolean reachedEnd;
 
     public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final Module module) {
         super(type, scopeIndent, actualIndent);
@@ -44,8 +42,24 @@ public class FunctionScope extends Scope {
         return localVariables;
     }
 
-    public void returnFromFunction() {
+    private static boolean isConditionalScope(@NotNull final ScopeType type) {
+        return type == ScopeType.IF || type == ScopeType.FOR || type == ScopeType.WHILE;
+    }
+
+    public void reachedEnd() {
+        if (parent != null) {
+            FunctionScope scope = this;
+            while (!isConditionalScope(scope.type)) {
+                scope = scope.parent;
+                if (scope == null) break;
+                scope.reachedEnd();
+            }
+        }
         reachedEnd = true;
+    }
+
+    public boolean hasReachedEnd() {
+        return reachedEnd;
     }
 
     public void addLocalVariable(@NotNull final Parser parser, @NotNull final Variable var) {
@@ -60,7 +74,11 @@ public class FunctionScope extends Scope {
         localVariables.add(new LocalVariable(var, this));
     }
 
-    public void scopeEnd() {
+    public void scopeEnd(@NotNull final Parser parser) {
+        if (!reachedEnd && parent == null) {
+            parser.parserError("Missing 'ret' or '::' statement", "Every branch in a function has to return some value, except in void functions");
+            return;
+        }
         localVariables.clear();
     }
 
@@ -188,7 +206,7 @@ public class FunctionScope extends Scope {
         return "FunctionScope{" +
                 "localVariables=" + localVariables +
                 ", parent=" + parent +
-                ", module=" + module +
+                ", actualIndent=" + actualIndent +
                 ", type=" + type +
                 '}';
     }

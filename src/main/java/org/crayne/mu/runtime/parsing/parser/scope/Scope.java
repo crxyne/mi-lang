@@ -1,5 +1,6 @@
 package org.crayne.mu.runtime.parsing.parser.scope;
 
+import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 public class Scope {
@@ -28,7 +29,7 @@ public class Scope {
         return type;
     }
 
-    public void scopeEnd() {
+    public void scopeEnd(@NotNull final Parser parser) {
 
     }
 

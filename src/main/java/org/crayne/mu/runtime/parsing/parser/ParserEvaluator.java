@@ -79,13 +79,11 @@ public class ParserEvaluator {
 
     public void addLocalVarFromResult(@NotNull final Node result) {
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
-        final Optional<Scope> current = parser.scope();
-        if (current.isEmpty() || !(current.get() instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, expected statement to be inside of a function");
-            return;
-        }
 
         final Token ident = result.child(1).value();
+        final FunctionScope functionScope = expectFunctionScope(ident);
+        if (functionScope == null) return;
+
         final Variable var = new Variable(
                 ident.token(),
                 NodeType.of(result.child(2).value()).getAsDataType(),
@@ -137,12 +135,36 @@ public class ParserEvaluator {
 
     public Node evalReturnStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
+
         final Token ret = parser.getAndExpect(tokens, 0, NodeType.LITERAL_RET, NodeType.DOUBLE_COLON);
         if (ret == null) return null;
-        if (tokens.size() == 2) return new Node(NodeType.RETURN_VALUE); // ret ; are two tokens
+
+        final FunctionScope functionScope = expectFunctionScope(tokens.get(0));
+        if (functionScope == null) return null;
+
+        final Datatype expectedType = parser.currentFuncReturnType;
+        if (expectedType == null) { // should never happen but just in case i guess?
+            parser.parserError("Unexpected parsing error, the datatype of the current function is unknown");
+            return null;
+        }
+        if (tokens.size() == 2) { // ret ; are two tokens
+            if (expectedType != Datatype.VOID) {
+                parser.parserError("Expected datatype of return value to be " + expectedType.getName() + ", but got Void instead", tokens.get(1));
+                return null;
+            }
+            functionScope.reachedEnd();
+            return new Node(NodeType.RETURN_VALUE);
+        }
 
         final ValueParser.TypedNode retVal = parseExpression(tokens.subList(1, tokens.size() - 1));
         if (retVal == null || retVal.type() == null || retVal.node() == null) return null;
+
+        if (!ValueParser.validVarset(retVal.type(), expectedType)) {
+            parser.parserError("Expected datatype of return value to be " + expectedType.getName() + ", but got " + retVal.type().getName() + " instead", tokens.get(1));
+            return null;
+        }
+        functionScope.reachedEnd();
+
         return new Node(NodeType.RETURN_VALUE, new Node(NodeType.VALUE, retVal.node()));
     }
 
@@ -180,11 +202,8 @@ public class ParserEvaluator {
     }
 
     public Node evalVariableChange(@NotNull final Token identifier, @NotNull final ValueParser.TypedNode value, @NotNull final Token equal) {
-        final Optional<Scope> currentScope = parser.scope();
-        if (currentScope.isEmpty() || !(currentScope.get() instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", equal, "Enclose your statement inside of a function");
-            return null;
-        }
+        final FunctionScope functionScope = expectFunctionScope(identifier);
+        if (functionScope == null) return null;
 
         final EqualOperation eq = EqualOperation.of(equal.token());
         if (eq == null) {
@@ -211,11 +230,9 @@ public class ParserEvaluator {
 
     protected Optional<Variable> findVariable(@NotNull final Token identifierTok) {
         final String identifier = identifierTok.token();
-        final Optional<Scope> currentScope = parser.scope();
-        if (currentScope.isEmpty() || !(currentScope.get() instanceof final FunctionScope functionScope)) {
-            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", identifierTok, "Enclose your statement inside of a function");
-            return Optional.empty();
-        }
+        final FunctionScope functionScope = expectFunctionScope(identifierTok);
+        if (functionScope == null) return Optional.empty();
+
         return Optional.ofNullable(functionScope.localVariable(parser, identifierTok).orElseGet(() -> {
             if (parser.encounteredError) return null; // localVariable() returns null if the needed variable is global but does not actually print an error into the logs
 
@@ -400,6 +417,7 @@ public class ParserEvaluator {
     }
 
     public Node evalFunctionDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+
         final Token fnToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_FN);
         final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
         final Token retDef = parser.getAndExpect(tokens, 2, NodeType.TILDE, NodeType.DOUBLE_COLON, NodeType.LBRACE);
@@ -434,6 +452,7 @@ public class ParserEvaluator {
         parser.scope(ScopeType.FUNCTION);
 
         if (ret == NodeType.LBRACE) {
+            parser.currentFuncReturnType = Datatype.VOID;
             return new Node(NodeType.FUNCTION_DEFINITION,
                     new Node(NodeType.IDENTIFIER, identifier),
                     new Node(NodeType.TYPE, Token.of("void")),
@@ -461,6 +480,7 @@ public class ParserEvaluator {
         if (parenOpen == null || parenClose == null) return null;
 
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 2));
+        parser.currentFuncReturnType = returnType;
 
         return new Node(NodeType.FUNCTION_DEFINITION,
                 new Node(NodeType.IDENTIFIER, identifier),
@@ -471,16 +491,22 @@ public class ParserEvaluator {
     }
 
     public Node evalIfStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        final FunctionScope functionScope = expectFunctionScope(tokens.get(0));
+        if (functionScope == null) return null;
         parser.scope(ScopeType.IF);
         return evalConditional(tokens, modifiers, NodeType.LITERAL_IF, false);
     }
 
     public Node evalWhileStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final boolean unscoped) {
+        final FunctionScope functionScope = expectFunctionScope(tokens.get(0));
+        if (functionScope == null) return null;
         if (!unscoped) parser.scope(ScopeType.WHILE);
         return evalConditional(tokens, modifiers, NodeType.LITERAL_WHILE, unscoped);
     }
 
     public Node evalDoStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        final FunctionScope functionScope = expectFunctionScope(tokens.get(0));
+        if (functionScope == null) return null;
         if (unexpectedModifiers(modifiers)) return null;
         final Token doToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_DO);
         final Token scopeToken = parser.getAndExpect(tokens, 1, NodeType.LBRACE);
@@ -491,6 +517,8 @@ public class ParserEvaluator {
     }
 
     public Node evalForStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        final FunctionScope functionScope = expectFunctionScope(tokens.get(0));
+        if (functionScope == null) return null;
         if (unexpectedModifiers(modifiers)) return null;
         final List<List<Token>> exprs = splitByComma(tokens.subList(1, tokens.size() - 1));
         if (exprs.isEmpty()) {
@@ -511,6 +539,8 @@ public class ParserEvaluator {
 
     // for mut? i = 0, i < 10, i++
     public Node evalTraditionalForStatement(@NotNull final List<List<Token>> exprs) {
+        final FunctionScope functionScope = expectFunctionScope(exprs.get(0).get(0));
+        if (functionScope == null) return null;
         parser.scope(ScopeType.FAKE);
         parser.scopeIndent++;
         parser.actualIndent++;
@@ -649,6 +679,15 @@ public class ParserEvaluator {
         parser.stdlib = false;
 
         return new Node(NodeType.STANDARDLIB_MU_FINISH_CODE);
+    }
+
+    private FunctionScope expectFunctionScope(@NotNull final Token at) {
+        final Optional<Scope> currentScope = parser.scope();
+        if (currentScope.isEmpty() || !(currentScope.get() instanceof final FunctionScope functionScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a function", at, "Enclose your statement inside of a function");
+            return null;
+        }
+        return functionScope;
     }
 
 }

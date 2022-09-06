@@ -29,9 +29,10 @@ public class Parser {
     private final Module parentModule = new Module("!PARENT", 0, null);
     private ParserEvaluator evaluator;
     protected boolean encounteredError = false;
-    protected boolean skimming = true;
+    public boolean skimming = true;
     protected int scopeIndent = 0;
     protected int actualIndent = 0;
+    protected Datatype currentFuncReturnType = null;
     protected final int stdlibFinishLine;
     protected boolean stdlib = true;
 
@@ -119,6 +120,14 @@ public class Parser {
 
         final String last = lastToken.token();
         final NodeType first = NodeType.of(firstToken);
+
+        final Optional<Scope> curScope = scope();
+        if (tokens.size() != 1 && !last.equals(SCOPE_END) && curScope.isPresent() && curScope.get() instanceof final FunctionScope functionScope) {
+            if (functionScope.hasReachedEnd()) {
+                parserError("Unreachable statement", firstToken, "Delete the unreachable statement or move it before the 'ret' statement");
+                return null;
+            }
+        }
 
         switch (last) {
             case SCOPE_BEGIN -> {
@@ -412,6 +421,10 @@ public class Parser {
         return token == null ? currentToken : token;
     }
 
+    public Datatype currentFuncReturnType() {
+        return currentFuncReturnType;
+    }
+
     public String helperTypeToString(@NotNull final NodeType... type) {
         if (type.length == 1) return helperTypeToString(type[0]);
         final StringBuilder builder = new StringBuilder();
@@ -473,7 +486,8 @@ public class Parser {
         if (type == ScopeType.FOR || type == ScopeType.ELSE) {
             removeFakeScope = true;
         }
-        current.scopeEnd();
+        current.scopeEnd(this);
+        if (type == ScopeType.FUNCTION) currentFuncReturnType = null;
 
         currentScope.remove(currentScope.size() - 1);
         if (removeFakeScope) closeScope(); // for loops have a hidden scope wrapped around them, which doesnt actually exist in the code. similarly for else statements, which always have a hidden scope next to them
@@ -593,6 +607,4 @@ public class Parser {
             output.astHelperWarning(message, token.actualLine(), token.column(), 1, true, quickFixes);
         }
     }
-
-
 }

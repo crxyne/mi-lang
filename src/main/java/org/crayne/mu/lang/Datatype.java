@@ -149,7 +149,8 @@ public class Datatype {
     }
 
     public boolean operatorDefined(final NodeType op, final Datatype y) throws Exception {
-        return primitive && primitiveDatatype != null && primitiveDatatype.operatorDefined(op, y.primitive && y.primitiveDatatype != null ? y.primitiveDatatype : null);
+        return (op == NodeType.EQUALS || op == NodeType.NOTEQUALS) ||
+                (primitive && primitiveDatatype != null && primitiveDatatype.operatorDefined(op, y.primitive && y.primitiveDatatype != null ? y.primitiveDatatype : null));
     }
 
     public String toString() {

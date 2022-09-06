@@ -13,9 +13,11 @@ public class Enum {
     private final List<String> members;
     private final String name;
     private final List<Modifier> modifiers;
+    private final Module module;
 
-    public Enum(@NotNull final String name, @NotNull final List<String> members, @NotNull final List<Modifier> modifiers) {
+    public Enum(@NotNull final String name, @NotNull final Module module, @NotNull final List<String> members, @NotNull final List<Modifier> modifiers) {
         this.members = new ArrayList<>(members);
+        this.module = module;
         this.name = name;
         this.modifiers = new ArrayList<>(modifiers);
     }
@@ -25,7 +27,19 @@ public class Enum {
     }
 
     public static Enum of(@NotNull final EnumScope scope) {
-        return new Enum(scope.name(), scope.members(), scope.modifiers());
+        return new Enum(scope.name(), scope.module(), scope.members(), scope.modifiers());
+    }
+
+    public boolean equals(@NotNull final Enum other) {
+        return name.equals(other.name) && module == other.module;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Module module() {
+        return module;
     }
 
     public List<Modifier> modifiers() {

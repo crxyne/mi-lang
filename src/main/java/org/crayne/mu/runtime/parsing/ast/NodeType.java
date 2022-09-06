@@ -5,6 +5,7 @@ import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.lexer.Tokenizer;
+import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
@@ -167,9 +168,9 @@ public enum NodeType {
         return type;
     }
 
-    public static Datatype getAsDataType(@NotNull final Node node) {
+    public static Datatype getAsDataType(@NotNull final Parser parser, @NotNull final Node node) {
         final Datatype primitive = node.type().getAsDataType();
-        if (primitive == null) return new Datatype(node.value().token());
+        if (primitive == null) return new Datatype(parser, node.value());
         return primitive;
     }
 

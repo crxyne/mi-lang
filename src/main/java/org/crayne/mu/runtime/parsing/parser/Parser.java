@@ -29,7 +29,7 @@ public class Parser {
     private Module buildCurrentModule = null;
     private final Module parentModule = new Module("!PARENT", 0, null);
     private ParserEvaluator evaluator;
-    protected boolean encounteredError = false;
+    public boolean encounteredError = false;
     public boolean skimming = true;
     protected int scopeIndent = 0;
     protected int actualIndent = 0;

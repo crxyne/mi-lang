@@ -2,17 +2,19 @@ package org.crayne.mu.lang;
 
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
+import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
+import org.crayne.mu.runtime.parsing.parser.scope.Scope;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Datatype {
 
     private final boolean primitive;
     private final PrimitiveDatatype primitiveDatatype;
-    private final String enumDatatype;
+    private final Enum enumDatatype;
 
     public static final Datatype BOOL = new Datatype(PrimitiveDatatype.BOOL);
     public static final Datatype STRING = new Datatype(PrimitiveDatatype.STRING);
@@ -30,10 +32,56 @@ public class Datatype {
         enumDatatype = null;
     }
 
-    public Datatype(@NotNull final String enumDatatype) {
-        primitive = true;
+    public Datatype(@NotNull final Enum enumDatatype) {
+        primitive = false;
         primitiveDatatype = null;
         this.enumDatatype = enumDatatype;
+    }
+
+    public static Enum findEnumByIdentifier(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token identifier, final boolean panic) {
+        final String enumNameStr = identifier.token();
+        final Optional<Module> module = parser.findModuleFromIdentifier(enumNameStr, identifier, panic);
+
+        for (final String using : usingMods) {
+            final Token findOther = new Token(using + "." + identifier.token(), identifier.actualLine(), identifier.line(), identifier.column());
+
+            final Enum findUsing = findEnumByIdentifier(parser, Collections.emptyList(),
+                    findOther, false
+            );
+            if (findUsing != null) return findUsing;
+        }
+        if (module.isEmpty()) return null;
+        final Optional<Enum> foundEnum = module.get().findEnumByName(ParserEvaluator.identOf(enumNameStr));
+        if (foundEnum.isEmpty()) {
+            if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);
+            return null;
+        }
+        return foundEnum.get();
+    }
+
+    public Datatype(@NotNull final Parser parser, @NotNull final Token enumDatatype) {
+        primitive = false;
+        primitiveDatatype = null;
+        final Optional<Scope> currentScope = parser.scope();
+        if (currentScope.isPresent() && currentScope.get() instanceof final FunctionScope functionScope) {
+            this.enumDatatype = findEnumByIdentifier(parser, functionScope.using(), enumDatatype, true);
+            return;
+        }
+        this.enumDatatype = findEnumByIdentifier(parser, Collections.emptyList(), enumDatatype, true);
+    }
+
+    public Datatype(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token enumDatatype) {
+        primitive = false;
+        primitiveDatatype = null;
+        this.enumDatatype = findEnumByIdentifier(parser, usingMods, enumDatatype, true);
+    }
+
+    public boolean valid() {
+        return primitiveDatatype != null || enumDatatype != null;
+    }
+
+    public boolean primitive() {
+        return primitive;
     }
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
@@ -59,7 +107,7 @@ public class Datatype {
     public static boolean equal(@NotNull final Datatype newType, @NotNull final Datatype oldType) {
         if (newType == oldType) return true;
         if ((newType.primitive && !oldType.primitive) || (!newType.primitive && oldType.primitive)) return false;
-        if (newType.primitiveDatatype == null) return ParserEvaluator.identOf(newType.enumDatatype).equals(ParserEvaluator.identOf(oldType.enumDatatype));
+        if (newType.primitiveDatatype == null) return newType.enumDatatype.equals(oldType.enumDatatype);
         if (oldType.primitiveDatatype == null) return false;
 
         final Integer newRank = datatypeRanking.get(newType.primitiveDatatype.name());
@@ -69,15 +117,22 @@ public class Datatype {
     }
 
     public String getName() {
-        return primitiveDatatype != null ? primitiveDatatype.getName() : enumDatatype;
+        return toString();
     }
 
     public Datatype heavier(@NotNull final Datatype d) {
         return getHeavierType(this, d);
     }
 
-    public static Datatype of(@NotNull final Token tok) {
-        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(tok.token());
+    public static Datatype of(@NotNull final Parser parser, @NotNull final Token tok) {
+        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(parser, tok);
+        final PrimitiveDatatype primitive = PrimitiveDatatype.of(tok);
+        if (primitive == null) return null;
+        return new Datatype(primitive);
+    }
+
+    public static Datatype of(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token tok) {
+        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(parser, usingMods, tok);
         final PrimitiveDatatype primitive = PrimitiveDatatype.of(tok);
         if (primitive == null) return null;
         return new Datatype(primitive);
@@ -92,6 +147,6 @@ public class Datatype {
     }
 
     public String toString() {
-        return primitiveDatatype != null ? primitiveDatatype.getName() : enumDatatype;
+        return primitiveDatatype != null ? primitiveDatatype.name().toLowerCase() : enumDatatype != null ? enumDatatype.name() : null;
     }
 }

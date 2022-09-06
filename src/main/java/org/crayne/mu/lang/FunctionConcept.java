@@ -45,6 +45,7 @@ public class FunctionConcept {
             for (int i = 0; i < defParams.size(); i++) {
                 final FunctionParameter defParam = defParams.get(i);
                 final ValueParser.TypedNode callParam = parameters.get(i);
+                if (callParam.type() == null) return Optional.empty();
 
                 if (!callParam.type().equals(defParam.type())) {
                     equalParams = false;

@@ -1,11 +1,11 @@
 package org.crayne.mu.runtime.parsing.parser;
 
-import org.crayne.mu.lang.*;
 import org.crayne.mu.lang.Enum;
-import org.crayne.mu.lang.Module;
+import org.crayne.mu.lang.*;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -170,7 +170,7 @@ public class ValueParser {
         if (prefixed != null) return prefixed;
 
         if (currentToken == null) {
-            parserError("Unexpected parsing error1");
+            parserError("Unexpected parsing error");
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
@@ -181,21 +181,21 @@ public class ValueParser {
             final String enumMemberStr = enumMember.token();
             final String enumNameStr = enumName.token();
 
-            final Optional<Module> module = parserParent.findModuleFromIdentifier(enumNameStr, enumName, true);
-            if (module.isEmpty()) return null;
-            final Optional<Enum> foundEnum = module.get().findEnumByName(ParserEvaluator.identOf(enumNameStr));
-            if (foundEnum.isEmpty()) {
-                parserParent.parserError("Cannot find enum '" + enumNameStr + "'", enumName);
-                return new TypedNode(null, new Node(NodeType.VALUE));
-            }
-            if (!foundEnum.get().members().contains(enumMemberStr)) {
+            final FunctionScope functionScope = parserParent.evaluator().expectFunctionScope(enumName);
+            if (functionScope == null) return new TypedNode(null, new Node(NodeType.VALUE));
+            final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope.using(), enumName, true);
+
+            if (foundEnum == null) return new TypedNode(null, new Node(NodeType.VALUE));
+            if (!foundEnum.members().contains(enumMemberStr)) {
                 parserParent.parserError("Enum '" + enumNameStr + "' does not have member '" + enumMemberStr + "'", enumMember);
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
             nextPart();
             nextPart();
             nextPart();
-            return new TypedNode(new Datatype(enumName.token()), new Node(NodeType.GET_ENUM_MEMBER,
+            final Datatype datatype = new Datatype(parserParent, enumName);
+
+            return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER,
                     new Node(NodeType.IDENTIFIER, enumName),
                     new Node(NodeType.MEMBER, enumMember)
             ));
@@ -255,7 +255,7 @@ public class ValueParser {
         }
         final Token result = currentToken;
         final NodeType nodeType = result == null ? null : NodeType.of(result.token());
-        final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(new Node(nodeType, result));
+        final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(parserParent, new Node(nodeType, result));
         if (datatype == null) return new TypedNode(null, new Node(NodeType.VALUE));
         nextPart();
         return new TypedNode(datatype, new Node(nodeType, result));
@@ -315,7 +315,7 @@ public class ValueParser {
     }
 
     private TypedNode castValue(final TypedNode value, final Token castType) {
-        return new TypedNode(Datatype.of(castType), new Node(NodeType.CAST_VALUE, castType, value.node));
+        return new TypedNode(Datatype.of(parserParent, castType), new Node(NodeType.CAST_VALUE, castType, value.node));
     }
 
 }

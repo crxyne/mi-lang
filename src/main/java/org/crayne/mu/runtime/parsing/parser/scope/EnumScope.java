@@ -15,6 +15,7 @@ public class EnumScope extends Scope {
     private final List<String> members;
     private List<Modifier> modifiers;
     private String name;
+    private Module module;
 
     public EnumScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent) {
         super(type, scopeIndent, actualIndent);
@@ -51,6 +52,13 @@ public class EnumScope extends Scope {
 
     public List<String> members() {
         return new ArrayList<>(members);
+    }
+    public void module(@NotNull final Module module) {
+        this.module = module;
+    }
+
+    public Module module() {
+        return module;
     }
 
     public void scopeEnd(@NotNull final Parser parser) {

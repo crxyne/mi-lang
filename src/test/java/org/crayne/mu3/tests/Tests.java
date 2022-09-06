@@ -33,6 +33,10 @@ public class Tests {
                         Dirt, Stone, Grass
                     }
                     
+                    pub fn setblock~ (Mat material) {
+                    
+                    }
+                    
                 }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
@@ -40,7 +44,8 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        ?material = bukkit.Mat::Flower;
+                        use bukkit;
+                        setblock(Mat::Stone);
                     }
                     
                 }

@@ -75,7 +75,7 @@ public class FunctionScope extends Scope {
     }
 
     public void scopeEnd(@NotNull final Parser parser) {
-        if (!reachedEnd && parent == null) {
+        if (!reachedEnd && parent == null && parser.currentFuncReturnType() != Datatype.VOID) {
             parser.parserError("Missing 'ret' or '::' statement", "Every branch in a function has to return some value, except in void functions");
             return;
         }

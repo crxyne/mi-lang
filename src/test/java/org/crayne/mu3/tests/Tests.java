@@ -17,7 +17,6 @@ public class Tests {
                 
                     pub fn println~ (string s) {
                         // java communication (native functions) not implemented yet
-                        ret;
                     }
                     
                 }
@@ -26,14 +25,8 @@ public class Tests {
                 
                 module helloworld {
                 
-                    pub fn main :: int () {
-                        if 1b {
-                           ret 1;
-                        } else {
-                           //ret 2;
-                        }
-                        int i = 3;
-                        //ret 1;
+                    pub fn main {
+                        std.println("");
                     }
                     
                 }

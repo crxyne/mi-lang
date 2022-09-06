@@ -38,6 +38,10 @@ public class Datatype {
         this.enumDatatype = enumDatatype;
     }
 
+    public PrimitiveDatatype getPrimitive() {
+        return primitiveDatatype;
+    }
+
     public static Enum findEnumByIdentifier(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token identifier, final boolean panic) {
         final String enumNameStr = identifier.token();
         final Optional<Module> module = parser.findModuleFromIdentifier(enumNameStr, identifier, panic);

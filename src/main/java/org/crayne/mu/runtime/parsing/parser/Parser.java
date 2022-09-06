@@ -265,6 +265,7 @@ public class Parser {
             case STANDARDLIB_MU_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
             case IDENTIFIER -> evaluator.evalFirstIdentifier(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, true);
+            case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);
             case LITERAL_RET -> evaluator.evalReturnStatement(tokens, modifiers);
             case LITERAL_USE -> evaluator.evalUseStatement(tokens, modifiers);
             case LITERAL_ELSE -> {
@@ -417,7 +418,7 @@ public class Parser {
     }
 
     private static Optional<Token> tryAndGet(@NotNull final List<Token> tokens, final int index) {
-        return Optional.ofNullable(tokens.size() > 0 ? tokens.get(index) : null);
+        return Optional.ofNullable(tokens.size() > 0 && index < tokens.size() && index >= 0 ? tokens.get(index) : null);
     }
 
     public Token getAny(@NotNull final List<Token> tokens, final int index) {
@@ -545,6 +546,8 @@ public class Parser {
             case LITERAL_PRIV -> NodeType.LITERAL_PUB;
             case LITERAL_OWN -> NodeType.LITERAL_PROT;
             case LITERAL_PROT -> NodeType.LITERAL_OWN;
+            case LITERAL_NAT -> NodeType.LITERAL_INTERN;
+            case LITERAL_INTERN -> NodeType.LITERAL_NAT;
             default -> null;
         };
     }

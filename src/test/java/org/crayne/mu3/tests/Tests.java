@@ -13,30 +13,10 @@ public class Tests {
                 
                 module std {
                 
-                    module math {
+                    pub nat fn println~ (string s) -> "org.crayne.mu.lang.std.StandardLib";
                     
-                        pub? PI = 3.14;
-                        
-                        pub fn cos :: double (double d) {
-                            ret 0.5;
-                        }
-                        
-                    }
-                
-                    pub fn println~ (string s) {
-                        // java communication (native functions) not implemented yet
-                    }
-                    
-                }
-                
-                module bukkit {
-                
-                    pub enum Mat {
-                        Dirt, Stone, Grass
-                    }
-                    
-                    pub fn setblock~ (Mat material) {
-                    
+                    priv enum LogLevel {
+                        ERROR, WARNING, INFO
                     }
                     
                 }
@@ -46,8 +26,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        use std.math;
-                        std.println(string(PI));
+                        std.println(string std.LogLevel::ERROR);
                     }
                     
                 }

@@ -49,11 +49,14 @@ public enum NodeType {
     LITERAL_RET("ret"),
     LITERAL_ENUM("enum"),
     LITERAL_USE("use"),
-    LITERAL_JAVACALL_F("javacall_f"),
+    LITERAL_NAT("nat"),
+    LITERAL_INTERN("intern"),
 
     //statements simplified
     FUNCTION_CALL(null),
     FUNCTION_DEFINITION(null),
+    NATIVE_FUNCTION_DEFINITION(null),
+    NATIVE_JAVA_FUNCTION_STR(null),
     PARAMETERS(null),
     CREATE_MODULE(null),
     CREATE_ENUM(null),
@@ -215,7 +218,7 @@ public enum NodeType {
             case LITERAL_FN, LITERAL_PUB, LITERAL_RET, LITERAL_BOOL, LITERAL_BREAK,
                     LITERAL_CHAR, LITERAL_CONST, LITERAL_ELSE, LITERAL_CONTINUE,
                     LITERAL_IF, LITERAL_DOUBLE, LITERAL_FLOAT, LITERAL_FOR,
-                    LITERAL_INT, LITERAL_JAVACALL_F, LITERAL_LONG, LITERAL_MODULE,
+                    LITERAL_INT, LITERAL_NAT, LITERAL_LONG, LITERAL_MODULE,
                     LITERAL_MUT, LITERAL_NULL, LITERAL_PRIV, LITERAL_PROT, LITERAL_USE, LITERAL_OWN,
                     LITERAL_STRING, LITERAL_VOID, LITERAL_WHILE -> true;
             default -> false;
@@ -224,7 +227,7 @@ public enum NodeType {
 
     public boolean isModifier() {
         return switch (this) {
-            case LITERAL_PUB, LITERAL_PRIV, LITERAL_OWN, LITERAL_MUT, LITERAL_CONST, LITERAL_PROT -> true;
+            case LITERAL_PUB, LITERAL_PRIV, LITERAL_OWN, LITERAL_MUT, LITERAL_CONST, LITERAL_PROT, LITERAL_NAT, LITERAL_INTERN -> true;
             default -> false;
         };
     }

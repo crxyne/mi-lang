@@ -177,28 +177,33 @@ public class ValueParser {
 
         if (nextPart != null && nextPart.token().equals("::") && parsingPosition + 2 < expr.size()) {
             final Token enumMember = expr.get(parsingPosition + 2);
-            final Token enumName = currentToken;
-            final String enumMemberStr = enumMember.token();
-            final String enumNameStr = enumName.token();
+            if (NodeType.of(enumMember) == NodeType.IDENTIFIER) {
+                final Token enumName = currentToken;
+                final String enumMemberStr = enumMember.token();
+                final String enumNameStr = enumName.token();
 
-            final FunctionScope functionScope = parserParent.evaluator().expectFunctionScope(enumName);
-            if (functionScope == null) return new TypedNode(null, new Node(NodeType.VALUE));
-            final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope.using(), enumName, true);
+                final FunctionScope functionScope = parserParent.evaluator().expectFunctionScope(enumName);
+                if (functionScope == null) return new TypedNode(null, new Node(NodeType.VALUE));
+                final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope.using(), enumName, true);
 
-            if (foundEnum == null) return new TypedNode(null, new Node(NodeType.VALUE));
-            if (!foundEnum.members().contains(enumMemberStr)) {
-                parserParent.parserError("Enum '" + enumNameStr + "' does not have member '" + enumMemberStr + "'", enumMember);
+                if (foundEnum == null) return new TypedNode(null, new Node(NodeType.VALUE));
+                if (!foundEnum.members().contains(enumMemberStr)) {
+                    parserParent.parserError("Enum '" + enumNameStr + "' does not have member '" + enumMemberStr + "'", enumMember);
+                    return new TypedNode(null, new Node(NodeType.VALUE));
+                }
+                nextPart();
+                nextPart();
+                nextPart();
+                final Datatype datatype = new Datatype(parserParent, enumName);
+
+                return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER,
+                        new Node(NodeType.IDENTIFIER, enumName),
+                        new Node(NodeType.MEMBER, enumMember)
+                ));
+            } else {
+                parserError("Unexpected token '::'", nextPart);
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
-            nextPart();
-            nextPart();
-            nextPart();
-            final Datatype datatype = new Datatype(parserParent, enumName);
-
-            return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER,
-                    new Node(NodeType.IDENTIFIER, enumName),
-                    new Node(NodeType.MEMBER, enumMember)
-            ));
         }
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER && (nextPart == null || !nextPart.token().equals("("))) {
             final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken, true);

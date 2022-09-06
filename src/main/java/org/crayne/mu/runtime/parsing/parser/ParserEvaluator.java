@@ -12,6 +12,7 @@ import org.crayne.mu.runtime.parsing.parser.scope.Scope;
 import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -154,6 +155,54 @@ public class ParserEvaluator {
                     params,
                     modifiers
             ));
+        } catch (final NullPointerException e) {
+            e.printStackTrace();
+            parser.output.errorMsg("Could not parse function definition");
+        }
+    }
+
+    protected void addNativeFunctionFromResult(@NotNull final Node result, final Method nativeMethod) {
+        final Module module = parser.lastModule();
+        try {
+            final List<Modifier> modifiers = result.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
+
+            final List<Node> paramNodes = result.child(3).children().stream().toList();
+
+            final List<FunctionParameter> params = paramNodes.stream().map(n -> {
+                final Datatype datatype = Datatype.of(parser, n.child(0).value());
+                if (datatype == null) throw new NullPointerException();
+                return new FunctionParameter(
+                        datatype,
+                        n.child(1).value().token(),
+                        n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                );
+            }).toList();
+
+            final Token nameToken = result.child(0).value();
+            if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false)) return;
+
+            final Datatype datatype = Datatype.of(parser, result.child(1).value());
+            if (datatype == null) throw new NullPointerException();
+
+            if (result.children().size() == 5) {
+                if (nativeMethod != null) {
+                    module.addFunction(parser, nameToken, new FunctionDefinition(
+                            nameToken.token(),
+                            datatype,
+                            params,
+                            modifiers,
+                            nativeMethod
+                    ));
+                    return;
+                }
+                module.addFunction(parser, nameToken, new FunctionDefinition(
+                        nameToken.token(),
+                        datatype,
+                        params,
+                        modifiers,
+                        result.child(4)
+                ));
+            }
         } catch (final NullPointerException e) {
             e.printStackTrace();
             parser.output.errorMsg("Could not parse function definition");
@@ -533,7 +582,8 @@ public class ParserEvaluator {
         final Token fnToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_FN);
         final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
         final Token retDef = parser.getAndExpect(tokens, 2, NodeType.TILDE, NodeType.DOUBLE_COLON, NodeType.LBRACE);
-        if (Parser.anyNull(fnToken, identifier, retDef)) return null;
+        final Token last = parser.getAndExpect(tokens, tokens.size() - 1, NodeType.SEMI, NodeType.LBRACE);
+        if (Parser.anyNull(fnToken, identifier, retDef, last)) return null;
 
         final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
         if (firstMutabilityModif.isPresent()) {
@@ -541,6 +591,19 @@ public class ParserEvaluator {
                     firstMutabilityModif.get().value());
             return null;
         }
+        final NodeType lastType = NodeType.of(last);
+        final Optional<Node> firstNat = modifiers.stream().filter(m -> m.type() == NodeType.LITERAL_NAT).findFirst();
+        final boolean nativeFunc = firstNat.isPresent();
+        if (nativeFunc) {
+            if (lastType == NodeType.LBRACE) {
+                parser.parserError("Expected ';' after native function definition", last);
+                return null;
+            }
+        } else if (lastType == NodeType.SEMI) {
+            parser.parserError("Expected '{' after intern function definition", last);
+            return null;
+        }
+
         final NodeType ret = NodeType.of(retDef);
         if (parser.skimming) {
             final Optional<Scope> current = parser.scope();
@@ -561,9 +624,13 @@ public class ParserEvaluator {
                 return null;
             }
         }
-        parser.scope(ScopeType.FUNCTION);
 
         if (ret == NodeType.LBRACE) {
+            if (nativeFunc) {
+                parser.parserError("Expected ';' after native function definition", last);
+                return null;
+            }
+            parser.scope(ScopeType.FUNCTION);
             parser.currentFuncReturnType = Datatype.VOID;
             return new Node(NodeType.FUNCTION_DEFINITION,
                     new Node(NodeType.IDENTIFIER, identifier),
@@ -573,26 +640,29 @@ public class ParserEvaluator {
             );
         }
         final int extraIndex = ret == NodeType.TILDE ? 0 : 1;
-
         final Datatype returnType;
         if (extraIndex == 0) returnType = Datatype.VOID;
         else {
             final Token returnToken = parser.getAndExpect(tokens, 3,
                     Arrays.stream(NodeType.values())
-                    .filter(NodeType::isDatatype)
-                    .toList()
-                    .toArray(new NodeType[0]));
+                            .filter(NodeType::isDatatype)
+                            .toList()
+                            .toArray(new NodeType[0]));
             if (returnToken == null) return null;
 
             returnType = Datatype.of(parser, returnToken);
         }
         if (returnType == null) return null;
 
+        if (nativeFunc) return evalNativeFunction(tokens, modifiers, extraIndex, last, identifier, returnType);
+
         final Token parenOpen = parser.getAndExpect(tokens, 3 + extraIndex, NodeType.LPAREN);
         final Token parenClose = parser.getAndExpect(tokens, tokens.size() - 2, true, NodeType.RPAREN);
         if (parenOpen == null || parenClose == null) return null;
 
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 2));
+
+        parser.scope(ScopeType.FUNCTION);
         parser.currentFuncReturnType = returnType;
 
         return new Node(NodeType.FUNCTION_DEFINITION,
@@ -601,6 +671,95 @@ public class ParserEvaluator {
                 new Node(NodeType.MODIFIERS, modifiers),
                 new Node(NodeType.PARAMETERS, params)
         );
+    }
+
+    public Node evalNativeFunction(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final int extraIndex,
+                                   @NotNull final Token last, @NotNull final Token identifier, @NotNull final Datatype returnType) {
+        final Token beforeLastArrow = parser.getAny(tokens, tokens.size() - 3);
+        if (beforeLastArrow == null || NodeType.of(beforeLastArrow) != NodeType.BECOMES) {
+            parser.parserError("Expected '-> <constant-string-literal>' after ')' in native function definition", last,
+                    "The scheme for native functions is: <modifiers> <identifier> <return-definition> ( <args> ) -> <constant-string-literal>");
+            return null;
+        }
+        final Token stringLiteral = parser.getAndExpect(tokens, tokens.size() - 2, NodeType.STRING_LITERAL);
+        if (stringLiteral == null) return null;
+
+        final Token parenOpen = parser.getAndExpect(tokens, 3 + extraIndex, NodeType.LPAREN);
+        final Token parenClose = parser.getAndExpect(tokens, tokens.size() - 4, true, NodeType.RPAREN);
+        if (parenOpen == null || parenClose == null) return null;
+
+        final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 4));
+
+        final Node result = new Node(NodeType.NATIVE_FUNCTION_DEFINITION,
+                new Node(NodeType.IDENTIFIER, identifier),
+                new Node(NodeType.TYPE, Token.of(returnType.getName())),
+                new Node(NodeType.MODIFIERS, modifiers),
+                new Node(NodeType.PARAMETERS, params),
+                new Node(NodeType.NATIVE_JAVA_FUNCTION_STR, stringLiteral)
+        );
+
+        final List<FunctionParameter> parameters = params.stream().map(n -> {
+            final Datatype datatype = Datatype.of(parser, n.child(0).value());
+            if (datatype == null) throw new NullPointerException();
+            return new FunctionParameter(
+                    datatype,
+                    n.child(1).value().token(),
+                    n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+            );
+        }).toList();
+
+        final Method nativeMethod = checkNativeFunctionValidity(last, stringLiteral.token().substring(1, stringLiteral.token().length() - 1), identifier.token(), parameters, returnType);
+        if (nativeMethod == null) return null;
+        addNativeFunctionFromResult(result, nativeMethod);
+        return result;
+    }
+
+    private static Class<?> primitiveToJavaType(@NotNull final PrimitiveDatatype primitiveDatatype) {
+        return switch (primitiveDatatype) {
+            case INT -> int.class;
+            case LONG -> long.class;
+            case DOUBLE -> double.class;
+            case FLOAT -> float.class;
+            case BOOL -> boolean.class;
+            case STRING -> String.class;
+            case CHAR -> char.class;
+            case VOID -> void.class;
+        };
+    }
+
+    private Method checkNativeFunctionValidity(@NotNull final Token at,
+                                                @NotNull final String className, @NotNull final String functionName, @NotNull final List<FunctionParameter> params, @NotNull final Datatype returnType) {
+        try {
+            final Class<?> jcallClass = Class.forName(className);
+            final ArrayList<Class<?>> paramTypes = new ArrayList<>();
+
+            for (final FunctionParameter arg : params) {
+                final Datatype type = arg.type();
+                if (!type.primitive()) {
+                    parser.parserError("Only primitive datatypes (int, long, double, float, bool, string, char) may be used as native function arguments", at);
+                    return null;
+                }
+                paramTypes.add(primitiveToJavaType(type.getPrimitive()));
+            }
+            if (!returnType.primitive()) {
+                parser.parserError("Only primitive datatypes (int, long, double, float, bool, string, char) may be used as a native function return type", at);
+                return null;
+            }
+            final Method invokeMethod = jcallClass.getMethod(functionName, paramTypes.toArray(new Class<?>[0]));
+            final Class<?> methodType = invokeMethod.getReturnType();
+            if (methodType != primitiveToJavaType(returnType.getPrimitive())) {
+                parser.parserWarning("Return type of native function does not match return type of native java method", at);
+            }
+            final MuCallable annotationTest = invokeMethod.getAnnotation(MuCallable.class);
+            if (annotationTest == null) {
+                parser.parserError("May only use java methods annotated with org.crayne.mu.lang.MuCallable as native functions", at, "Annotate the java method with org.crayne.mu.lang.MuCallable");
+                return null;
+            }
+            return invokeMethod;
+        } catch (final Exception e) {
+            parser.parserError("Unknown error when evaluating native java function: " + e.getClass().getName(), at);
+            return null;
+        }
     }
 
     public Node evalIfStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -781,7 +940,7 @@ public class ParserEvaluator {
         final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
         if (Parser.anyNull(lbrace, identifier)) return null;
 
-        if (expectModuleOrRoot()) return null;
+        if (expectModuleOrRoot(IdentifierType.MODULE)) return null;
         parser.scope(ScopeType.MODULE);
         if (handleRestrictedName(identifier, IdentifierType.MODULE, false)) return null;
 
@@ -795,7 +954,13 @@ public class ParserEvaluator {
         final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
         if (Parser.anyNull(lbrace, identifier)) return null;
 
-        if (expectModuleOrRoot()) return null;
+        if (expectModuleOrRoot(IdentifierType.ENUM)) return null;
+        final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
+        if (firstMutabilityModif.isPresent()) {
+            parser.parserError("Cannot declare enums as own, const or mut, they are automatically constant because they cannot be redefined",
+                    firstMutabilityModif.get().value());
+            return null;
+        }
         parser.scope(ScopeType.ENUM);
         final Optional<Scope> newScope = parser.scope();
         if (newScope.isEmpty()) {
@@ -813,16 +978,16 @@ public class ParserEvaluator {
         );
     }
 
-    private boolean expectModuleOrRoot() {
+    private boolean expectModuleOrRoot(@NotNull final IdentifierType type) {
         final Optional<Scope> current = parser.scope();
         if (parser.skimming) {
             if (current.isEmpty()) {
-                parser.parserError("Unexpected parsing error, could not create module at root level");
+                parser.parserError("Unexpected parsing error, could not create " + type.name().toLowerCase() + " at root level");
                 return true;
             }
             final ScopeType currentType = current.get().type();
             if (currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
-                parser.parserError("Expected module definition to be at root level or inside of another module");
+                parser.parserError("Expected " + type.name().toLowerCase() + " definition to be at root level or inside of another module");
                 return true;
             }
         }

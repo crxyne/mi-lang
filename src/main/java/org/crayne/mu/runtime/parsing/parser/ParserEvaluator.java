@@ -6,12 +6,14 @@ import org.crayne.mu.lang.*;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.scope.EnumScope;
 import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
 import org.crayne.mu.runtime.parsing.parser.scope.Scope;
 import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ParserEvaluator {
 
@@ -28,7 +30,7 @@ public class ParserEvaluator {
     private boolean handleRestrictedName(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar) {
         final String tok = name.token();
         if (!restrictedName(tok, identifierType)) {
-            if (parser.skimming) warnUnconventional(name, identifierType, constVar);
+            warnUnconventional(name, identifierType, constVar);
             return false;
         }
         parser.parserError("Cannot use restricted name '" + tok + "'", name,
@@ -37,16 +39,30 @@ public class ParserEvaluator {
         return true;
     }
 
+    private static boolean isMixedCaseCapitalized(@NotNull final String ident) {
+        return !ident.isEmpty() && StringUtils.isMixedCase(ident) && Character.isUpperCase(ident.charAt(0));
+    }
+
     private void warnUnconventional(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar) {
+        if (!parser.skimming) return;
         final String tok = name.token();
         final String nounder = tok.replace("_", "");
         final String identName = identifierType.name().toLowerCase();
 
-        if (identifierType != IdentifierType.ENUM && !nounder.isEmpty() && StringUtils.isMixedCase(nounder) && Character.isUpperCase(nounder.charAt(0))) {
+        if (!nounder.isEmpty() && identifierType == IdentifierType.ENUM_MEMBER && !Character.isUpperCase(nounder.charAt(0))) {
             parser.parserWarning(
-                    "Name '" + tok + "' does not follow Mu conventions; Only enum names should be capitalized, but encountered a capitalized " + identName + " name",
+                    "Name '" + tok + "' does not follow Mu conventions; Enum members should be capitalized, but encountered an uncapitalized enum member name", name);
+        }
+        if (identifierType != IdentifierType.ENUM && identifierType != IdentifierType.ENUM_MEMBER && isMixedCaseCapitalized(nounder)) {
+            parser.parserWarning(
+                    "Name '" + tok + "' does not follow Mu conventions; Only enum names and members should be capitalized, but encountered a capitalized " + identName + " name",
                     name, "Variable, module and function names should be uncapitalized");
         }
+        if (identifierType == IdentifierType.ENUM && !isMixedCaseCapitalized(nounder)) {
+            parser.parserWarning(
+                    "Name '" + tok + "' does not follow Mu conventions; Enum names should be capitalized, but encountered an uncapitalized enum name", name);
+        }
+
         if (!constVar && StringUtils.isAllUpperCase(nounder)) {
             parser.parserWarning("Name '" + tok + "' does not follow Mu conventions; Only constant variables should be uppercase, but encountered an uppercase " + identName + " name",
                     name, "Anything that is not constant should not be capitalized");
@@ -169,15 +185,65 @@ public class ParserEvaluator {
     }
 
     public Node evalFirstIdentifier(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        if (tokens.size() <= 1) return null;
-
         final Token secondToken = parser.getAny(tokens, 1);
         if (Parser.anyNull(secondToken)) return null;
 
         final NodeType second = NodeType.of(secondToken);
         if (second == NodeType.LPAREN) return evalFunctionCall(tokens, modifiers);
+        else if (second == NodeType.COMMA || second == NodeType.SEMI) return evalEnumMembers(tokens, modifiers);
         else if (EqualOperation.of(second.getAsString()) != null) return evalVariableChange(tokens, modifiers);
         return null;
+    }
+
+    private Node evalEnumMembers(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final EnumScope enumScope = expectEnumScope(tokens.get(0));
+        if (enumScope == null) return null;
+
+        final List<String> children = extractIdentifiers(tokens.subList(0, tokens.size() - 1));
+        if (children == null) return null;
+        if (enumScope.hasMembers()) {
+            parser.parserError("Redefinition of enum members", tokens.get(0), "Delete redefinition");
+            return null;
+        }
+        enumScope.addMembers(children);
+
+        return new Node(NodeType.ENUM_VALUES,
+                children.stream().map(s -> new Node(NodeType.IDENTIFIER, Token.of(s))).collect(Collectors.toList())
+        );
+    }
+
+    private List<String> extractIdentifiers(@NotNull final List<Token> tokens) {
+        final List<String> result = new ArrayList<>();
+        String current = null;
+
+        for (@NotNull final Token token : tokens) {
+            if (NodeType.of(token) == NodeType.COMMA) {
+                if (current == null) {
+                    parser.parserError("Unexpected token ','", token);
+                    return null;
+                }
+                if (NodeType.of(current) != NodeType.IDENTIFIER) {
+                    parser.parserError("Expected identifier", token);
+                    return null;
+                }
+                if (result.contains(current)) {
+                    parser.parserError("Redefinition of identifier '" + current + "'", token);
+                    return null;
+                }
+                result.add(current);
+                current = null;
+                continue;
+            }
+            if (current != null) {
+                parser.parserError("Expected ','");
+                return null;
+            }
+            warnUnconventional(token, IdentifierType.ENUM_MEMBER, true);
+            current = token.token();
+        }
+        if (current != null) result.add(current);
+        return result;
     }
 
     public Node evalVariableChange(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -688,24 +754,51 @@ public class ParserEvaluator {
         final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
         if (Parser.anyNull(lbrace, identifier)) return null;
 
-        final Optional<Scope> current = parser.scope();
-        if (parser.skimming) {
-            if (current.isEmpty()) {
-                parser.parserError("Unexpected parsing error, could not create module at root level");
-                return null;
-            }
-            final ScopeType currentType = current.get().type();
-            if (currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
-                parser.parserError("Expected module definition to be at root level or inside of another module");
-                return null;
-            }
-        }
+        if (expectModuleOrRoot()) return null;
         parser.scope(ScopeType.MODULE);
         if (handleRestrictedName(identifier, IdentifierType.MODULE, false)) return null;
 
         return new Node(NodeType.CREATE_MODULE,
                 new Node(NodeType.IDENTIFIER, identifier)
         );
+    }
+
+    public Node evalEnumDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
+        if (Parser.anyNull(lbrace, identifier)) return null;
+
+        if (expectModuleOrRoot()) return null;
+        parser.scope(ScopeType.ENUM);
+        final Optional<Scope> newScope = parser.scope();
+        if (newScope.isEmpty()) {
+            parser.parserError("Unexpected parsing error, null scope after adding an enum", identifier);
+            return null;
+        }
+        final EnumScope enumScope = (EnumScope) newScope.get();
+        enumScope.modifiers(modifiers.stream().map(n -> Modifier.of(n.type())).collect(Collectors.toList()));
+        enumScope.name(identifier.token());
+        warnUnconventional(identifier, IdentifierType.ENUM, false);
+
+        return new Node(NodeType.CREATE_ENUM,
+                new Node(NodeType.IDENTIFIER, identifier)
+        );
+    }
+
+    private boolean expectModuleOrRoot() {
+        final Optional<Scope> current = parser.scope();
+        if (parser.skimming) {
+            if (current.isEmpty()) {
+                parser.parserError("Unexpected parsing error, could not create module at root level");
+                return true;
+            }
+            final ScopeType currentType = current.get().type();
+            if (currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
+                parser.parserError("Expected module definition to be at root level or inside of another module");
+                return true;
+            }
+        }
+        return false;
     }
 
     public Node evalStdLibFinish(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -727,6 +820,15 @@ public class ParserEvaluator {
             return null;
         }
         return functionScope;
+    }
+
+    private EnumScope expectEnumScope(@NotNull final Token at) {
+        final Optional<Scope> currentScope = parser.scope();
+        if (currentScope.isEmpty() || !(currentScope.get() instanceof final EnumScope enumScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of an enum", at, "Enclose your statement inside of an enum");
+            return null;
+        }
+        return enumScope;
     }
 
 }

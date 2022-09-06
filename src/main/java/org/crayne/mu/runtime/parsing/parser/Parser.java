@@ -7,6 +7,7 @@ import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.scope.EnumScope;
 import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
 import org.crayne.mu.runtime.parsing.parser.scope.Scope;
 import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
@@ -83,6 +84,7 @@ public class Parser {
 
     public Node parseStatement(final boolean expectedUnscopedWhile) {
         final List<Token> statement = new ArrayList<>();
+        final Optional<Scope> current = scope();
         Token previous = null;
         iter: for (; currentTokenIndex < tokens.size() && !encounteredError; currentTokenIndex++) {
             currentToken = tokens.get(currentTokenIndex);
@@ -91,6 +93,12 @@ public class Parser {
                 case SEMI, SCOPE_BEGIN -> {break iter;}
                 case SCOPE_END -> {
                     if (statement.size() == 1) break iter;
+
+                    if (current.isPresent() && current.get() instanceof EnumScope) {
+                        statement.remove(statement.size() - 1);
+                        statement.add(Token.of(";"));
+                        return evalStatement(statement, expectedUnscopedWhile);
+                    }
                     if (previous == null) {
                         parserError("Expected ';' after statement");
                         break iter;
@@ -227,6 +235,7 @@ public class Parser {
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, false);
             case LITERAL_FOR -> evaluator.evalForStatement(tokens, modifiers);
             case LITERAL_DO -> evaluator.evalDoStatement(tokens, modifiers);
+            case LITERAL_ENUM -> evaluator.evalEnumDefinition(tokens, modifiers);
             case LITERAL_ELSE -> {
                 parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
                 yield null;
@@ -383,12 +392,24 @@ public class Parser {
 
     protected void scope(@NotNull final ScopeType type) {
         final Optional<Scope> current = scope();
-        if (type == ScopeType.FUNCTION)
-            currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, null, lastModule()));
-        else if (current.isPresent() && current.get() instanceof FunctionScope)
-            currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) current.get(), lastModule()));
-        else
-            currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
+
+        if (type == ScopeType.FUNCTION) functionRootScope();
+        else if (type == ScopeType.ENUM) enumScope();
+        else if (current.isPresent() && current.get() instanceof FunctionScope) functionScope(type);
+        else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
+    }
+
+    private void functionRootScope() {
+        currentScope.add(new FunctionScope(ScopeType.FUNCTION, scopeIndent + 1, actualIndent + 1, null));
+    }
+
+    private void enumScope() {
+        currentScope.add(new EnumScope(ScopeType.ENUM, scopeIndent + 1, actualIndent + 1));
+    }
+
+    private void functionScope(@NotNull final ScopeType type) {
+        final Optional<Scope> current = scope();
+        currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) current.get()));
     }
 
     public Optional<Scope> scope() {

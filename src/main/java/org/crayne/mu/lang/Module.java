@@ -12,6 +12,7 @@ public class Module {
     private final int scopeIndent;
     private final List<Variable> globalModuleVariables;
     private final HashSet<Module> subModules;
+    private final HashSet<Enum> enums;
     private final HashSet<FunctionConcept> functionConcepts;
     private final Module parent;
 
@@ -22,6 +23,7 @@ public class Module {
         this.globalModuleVariables = new ArrayList<>();
         this.subModules = new HashSet<>();
         this.functionConcepts = new HashSet<>();
+        this.enums = new HashSet<>();
     }
 
     public int scopeIndent() {
@@ -55,6 +57,9 @@ public class Module {
 
     public void addSubmodule(@NotNull final Module mod) {
         subModules.add(mod);
+    }
+    public void addEnum(@NotNull final Enum _enum) {
+        enums.add(_enum);
     }
 
     public boolean findSubmoduleByName(@NotNull final String mod) {

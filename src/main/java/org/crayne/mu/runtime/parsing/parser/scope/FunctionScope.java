@@ -21,21 +21,18 @@ public class FunctionScope extends Scope {
     private final List<LocalVariable> localVariables;
     private final FunctionScope parent;
     private final Map<Integer, List<String>> using = new ConcurrentHashMap<>();
-    private final Module module;
     private boolean reachedEnd;
 
-    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final Module module) {
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent) {
         super(type, scopeIndent, actualIndent);
         this.localVariables = new ArrayList<>();
         this.parent = parent;
-        this.module = module;
     }
 
-    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent, @NotNull final Module module) {
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent) {
         super(type, scopeIndent, actualIndent);
         this.localVariables = localVariables;
         this.parent = parent;
-        this.module = module;
     }
 
     public ScopeType type() {

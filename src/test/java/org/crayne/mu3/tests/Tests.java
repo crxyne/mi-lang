@@ -31,11 +31,12 @@ public class Tests {
                 
                 module helloworld {
                 
+                    pub enum Mat {
+                        Dirt, Stone, Grass
+                    }
+                
                     pub fn main {
-                        use std;
-                        use std.math;
                         
-                        println(string cos(0.5));
                     }
                     
                 }

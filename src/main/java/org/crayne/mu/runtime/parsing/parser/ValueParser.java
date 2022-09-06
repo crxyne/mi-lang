@@ -238,7 +238,6 @@ public class ValueParser {
         }
         if (eat("(")) {
             final TypedNode result = parseExpression();
-            System.out.println(result);
             if (!eat(")")) parserError("Expected ')' after expression in parenthesis");
             return result;
         }
@@ -251,7 +250,13 @@ public class ValueParser {
                 final FunctionDefinition def = parserParent.evaluator().checkValidFunctionCall(identifier, parsedArgs);
                 if (def == null) return new TypedNode(null, new Node(NodeType.VALUE));
 
-                return new TypedNode(def.returnType(), new Node(NodeType.FUNCTION_CALL,
+                final Datatype retType = def.returnType();
+                if (retType == Datatype.VOID) {
+                    parserError("Usage of void function as a value in expression", identifier);
+                    return new TypedNode(null, new Node(NodeType.VALUE));
+                }
+
+                return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL,
                         new Node(NodeType.IDENTIFIER, identifier),
                         new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())
                 ));

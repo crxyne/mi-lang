@@ -201,7 +201,7 @@ public class ValueParser {
             ));
         }
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER && (nextPart == null || !nextPart.token().equals("("))) {
-            final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken);
+            final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken, true);
             if (findVar.isEmpty()) return new TypedNode(null, new Node(NodeType.VALUE));
 
             final Token identifier = currentToken;

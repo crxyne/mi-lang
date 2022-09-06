@@ -274,7 +274,7 @@ public class ParserEvaluator {
                 : parseExpression(tokens.subList(2, tokens.size() - 1));
 
 
-        final Optional<Variable> foundVariable = findVariable(identifier);
+        final Optional<Variable> foundVariable = findVariable(identifier, true);
         if (foundVariable.isEmpty()) return null;
 
         return evalVariableChange(identifier, value, equal);
@@ -307,28 +307,42 @@ public class ParserEvaluator {
         );
     }
 
-    protected Optional<Variable> findVariable(@NotNull final Token identifierTok) {
-        final String identifier = identifierTok.token();
+    protected Optional<Variable> findVariable(@NotNull final Token identifierTok, final boolean panic) {
         final FunctionScope functionScope = expectFunctionScope(identifierTok);
         if (functionScope == null) return Optional.empty();
+
 
         return Optional.ofNullable(functionScope.localVariable(parser, identifierTok).orElseGet(() -> {
             if (parser.encounteredError) return null; // localVariable() returns null if the needed variable is global but does not actually print an error into the logs
 
-            final Optional<Module> oglobalMod = parser.findModuleFromIdentifier(identifier, identifierTok, false);
-            if (oglobalMod.isEmpty()) {
-                parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error", identifierTok);
-                return null;
-            }
-            final Module globalMod = oglobalMod.get();
-            final Optional<Variable> globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier));
-            if (globalVar.isEmpty()) {
-                parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
-                return null;
-            }
-            parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.get().modifiers());
-            return globalVar.get();
+            return findGlobalVariable(identifierTok, functionScope.using(), panic);
         }));
+    }
+
+    protected Variable findGlobalVariable(@NotNull final Token identifierTok, final List<String> usingMods, final boolean panic) {
+        final String identifier = identifierTok.token();
+        final Optional<Module> oglobalMod = parser.findModuleFromIdentifier(identifier, identifierTok, panic);
+        if (oglobalMod.isEmpty()) {
+            if (panic) parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error", identifierTok);
+            return null;
+        }
+        final Module globalMod = oglobalMod.get();
+        Optional<Variable> globalVar = globalMod.findVariableByName(ParserEvaluator.identOf(identifier));
+
+        if (globalVar.isEmpty())
+            for (final String using : usingMods) {
+                final Variable findUsing = findGlobalVariable(new Token(using + "." + identifier, identifierTok.actualLine(), identifierTok.line(), identifierTok.column()),
+                        Collections.emptyList(), false);
+
+                if (findUsing != null) globalVar = Optional.of(findUsing);
+            }
+
+        if (globalVar.isEmpty()) {
+            if (panic) parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
+            return null;
+        }
+        parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.get().modifiers());
+        return globalVar.get();
     }
 
     public static String moduleOf(@NotNull final String identifier) {

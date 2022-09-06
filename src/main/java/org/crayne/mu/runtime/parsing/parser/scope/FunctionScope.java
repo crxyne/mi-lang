@@ -204,6 +204,17 @@ public class FunctionScope extends Scope {
                 .findVariableByName(ParserEvaluator.identOf(identifier))
                 .isPresent()) return;
 
+        if (globalMod.isPresent()) {
+            for (final String using : using()) {
+                final Token findUsing = new Token(using + "." + identifier, identifierTok.actualLine(), identifierTok.line(), identifierTok.column());
+                final Optional<Module> usingMod = parser.findModuleFromIdentifier(findUsing.token(), findUsing, false);
+
+                if (usingMod.isPresent() && usingMod.get()
+                        .findVariableByName(ParserEvaluator.identOf(identifier))
+                        .isPresent()) return;
+            }
+        }
+
         final Optional<String> closestMatch = localVariables
                 .stream()
                 .map(Variable::name)

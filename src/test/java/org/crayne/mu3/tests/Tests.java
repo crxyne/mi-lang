@@ -14,6 +14,8 @@ public class Tests {
                 module std {
                 
                     module math {
+                    
+                        pub? PI = 3.14;
                         
                         pub fn cos :: double (double d) {
                             ret 0.5;
@@ -44,8 +46,8 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        use bukkit;
-                        setblock(Mat::Stone);
+                        use std.math;
+                        std.println(string(PI));
                     }
                     
                 }

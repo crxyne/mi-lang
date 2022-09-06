@@ -19,6 +19,10 @@ public class Tests {
                         // java communication (native functions) not implemented yet
                     }
                     
+                    pub fn cos :: double (double d) {
+                        ret 0.5;
+                    }
+                    
                 }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
@@ -26,7 +30,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        std.println("");
+                        double d = (std.a);
                     }
                     
                 }

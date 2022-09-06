@@ -269,7 +269,7 @@ public class ParserEvaluator {
         final List<ValueParser.TypedNode> params = parseParametersCallFunction(tokens.subList(2, tokens.size() - 2));
 
         if (parser.skimming) {
-            if (checkValidFunctionCall(identifierTok, params)) return null;
+            if (checkValidFunctionCall(identifierTok, params) == null) return null;
         }
         return new Node(NodeType.FUNCTION_CALL,
                 new Node(NodeType.IDENTIFIER, identifierTok),
@@ -277,11 +277,11 @@ public class ParserEvaluator {
         );
     }
 
-    protected boolean checkValidFunctionCall(@NotNull final Token identifierTok, @NotNull final List<ValueParser.TypedNode> params) {
+    protected FunctionDefinition checkValidFunctionCall(@NotNull final Token identifierTok, @NotNull final List<ValueParser.TypedNode> params) {
         final String identifier = identifierTok.token();
         final String moduleAsString = moduleOf(identifier);
         final Optional<Module> ofunctionModule = parser.findModuleFromIdentifier(identifier, identifierTok, true);
-        if (ofunctionModule.isEmpty()) return true;
+        if (ofunctionModule.isEmpty()) return null;
 
         final Module functionModule = ofunctionModule.get();
         final String function = identOf(identifier);
@@ -289,21 +289,22 @@ public class ParserEvaluator {
 
         if (funcConcept.isEmpty()) {
             parser.parserError("Cannot find any function called '" + function + "' in module '" + (moduleAsString.isEmpty() ? parser.lastModule().name() : moduleAsString) + "'", identifierTok.line(), identifierTok.column() + moduleAsString.length() + 1);
-            return true;
+            return null;
         }
         final Optional<FunctionDefinition> def = funcConcept.get().definitionByCallParameters(params);
-        if (parser.encounteredError) return true;
+        if (parser.encounteredError) return null;
 
         if (def.isEmpty()) {
             if (params.isEmpty()) {
                 parser.parserError("Cannot find any implementation for function '" + function + "' with no arguments", identifierTok, true);
-                return true;
+                return null;
             }
             parser.parserError("Cannot find any implementation for function '" + function + "' with argument types " + callArgsToString(params), identifierTok, true);
-            return true;
+            return null;
         }
         parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.get().modifiers());
-        return parser.encounteredError;
+        if (parser.encounteredError) return null;
+        return def.get();
     }
 
     private String callArgsToString(@NotNull final List<ValueParser.TypedNode> params) {

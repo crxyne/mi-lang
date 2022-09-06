@@ -2,6 +2,7 @@ package org.crayne.mu.runtime.parsing.parser;
 
 import org.crayne.mu.lang.Datatype;
 import org.crayne.mu.lang.EqualOperation;
+import org.crayne.mu.lang.FunctionDefinition;
 import org.crayne.mu.lang.Variable;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
@@ -193,18 +194,18 @@ public class ValueParser {
         if (prefixed != null) return prefixed;
 
         if (currentToken == null) {
-            parserError("Unexpected parsing error");
+            parserError("Unexpected parsing error1");
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
-        if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER) {
+        if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER && (nextPart == null || !nextPart.token().equals("("))) {
             final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken);
             if (findVar.isEmpty()) return new TypedNode(null, new Node(NodeType.VALUE));
 
+            final Token identifier = currentToken;
             if (nextPart != null) {
                 final EqualOperation eq = EqualOperation.of(nextPart.token());
                 if (eq != null) {
-                    final Token identifier = currentToken;
                     nextPart();
                     nextPart();
 
@@ -217,11 +218,10 @@ public class ValueParser {
             }
 
             if (!findVar.get().initialized()) {
-                parserError("Variable '" + currentToken.token() + "' might not have been initialized yet", currentToken, "Set the value of the variable upon declaration");
+                parserError("Variable '" + identifier.token() + "' might not have been initialized yet", identifier, "Set the value of the variable upon declaration");
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
-
-            final TypedNode result = new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, currentToken));
+            final TypedNode result = new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, identifier));
             nextPart();
             return result;
         }
@@ -238,17 +238,21 @@ public class ValueParser {
         }
         if (eat("(")) {
             final TypedNode result = parseExpression();
+            System.out.println(result);
             if (!eat(")")) parserError("Expected ')' after expression in parenthesis");
             return result;
         }
-        if (parsingPosition + 1 < expr.size() && expr.get(parsingPosition + 1).token().equals("(")) {
+        if (nextPart != null && nextPart.token().equals("(")) {
             if (currentToken != null) {
-                final String identifier = currentToken.token();
+                final Token identifier = currentToken;
                 final List<TypedNode> parsedArgs = parseArgs();
                 if (parsedArgs == null || parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
 
-                return new TypedNode(null, new Node(NodeType.FUNCTION_CALL,
-                        new Node(NodeType.IDENTIFIER, Token.of(identifier)),
+                final FunctionDefinition def = parserParent.evaluator().checkValidFunctionCall(identifier, parsedArgs);
+                if (def == null) return new TypedNode(null, new Node(NodeType.VALUE));
+
+                return new TypedNode(def.returnType(), new Node(NodeType.FUNCTION_CALL,
+                        new Node(NodeType.IDENTIFIER, identifier),
                         new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())
                 ));
             }

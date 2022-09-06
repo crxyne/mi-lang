@@ -31,7 +31,13 @@ public enum EqualOperation {
     public static EqualOperation of(@NotNull final String op) {
         if (op.equals("++")) return ADD;
         if (op.equals("--")) return SUB;
-        return op.isEmpty() ? null : Arrays.stream(values()).filter(v -> v.op.equals(op.substring(0, op.length() - 1))).findFirst().orElse(null);
+        if (!op.isEmpty() && op.substring(0, op.length() - 1).isEmpty()) {
+            if (!op.equals("=")) return null;
+            return EQUAL;
+        }
+        final EqualOperation result = op.isEmpty() ? null : Arrays.stream(values()).filter(v -> v.op.equals(op.substring(0, op.length() - 1))).findFirst().orElse(null);
+        if (result == EQUAL) return null;
+        return result;
     }
 
 }

@@ -15,10 +15,6 @@ public class Tests {
                 
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.std.StandardLib";
                     
-                    pub enum LogLevel {
-                        ERROR, WARNING, INFO
-                    }
-                    
                 }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
@@ -26,7 +22,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        std.println(string std.LogLevel::ERROR);
+                        std.println("Hello, world!");
                     }
                     
                 }

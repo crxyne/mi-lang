@@ -46,7 +46,7 @@ public class FunctionConcept {
                 final FunctionParameter defParam = defParams.get(i);
                 final ValueParser.TypedNode callParam = parameters.get(i);
 
-                if (defParam.type() != callParam.type()) {
+                if (!ValueParser.validVarset(callParam.type(), defParam.type())) {
                     equalParams = false;
                     break;
                 }
@@ -57,7 +57,7 @@ public class FunctionConcept {
     }
 
     public boolean isDefined(@NotNull final List<FunctionParameter> withParams) {
-        return definitionByParameters(withParams) != null;
+        return definitionByParameters(withParams).isPresent();
     }
 
     public boolean equals(@NotNull final FunctionConcept other) {

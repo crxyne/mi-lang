@@ -1,5 +1,6 @@
 package org.crayne.mu.lang;
 
+import org.crayne.mu.runtime.parsing.parser.ValueParser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -38,7 +39,7 @@ public class FunctionParameter {
             final FunctionParameter defParam = params.get(i);
             final FunctionParameter otherParam = other.get(i);
 
-            if (defParam.type() != otherParam.type()) {
+            if (!ValueParser.validVarset(otherParam.type(), defParam.type())) {
                 equalParams = false;
                 break;
             }

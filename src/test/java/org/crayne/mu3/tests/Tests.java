@@ -30,7 +30,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        double d = (std.a);
+                        std.println(string(std.cos(3) + std.a));
                     }
                     
                 }

@@ -409,7 +409,7 @@ public class Parser {
 
     private void functionScope(@NotNull final ScopeType type) {
         final Optional<Scope> current = scope();
-        currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) current.get()));
+        current.ifPresent(scope -> currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope)));
     }
 
     public Optional<Scope> scope() {

@@ -63,7 +63,6 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        System.out.println(parentModule);
         return parent;
     }
 
@@ -72,13 +71,15 @@ public class Parser {
         while (currentTokenIndex < tokens.size() && !encounteredError) {
             parseStatement(false);
         }
+        if (!currentScope.isEmpty() && scopeIndent != 0) {
+            parserError("Expected '}', unfinished scope", tokens.get(currentTokenIndex - 1));
+        }
         currentTokenIndex = 0;
         currentToken = null;
         scopeIndent = 0;
         actualIndent = 0;
         currentScope.clear();
         currentScope.add(new Scope(ScopeType.PARENT, 0, 0));
-
         skimming = false;
     }
 
@@ -118,6 +119,8 @@ public class Parser {
         currentToken = currentTokenIndex < tokens.size() ? tokens.get(currentTokenIndex) : null;
     }
 
+    private int scopeEndCheck = 0;
+
     public Node evalStatement(@NotNull final List<Token> tokens, final boolean expectedUnscopedWhile) {
         if (tokens.isEmpty()) return null;
         Node result = null;
@@ -136,12 +139,12 @@ public class Parser {
                 return null;
             }
         }
-
         switch (last) {
             case SCOPE_BEGIN -> {
                 if (skimming) {
                     skimStatement(tokens, first);
                 }
+                scopeEndCheck++;
                 result = evalScoped(tokens, first, Collections.emptyList());
                 scopeIndent++;
                 if (result == null) {
@@ -218,6 +221,13 @@ public class Parser {
         }
         if (result == null && tokens.size() != 1 && !last.equals(SCOPE_END)) {
             parserError("Not a statement.", tokens.get(tokens.size() - 1));
+        }
+        if (tokens.size() == 1 && last.equals(SCOPE_END)) {
+            scopeEndCheck--;
+            if (scopeEndCheck < 0 && skimming) {
+                parserError("Unexpected token '}'", lastToken);
+                return null;
+            }
         }
         return result;
     }

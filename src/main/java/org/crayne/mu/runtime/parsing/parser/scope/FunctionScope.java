@@ -1,8 +1,8 @@
 package org.crayne.mu.runtime.parsing.parser.scope;
 
 import org.apache.commons.text.similarity.LevenshteinDistance;
-import org.crayne.mu.lang.*;
 import org.crayne.mu.lang.Module;
+import org.crayne.mu.lang.*;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
@@ -11,12 +11,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class FunctionScope extends Scope {
 
     private final List<LocalVariable> localVariables;
     private final FunctionScope parent;
+    private final Map<Integer, List<String>> using = new ConcurrentHashMap<>();
     private final Module module;
     private boolean reachedEnd;
 
@@ -74,12 +78,31 @@ public class FunctionScope extends Scope {
         localVariables.add(new LocalVariable(var, this));
     }
 
+    public void using(@NotNull final String module) {
+        this.using.putIfAbsent(actualIndent, new ArrayList<>());
+        this.using.get(actualIndent).add(module);
+        if (parent == null) return;
+
+        parent.using.putIfAbsent(actualIndent, new ArrayList<>());
+        parent.using.get(actualIndent).add(module);
+    }
+
+    public List<String> using() {
+        return using.values().stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
+
     public void scopeEnd(@NotNull final Parser parser) {
         if (!reachedEnd && parent == null && parser.currentFuncReturnType() != Datatype.VOID) {
             parser.parserError("Missing 'ret' or '::' statement", "Every branch in a function has to return some value, except in void functions");
             return;
         }
         localVariables.clear();
+        using.clear();
+        if (parent == null) return;
+
+        parent.using.remove(actualIndent);
     }
 
     public boolean localVariableValue(@NotNull final Parser parser, @NotNull final Token identifierTok, @NotNull final ValueParser.TypedNode value, @NotNull final EqualOperation eq) {

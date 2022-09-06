@@ -170,6 +170,7 @@ public class ParserEvaluator {
 
     public Node evalFirstIdentifier(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (tokens.size() <= 1) return null;
+
         final Token secondToken = parser.getAny(tokens, 1);
         if (Parser.anyNull(secondToken)) return null;
 
@@ -253,7 +254,7 @@ public class ParserEvaluator {
     }
 
     public static String moduleOf(@NotNull final String identifier) {
-        return StringUtils.substringBeforeLast(identifier, ".");
+        return identifier.contains(".") ? StringUtils.substringBeforeLast(identifier, ".") : "";
     }
 
     public static String identOf(@NotNull final String identifier) {
@@ -269,7 +270,7 @@ public class ParserEvaluator {
         final List<ValueParser.TypedNode> params = parseParametersCallFunction(tokens.subList(2, tokens.size() - 2));
 
         if (parser.skimming) {
-            if (checkValidFunctionCall(identifierTok, params) == null) return null;
+            if (checkValidFunctionCall(identifierTok, params, true, true) == null) return null;
         }
         return new Node(NodeType.FUNCTION_CALL,
                 new Node(NodeType.IDENTIFIER, identifierTok),
@@ -277,18 +278,31 @@ public class ParserEvaluator {
         );
     }
 
-    protected FunctionDefinition checkValidFunctionCall(@NotNull final Token identifierTok, @NotNull final List<ValueParser.TypedNode> params) {
+    protected FunctionDefinition checkValidFunctionCall(@NotNull final Token identifierTok, @NotNull final List<ValueParser.TypedNode> params, final boolean checkUsing, final boolean panic) {
         final String identifier = identifierTok.token();
         final String moduleAsString = moduleOf(identifier);
-        final Optional<Module> ofunctionModule = parser.findModuleFromIdentifier(identifier, identifierTok, true);
+        final Optional<Module> ofunctionModule = parser.findModuleFromIdentifier(identifier, identifierTok, panic);
         if (ofunctionModule.isEmpty()) return null;
+
+        final FunctionScope functionScope = expectFunctionScope(identifierTok);
+        if (functionScope == null) return null;
 
         final Module functionModule = ofunctionModule.get();
         final String function = identOf(identifier);
         final Optional<FunctionConcept> funcConcept = functionModule.findFunctionConceptByName(function);
 
         if (funcConcept.isEmpty()) {
-            parser.parserError("Cannot find any function called '" + function + "' in module '" + (moduleAsString.isEmpty() ? parser.lastModule().name() : moduleAsString) + "'", identifierTok.line(), identifierTok.column() + moduleAsString.length() + 1);
+            if (checkUsing) {
+                for (final String using : functionScope.using()) {
+                    final FunctionDefinition findUsing = checkValidFunctionCall(
+                            new Token(using + "." + identifier, identifierTok.actualLine(), identifierTok.line(), identifierTok.column()),
+                            params, false, false
+                    );
+                    if (findUsing != null) return findUsing;
+                }
+            }
+            if (panic) parser.parserError("Cannot find any function called '" + function + "' in module '" +
+                    (moduleAsString.isEmpty() ? parser.lastModule().name() : moduleAsString) + "'", identifierTok.line(), identifierTok.column() + moduleAsString.length());
             return null;
         }
         final Optional<FunctionDefinition> def = funcConcept.get().definitionByCallParameters(params);
@@ -296,13 +310,13 @@ public class ParserEvaluator {
 
         if (def.isEmpty()) {
             if (params.isEmpty()) {
-                parser.parserError("Cannot find any implementation for function '" + function + "' with no arguments", identifierTok, true);
+                if (panic) parser.parserError("Cannot find any implementation for function '" + function + "' with no arguments", identifierTok, true);
                 return null;
             }
-            parser.parserError("Cannot find any implementation for function '" + function + "' with argument types " + callArgsToString(params), identifierTok, true);
+            if (panic) parser.parserError("Cannot find any implementation for function '" + function + "' with argument types " + callArgsToString(params), identifierTok, true);
             return null;
         }
-        parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.get().modifiers());
+        if (panic) parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.get().modifiers());
         if (parser.encounteredError) return null;
         return def.get();
     }
@@ -646,6 +660,25 @@ public class ParserEvaluator {
             return true;
         }
         return false;
+    }
+
+    public Node evalUseStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final FunctionScope functionScope = expectFunctionScope(tokens.get(0));
+        if (functionScope == null) return null;
+
+        final Token use = parser.getAndExpect(tokens, 0, NodeType.LITERAL_USE);
+        final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token semi = parser.getAndExpect(tokens, 2, NodeType.SEMI);
+        if (Parser.anyNull(use, identifier, semi)) return null;
+
+        final String moduleName = identifier.token();
+
+        final Optional<Module> module = parser.findModuleFromIdentifier(moduleName, identifier, true);
+        if (module.isEmpty()) return null;
+
+        functionScope.using(moduleName);
+        return new Node(NodeType.USE_STATEMENT, new Node(NodeType.IDENTIFIER, identifier));
     }
 
     public Node evalModuleDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {

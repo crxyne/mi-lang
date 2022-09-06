@@ -209,7 +209,7 @@ public class Parser {
             }
         }
         if (result == null && tokens.size() != 1 && !last.equals(SCOPE_END)) {
-            parserError("Not a statement.");
+            parserError("Not a statement.", tokens.get(tokens.size() - 1));
         }
         return result;
     }
@@ -251,11 +251,13 @@ public class Parser {
     public Node evalUnscoped(@NotNull final List<Token> tokens, @NotNull final NodeType first, @NotNull final List<Node> modifiers) {
         if (first.isModifier()) return evalUnscopedWithModifiers(tokens);
         if (first.isDatatype()) return evaluator.evalVariableDefinition(tokens, modifiers);
+
         return switch (first) {
             case STANDARDLIB_MU_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
             case IDENTIFIER -> evaluator.evalFirstIdentifier(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, true);
             case LITERAL_RET -> evaluator.evalReturnStatement(tokens, modifiers);
+            case LITERAL_USE -> evaluator.evalUseStatement(tokens, modifiers);
             case LITERAL_ELSE -> {
                 parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
                 yield null;
@@ -466,6 +468,10 @@ public class Parser {
 
     public Module lastModule() {
         return currentModule.isEmpty() ? parentModule : currentModule.get(currentModule.size() - 1);
+    }
+
+    public Module parentModule() {
+        return parentModule;
     }
 
     public Token currentToken() {

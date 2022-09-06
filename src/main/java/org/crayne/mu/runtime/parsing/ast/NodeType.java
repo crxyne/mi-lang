@@ -77,6 +77,7 @@ public enum NodeType {
     TERNARY_OPERATOR_ELSE(null),
     WHILE_STATEMENT(null),
     WHILE_STATEMENT_UNSCOPED(null),
+    USE_STATEMENT(null),
     RETURN_VALUE(null),
     CAST_VALUE(null),
     NEGATE(null),

@@ -2,6 +2,7 @@ package org.crayne.mu.runtime.parsing.lexer;
 
 import org.apache.commons.text.StringEscapeUtils;
 import org.crayne.mu.log.MessageHandler;
+import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -275,7 +276,7 @@ public class Tokenizer {
 
     private boolean handleWhitespaces() {
         if (Character.isWhitespace(atPos)) {
-            if (!currentToken.isEmpty() && lastCharCurrent() != '.' && nextCharCurrent() != '.') {
+            if (!currentToken.isEmpty() && ((lastCharCurrent() != '.' && nextCharCurrent() != '.') || NodeType.of(currentToken()).isKeyword())) {
                 addCurrent();
                 clearCurrent();
             }
@@ -362,7 +363,7 @@ public class Tokenizer {
             if (handleComments(multiTok)) return true;
 
             if (notInComment()) {
-                if (isCurrentMultiToken() && doesMultiTokenExist(multiTok)) {
+                if (isCurrentMultiToken() && doesMultiTokenExist(multiTok) && !NodeType.of(multiTok).isKeyword()) {
                     currentToken.append(atPos);
                     return true;
                 }

@@ -247,7 +247,7 @@ public class ValueParser {
                 final List<TypedNode> parsedArgs = parseArgs();
                 if (parsedArgs == null || parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
 
-                final FunctionDefinition def = parserParent.evaluator().checkValidFunctionCall(identifier, parsedArgs);
+                final FunctionDefinition def = parserParent.evaluator().checkValidFunctionCall(identifier, parsedArgs, true, true);
                 if (def == null) return new TypedNode(null, new Node(NodeType.VALUE));
 
                 final Datatype retType = def.returnType();

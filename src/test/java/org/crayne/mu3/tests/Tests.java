@@ -12,15 +12,17 @@ public class Tests {
                 pub? false = 0b;
                 
                 module std {
-                    
-                    pub mut? a = 5;
+                
+                    module math {
+                        
+                        pub fn cos :: double (double d) {
+                            ret 0.5;
+                        }
+                        
+                    }
                 
                     pub fn println~ (string s) {
                         // java communication (native functions) not implemented yet
-                    }
-                    
-                    pub fn cos :: double (double d) {
-                        ret 0.5;
                     }
                     
                 }
@@ -30,7 +32,10 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        std.println(string(std.println("") + std.a));
+                        use std;
+                        use std.math;
+                        
+                        println(string cos(0.5));
                     }
                     
                 }

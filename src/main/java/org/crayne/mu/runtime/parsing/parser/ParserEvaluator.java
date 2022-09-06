@@ -390,7 +390,7 @@ public class ParserEvaluator {
             if (panic) parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
             return null;
         }
-        parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifier, globalVar.get().modifiers());
+        parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifierTok, globalVar.get().modifiers());
         return globalVar.get();
     }
 
@@ -457,7 +457,7 @@ public class ParserEvaluator {
             if (panic) parser.parserError("Cannot find any implementation for function '" + function + "' with argument types " + callArgsToString(params), identifierTok, true);
             return null;
         }
-        if (panic) parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifier, def.get().modifiers());
+        if (panic) parser.checkAccessValidity(functionModule, IdentifierType.FUNCTION, identifierTok, def.get().modifiers());
         if (parser.encounteredError) return null;
         return def.get();
     }
@@ -735,13 +735,13 @@ public class ParserEvaluator {
 
             for (final FunctionParameter arg : params) {
                 final Datatype type = arg.type();
-                if (!type.primitive()) {
+                if (type.notPrimitive()) {
                     parser.parserError("Only primitive datatypes (int, long, double, float, bool, string, char) may be used as native function arguments", at);
                     return null;
                 }
                 paramTypes.add(primitiveToJavaType(type.getPrimitive()));
             }
-            if (!returnType.primitive()) {
+            if (returnType.notPrimitive()) {
                 parser.parserError("Only primitive datatypes (int, long, double, float, bool, string, char) may be used as a native function return type", at);
                 return null;
             }

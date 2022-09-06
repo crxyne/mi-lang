@@ -2,6 +2,7 @@ package org.crayne.mu.lang;
 
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.runtime.parsing.parser.IdentifierType;
 import org.crayne.mu.runtime.parsing.parser.Parser;
 import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
 import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
@@ -60,6 +61,7 @@ public class Datatype {
             if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);
             return null;
         }
+        parser.checkAccessValidity(module.get(), IdentifierType.ENUM, identifier, foundEnum.get().modifiers());
         return foundEnum.get();
     }
 
@@ -84,8 +86,8 @@ public class Datatype {
         return primitiveDatatype != null || enumDatatype != null;
     }
 
-    public boolean primitive() {
-        return primitive;
+    public boolean notPrimitive() {
+        return !primitive;
     }
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{

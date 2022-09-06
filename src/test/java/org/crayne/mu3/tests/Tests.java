@@ -15,7 +15,7 @@ public class Tests {
                 
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.std.StandardLib";
                     
-                    priv enum LogLevel {
+                    pub enum LogLevel {
                         ERROR, WARNING, INFO
                     }
                     

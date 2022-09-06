@@ -330,18 +330,18 @@ public class Parser {
         return evaluator;
     }
 
-    protected void checkAccessValidity(@NotNull final Module module, @NotNull final IdentifierType type, @NotNull final String identifier, @NotNull final List<Modifier> modifiers) {
+    public void checkAccessValidity(@NotNull final Module module, @NotNull final IdentifierType type, @NotNull final Token identifier, @NotNull final List<Modifier> modifiers) {
         final Module currentModule = lastModule();
 
         if (module == currentModule) return;
         if (modifiers.isEmpty() || modifiers.contains(Modifier.PUBLIC) || modifiers.contains(Modifier.OWN)) return;
         if (modifiers.contains(Modifier.PRIVATE)) { // we have checked before if were already in the same module but this wasnt the case at this point anymore
-            parserError(type + " " + identifier + " is private, cannot access from other modules");
+            parserError(type + " " + identifier.token() + " is private, cannot access from other modules", identifier);
             return;
         }
         if (modifiers.contains(Modifier.PROTECTED)) {
             if (module.parent() == currentModule.parent() || module.parent() == currentModule) return;
-            parserError(type + " " + identifier + " is protected, can only access from same parent or module, or if the accessor is in the parent module");
+            parserError(type + " " + identifier.token() + " is protected, can only access from same parent or module, or if the accessor is in the parent module", identifier);
         }
     }
 

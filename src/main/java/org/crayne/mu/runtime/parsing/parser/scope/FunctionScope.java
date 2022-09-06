@@ -113,7 +113,7 @@ public class FunctionScope extends Scope {
         }
 
         if (immutable(parser, var, identifierTok)) return false;
-        if (!ValueParser.validVarset(value.type(), var.type())) {
+        if (!value.type().equals(var.type())) {
             parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName(), identifierTok);
             return false;
         }

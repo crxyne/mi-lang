@@ -4,7 +4,9 @@ import org.crayne.mu.runtime.parsing.parser.scope.EnumScope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 
 public class Enum {
 
@@ -24,6 +26,16 @@ public class Enum {
 
     public static Enum of(@NotNull final EnumScope scope) {
         return new Enum(scope.name(), scope.members(), scope.modifiers());
+    }
+
+    public List<Modifier> modifiers() {
+        return modifiers;
+    }
+
+    public static Optional<Enum> findEnumByName(@NotNull final HashSet<Enum> moduleEnums, @NotNull final String name) {
+        Enum result = null;
+        for (final Enum var : moduleEnums) if (var.name.equals(name)) result = var;
+        return Optional.ofNullable(result);
     }
 
 }

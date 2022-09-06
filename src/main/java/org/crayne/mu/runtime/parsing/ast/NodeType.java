@@ -2,6 +2,7 @@ package org.crayne.mu.runtime.parsing.ast;
 
 import org.crayne.mu.lang.Datatype;
 import org.crayne.mu.lang.EqualOperation;
+import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.lexer.Tokenizer;
 import org.jetbrains.annotations.NotNull;
@@ -45,7 +46,7 @@ public enum NodeType {
     LITERAL_MUT("mut"),
     LITERAL_CONST("const"),
     LITERAL_RET("ret"),
-    LITERAL_ENUM("enum", Datatype.ENUM),
+    LITERAL_ENUM("enum"),
     LITERAL_USE("use"),
     LITERAL_JAVACALL_F("javacall_f"),
 
@@ -162,15 +163,20 @@ public enum NodeType {
         return asString;
     }
 
-    public Datatype getAsDataType() {
+    private Datatype getAsDataType() {
         return type;
     }
 
-    public static NodeType of(@NotNull final Datatype type) {
+    public static Datatype getAsDataType(@NotNull final Node node) {
+        final Datatype primitive = node.type().getAsDataType();
+        if (primitive == null) return new Datatype(node.value().token());
+        return primitive;
+    }
+
+    public static NodeType of(@NotNull final PrimitiveDatatype type) {
         return switch (type) {
             case INT -> LITERAL_INT;
             case CHAR -> LITERAL_CHAR;
-            case ENUM -> LITERAL_ENUM;
             case LONG -> LITERAL_LONG;
             case FLOAT -> LITERAL_FLOAT;
             case DOUBLE -> LITERAL_DOUBLE;

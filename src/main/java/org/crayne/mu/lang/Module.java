@@ -62,6 +62,10 @@ public class Module {
         enums.add(_enum);
     }
 
+    public Optional<Enum> findEnumByName(@NotNull final String en) {
+        return Enum.findEnumByName(enums, en);
+    }
+
     public boolean findSubmoduleByName(@NotNull final String mod) {
         return foundModuleByName(subModules, mod);
     }

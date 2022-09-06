@@ -79,11 +79,13 @@ public class ParserEvaluator {
                     "Move your variable into a module or create a new module for it");
             return;
         }
+        final Datatype datatype = Datatype.of(result.child(2).value());
+        if (datatype == null) return;
 
         final Token ident = result.child(1).value();
         final Variable var = new Variable(
                 ident.token(),
-                NodeType.of(result.child(2).value()).getAsDataType(),
+                datatype,
                 modifiers,
                 result.children().size() == 4
         );
@@ -98,11 +100,12 @@ public class ParserEvaluator {
 
         final Token ident = result.child(1).value();
         final FunctionScope functionScope = expectFunctionScope(ident);
-        if (functionScope == null) return;
+        final Datatype datatype = Datatype.of(result.child(2).value());
+        if (functionScope == null || datatype == null) return;
 
         final Variable var = new Variable(
                 ident.token(),
-                NodeType.of(result.child(2).value()).getAsDataType(),
+                datatype,
                 modifiers,
                 result.children().size() == 4
         );
@@ -118,19 +121,27 @@ public class ParserEvaluator {
             final List<Modifier> modifiers = result.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
 
             final List<Node> paramNodes = result.child(3).children().stream().toList();
-            final List<FunctionParameter> params = paramNodes.stream().map(n -> new FunctionParameter(
-                    Datatype.valueOf(n.child(0).value().token().toUpperCase()),
-                    n.child(1).value().token(),
-                    n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
-            )).toList();
+
+            final List<FunctionParameter> params = paramNodes.stream().map(n -> {
+                final Datatype datatype = Datatype.of(n.child(0).value());
+                if (datatype == null) throw new NullPointerException();
+                return new FunctionParameter(
+                        datatype,
+                        n.child(1).value().token(),
+                        n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                );
+            }).toList();
 
             final Token nameToken = result.child(0).value();
             if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false)) return;
 
+            final Datatype datatype = Datatype.of(result.child(1).value());
+            if (datatype == null) throw new NullPointerException();
+
             if (result.children().size() == 5) {
                 module.addFunction(parser, nameToken, new FunctionDefinition(
                         nameToken.token(),
-                        Datatype.valueOf(result.child(1).value().token().toUpperCase()),
+                        datatype,
                         params,
                         modifiers,
                         result.child(4)
@@ -139,7 +150,7 @@ public class ParserEvaluator {
             }
             module.addFunction(parser, nameToken, new FunctionDefinition(
                     nameToken.token(),
-                    Datatype.valueOf(result.child(1).value().token().toUpperCase()),
+                    datatype,
                     params,
                     modifiers
             ));
@@ -175,7 +186,7 @@ public class ParserEvaluator {
         final ValueParser.TypedNode retVal = parseExpression(tokens.subList(1, tokens.size() - 1));
         if (retVal == null || retVal.type() == null || retVal.node() == null) return null;
 
-        if (!ValueParser.validVarset(retVal.type(), expectedType)) {
+        if (!retVal.type().equals(expectedType)) {
             parser.parserError("Expected datatype of return value to be " + expectedType.getName() + ", but got " + retVal.type().getName() + " instead", tokens.get(1));
             return null;
         }
@@ -191,7 +202,8 @@ public class ParserEvaluator {
         final NodeType second = NodeType.of(secondToken);
         if (second == NodeType.LPAREN) return evalFunctionCall(tokens, modifiers);
         else if (second == NodeType.COMMA || second == NodeType.SEMI) return evalEnumMembers(tokens, modifiers);
-        else if (EqualOperation.of(second.getAsString()) != null) return evalVariableChange(tokens, modifiers);
+        else if (second == NodeType.IDENTIFIER) return evalVariableDefinition(tokens, modifiers);
+        else if (second.getAsString() != null && EqualOperation.of(second.getAsString()) != null) return evalVariableChange(tokens, modifiers);
         return null;
     }
 
@@ -419,9 +431,11 @@ public class ParserEvaluator {
         final ValueParser.TypedNode value = parseExpression(tokens.subList(3, tokens.size() - 1));
         if (value.type() == null || value.node() == null) return null;
 
-        final Node finalType = indefinite ? new Node(NodeType.TYPE, Token.of(NodeType.of(value.type()).getAsString())) : new Node(NodeType.TYPE, datatype);
+        final Node finalType = indefinite
+                ? new Node(NodeType.TYPE, Token.of(value.type().getName()))
+                : new Node(NodeType.TYPE, datatype);
 
-        if (!indefinite && !ValueParser.validVarset(value.type(), NodeType.of(datatype).getAsDataType())) {
+        if (!indefinite && !value.type().equals(Objects.requireNonNull(Datatype.of(finalType.value())))) {
             parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type().getName() + " to a " + datatype.token() + " variable.", datatype,
                     "Change the datatype to the correct one, try casting values inside the expression to the needed datatype or set the variable type to '?'.");
             return null;
@@ -558,8 +572,9 @@ public class ParserEvaluator {
                     .toArray(new NodeType[0]));
             if (returnToken == null) return null;
 
-            returnType = NodeType.of(returnToken).getAsDataType();
+            returnType = Datatype.of(returnToken);
         }
+        if (returnType == null) return null;
 
         final Token parenOpen = parser.getAndExpect(tokens, 3 + extraIndex, NodeType.LPAREN);
         final Token parenClose = parser.getAndExpect(tokens, tokens.size() - 2, true, NodeType.RPAREN);
@@ -570,7 +585,7 @@ public class ParserEvaluator {
 
         return new Node(NodeType.FUNCTION_DEFINITION,
                 new Node(NodeType.IDENTIFIER, identifier),
-                new Node(NodeType.TYPE, Token.of(returnType.name().toLowerCase())),
+                new Node(NodeType.TYPE, Token.of(returnType.getName())),
                 new Node(NodeType.MODIFIERS, modifiers),
                 new Node(NodeType.PARAMETERS, params)
         );

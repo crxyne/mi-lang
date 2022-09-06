@@ -46,7 +46,7 @@ public class FunctionConcept {
                 final FunctionParameter defParam = defParams.get(i);
                 final ValueParser.TypedNode callParam = parameters.get(i);
 
-                if (!ValueParser.validVarset(callParam.type(), defParam.type())) {
+                if (!callParam.type().equals(defParam.type())) {
                     equalParams = false;
                     break;
                 }

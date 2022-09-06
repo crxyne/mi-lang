@@ -26,17 +26,21 @@ public class Tests {
                     }
                     
                 }
+                
+                module bukkit {
+                
+                    pub enum Mat {
+                        Dirt, Stone, Grass
+                    }
+                    
+                }
                                 
                 STANDARDLIB_MU_FINISH_CODE;
                 
                 module helloworld {
                 
-                    pub enum Mat {
-                        Dirt, Stone, Grass
-                    }
-                
                     pub fn main {
-                        
+                        ?material = bukkit.Mat::Flower;
                     }
                     
                 }

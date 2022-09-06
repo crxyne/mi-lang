@@ -1,15 +1,17 @@
 package org.crayne.mu.runtime.parsing.parser;
 
-import org.crayne.mu.lang.Datatype;
-import org.crayne.mu.lang.EqualOperation;
-import org.crayne.mu.lang.FunctionDefinition;
-import org.crayne.mu.lang.Variable;
+import org.crayne.mu.lang.*;
+import org.crayne.mu.lang.Enum;
+import org.crayne.mu.lang.Module;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 public class ValueParser {
 
@@ -72,12 +74,12 @@ public class ValueParser {
             return null;
         }
         final TypedNode z = parseExpression();
-        final boolean areEqual = validVarset(z.type, y.type);
+        final boolean areEqual = z.type.equals(y.type);
         if (!areEqual) {
             final Token val = z.node.value();
             parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator",
                     val.line(), val.column(),
-                    "'if' part is of type " + y.type.getName() + ", while 'else' part is " + z.type.name());
+                    "'if' part is of type " + y.type.getName() + ", while 'else' part is " + z.type.getName());
             return null;
         }
         return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR,
@@ -102,7 +104,7 @@ public class ValueParser {
             parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op.line(), op.column());
             return null;
         }
-        return new TypedNode(Datatype.isComparator(op.token()) ? Datatype.BOOL : getHeavierType(x.type, y.type), new Node(NodeType.of(op.token()), x.node, y.node));
+        return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), x.node, y.node));
     }
 
     private static final List<List<NodeType>> operatorPrecedence = Arrays.asList(
@@ -118,32 +120,6 @@ public class ValueParser {
             List.of(NodeType.LOGICAL_OR),
             List.of(NodeType.QUESTION_MARK)
     );
-
-    private static final Map<Datatype, Integer> datatypeRanking = new HashMap<>() {{
-        this.put(Datatype.ENUM, 1);
-        this.put(Datatype.BOOL, 1);
-        this.put(Datatype.STRING, 2);
-        this.put(Datatype.DOUBLE, 3);
-        this.put(Datatype.FLOAT, 4);
-        this.put(Datatype.LONG, 5);
-        this.put(Datatype.INT, 6);
-        this.put(Datatype.CHAR, 6);
-    }};
-
-    public static Datatype getHeavierType(@NotNull final Datatype d1, @NotNull final Datatype d2) {
-        final Integer r1 = datatypeRanking.get(d1);
-        final Integer r2 = datatypeRanking.get(d2);
-        if (r1 == null || r2 == null) return null;
-        return r1 < r2 ? d1 : d2;
-    }
-
-    public static boolean validVarset(@NotNull final Datatype newType, @NotNull final Datatype oldType) {
-        if (newType == oldType) return true;
-        final Integer newRank = datatypeRanking.get(newType);
-        final Integer oldRank = datatypeRanking.get(oldType);
-        if (newRank == null || oldRank == null) return false;
-        return newRank.equals(oldRank) || oldRank < newRank;
-    }
 
     private TypedNode parseExpression() {
         return parseExpression(operatorPrecedence.size() - 1);
@@ -198,6 +174,32 @@ public class ValueParser {
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
+
+        if (nextPart != null && nextPart.token().equals("::") && parsingPosition + 2 < expr.size()) {
+            final Token enumMember = expr.get(parsingPosition + 2);
+            final Token enumName = currentToken;
+            final String enumMemberStr = enumMember.token();
+            final String enumNameStr = enumName.token();
+
+            final Optional<Module> module = parserParent.findModuleFromIdentifier(enumNameStr, enumName, true);
+            if (module.isEmpty()) return null;
+            final Optional<Enum> foundEnum = module.get().findEnumByName(ParserEvaluator.identOf(enumNameStr));
+            if (foundEnum.isEmpty()) {
+                parserParent.parserError("Cannot find enum '" + enumNameStr + "'", enumName);
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
+            if (!foundEnum.get().members().contains(enumMemberStr)) {
+                parserParent.parserError("Enum '" + enumNameStr + "' does not have member '" + enumMemberStr + "'", enumMember);
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
+            nextPart();
+            nextPart();
+            nextPart();
+            return new TypedNode(new Datatype(enumName.token()), new Node(NodeType.GET_ENUM_MEMBER,
+                    new Node(NodeType.IDENTIFIER, enumName),
+                    new Node(NodeType.MEMBER, enumMember)
+            ));
+        }
         if (NodeType.of(currentToken.token()) == NodeType.IDENTIFIER && (nextPart == null || !nextPart.token().equals("("))) {
             final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken);
             if (findVar.isEmpty()) return new TypedNode(null, new Node(NodeType.VALUE));
@@ -224,17 +226,6 @@ public class ValueParser {
             final TypedNode result = new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, identifier));
             nextPart();
             return result;
-        }
-        if (nextPart != null && nextPart.token().equals("::") && parsingPosition + 2 < expr.size()) {
-            final Token enumMember = expr.get(parsingPosition + 2);
-            final Token enumName = currentToken;
-            nextPart();
-            nextPart();
-            nextPart();
-            return new TypedNode(Datatype.ENUM, new Node(NodeType.GET_ENUM_MEMBER,
-                    new Node(NodeType.IDENTIFIER, enumName),
-                    new Node(NodeType.MEMBER, enumMember)
-            ));
         }
         if (eat("(")) {
             final TypedNode result = parseExpression();
@@ -264,7 +255,7 @@ public class ValueParser {
         }
         final Token result = currentToken;
         final NodeType nodeType = result == null ? null : NodeType.of(result.token());
-        final Datatype datatype = nodeType == null ? null : nodeType.getAsDataType();
+        final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(new Node(nodeType, result));
         if (datatype == null) return new TypedNode(null, new Node(NodeType.VALUE));
         nextPart();
         return new TypedNode(datatype, new Node(nodeType, result));

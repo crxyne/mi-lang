@@ -1,7 +1,7 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.ast.Node;
-import org.crayne.mu.runtime.parsing.parser.ValueParser;
+import org.crayne.mu.parsing.ast.Node;
+import org.crayne.mu.parsing.parser.ValueParser;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
@@ -24,6 +24,10 @@ public class FunctionConcept {
     public final void addDefinition(@NotNull final List<FunctionParameter> defs, @NotNull final List<Modifier> modifiers, final Node scope, final Method nativeMethod) {
         if (scope == null) definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, nativeMethod));
         else definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, scope));
+    }
+
+    public HashSet<FunctionDefinition> definitions() {
+        return definitions;
     }
 
     public String name() {

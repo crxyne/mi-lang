@@ -1,10 +1,9 @@
 package org.crayne.mu.runtime;
 
 import org.crayne.mu.log.MessageHandler;
-import org.crayne.mu.runtime.parsing.ast.SyntaxTree;
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.lexer.Tokenizer;
-import org.crayne.mu.runtime.parsing.parser.Parser;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.lexer.Tokenizer;
+import org.crayne.mu.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.PrintStream;

@@ -1,4 +1,4 @@
-package org.crayne.mu.lang.std;
+package org.crayne.mu.lang.stdlib;
 
 import org.crayne.mu.lang.MuCallable;
 import org.jetbrains.annotations.NotNull;

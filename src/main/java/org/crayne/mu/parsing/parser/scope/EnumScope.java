@@ -1,9 +1,9 @@
-package org.crayne.mu.runtime.parsing.parser.scope;
+package org.crayne.mu.parsing.parser.scope;
 
 import org.crayne.mu.lang.Enum;
 import org.crayne.mu.lang.Modifier;
 import org.crayne.mu.lang.Module;
-import org.crayne.mu.runtime.parsing.parser.Parser;
+import org.crayne.mu.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

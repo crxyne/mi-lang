@@ -1,4 +1,4 @@
-package org.crayne.mu.runtime.parsing.parser;
+package org.crayne.mu.parsing.parser;
 
 import org.jetbrains.annotations.NotNull;
 

@@ -1,6 +1,6 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.ast.Node;
+import org.crayne.mu.parsing.ast.Node;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;

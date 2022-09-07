@@ -1,11 +1,11 @@
-package org.crayne.mu.runtime.parsing.parser;
+package org.crayne.mu.parsing.parser;
 
 import org.crayne.mu.lang.Enum;
 import org.crayne.mu.lang.*;
-import org.crayne.mu.runtime.parsing.ast.Node;
-import org.crayne.mu.runtime.parsing.ast.NodeType;
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
+import org.crayne.mu.parsing.ast.Node;
+import org.crayne.mu.parsing.ast.NodeType;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.parser.scope.FunctionScope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

@@ -1,14 +1,16 @@
-package org.crayne.mu.runtime.parsing.parser;
+package org.crayne.mu.parsing.parser;
 
 import org.apache.commons.lang3.StringUtils;
+import org.crayne.mu.lang.Datatype;
+import org.crayne.mu.lang.Modifier;
 import org.crayne.mu.lang.Module;
-import org.crayne.mu.lang.*;
+import org.crayne.mu.lang.Variable;
 import org.crayne.mu.log.MessageHandler;
-import org.crayne.mu.runtime.parsing.ast.Node;
-import org.crayne.mu.runtime.parsing.ast.NodeType;
-import org.crayne.mu.runtime.parsing.ast.SyntaxTree;
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.scope.*;
+import org.crayne.mu.parsing.ast.Node;
+import org.crayne.mu.parsing.ast.NodeType;
+import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -61,7 +63,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTree result = new SyntaxTree(parentModule(), parent);
+        final SyntaxTree result = new SyntaxTree(parentModule(), parent, output);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }

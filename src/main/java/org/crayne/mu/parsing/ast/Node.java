@@ -1,6 +1,6 @@
-package org.crayne.mu.runtime.parsing.ast;
+package org.crayne.mu.parsing.ast;
 
-import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

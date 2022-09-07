@@ -1,6 +1,6 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.ast.NodeType;
+import org.crayne.mu.parsing.ast.NodeType;
 import org.jetbrains.annotations.NotNull;
 
 public enum Modifier {

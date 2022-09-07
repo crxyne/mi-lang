@@ -12,7 +12,7 @@ public class Tests {
                 
                 module std {
                 
-                    pub nat fn println~ (string s) -> "org.crayne.mu.lang.std.StandardLib";
+                    pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
                     
                 }
                 

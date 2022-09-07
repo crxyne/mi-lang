@@ -1,8 +1,8 @@
-package org.crayne.mu.runtime.parsing.lexer;
+package org.crayne.mu.parsing.lexer;
 
 import org.apache.commons.text.StringEscapeUtils;
 import org.crayne.mu.log.MessageHandler;
-import org.crayne.mu.runtime.parsing.ast.NodeType;
+import org.crayne.mu.parsing.ast.NodeType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

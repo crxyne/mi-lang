@@ -1,4 +1,4 @@
-package org.crayne.mu.runtime.parsing.lexer;
+package org.crayne.mu.parsing.lexer;
 
 import org.jetbrains.annotations.NotNull;
 

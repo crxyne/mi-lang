@@ -1,7 +1,7 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.ast.NodeType;
-import org.crayne.mu.runtime.parsing.lexer.Token;
+import org.crayne.mu.parsing.ast.NodeType;
+import org.crayne.mu.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;

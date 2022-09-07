@@ -1,12 +1,12 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.ast.NodeType;
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.IdentifierType;
-import org.crayne.mu.runtime.parsing.parser.Parser;
-import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
-import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
-import org.crayne.mu.runtime.parsing.parser.scope.Scope;
+import org.crayne.mu.parsing.ast.NodeType;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.parser.IdentifierType;
+import org.crayne.mu.parsing.parser.Parser;
+import org.crayne.mu.parsing.parser.ParserEvaluator;
+import org.crayne.mu.parsing.parser.scope.FunctionScope;
+import org.crayne.mu.parsing.parser.scope.Scope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

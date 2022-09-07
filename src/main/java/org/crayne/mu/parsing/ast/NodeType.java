@@ -1,11 +1,11 @@
-package org.crayne.mu.runtime.parsing.ast;
+package org.crayne.mu.parsing.ast;
 
 import org.crayne.mu.lang.Datatype;
 import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.lang.PrimitiveDatatype;
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.lexer.Tokenizer;
-import org.crayne.mu.runtime.parsing.parser.Parser;
+import org.crayne.mu.parsing.lexer.Tokenizer;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;

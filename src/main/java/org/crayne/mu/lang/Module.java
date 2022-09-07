@@ -1,7 +1,7 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.Parser;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -68,6 +68,10 @@ public class Module {
 
     public boolean findSubmoduleByName(@NotNull final String mod) {
         return foundModuleByName(subModules, mod);
+    }
+
+    public HashSet<Enum> enums() {
+        return enums;
     }
 
     public void addGlobalVariable(@NotNull final Parser parser, @NotNull final Variable var) {

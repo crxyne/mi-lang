@@ -1,6 +1,6 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.runtime.parsing.parser.scope.EnumScope;
+import org.crayne.mu.parsing.parser.scope.EnumScope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package org.crayne.mu.runtime.parsing.parser.scope;
+package org.crayne.mu.parsing.parser.scope;
 
 public enum ScopeType {
 

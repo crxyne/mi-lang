@@ -1,12 +1,12 @@
-package org.crayne.mu.runtime.parsing.parser.scope;
+package org.crayne.mu.parsing.parser.scope;
 
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.crayne.mu.lang.Module;
 import org.crayne.mu.lang.*;
-import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.Parser;
-import org.crayne.mu.runtime.parsing.parser.ParserEvaluator;
-import org.crayne.mu.runtime.parsing.parser.ValueParser;
+import org.crayne.mu.parsing.lexer.Token;
+import org.crayne.mu.parsing.parser.Parser;
+import org.crayne.mu.parsing.parser.ParserEvaluator;
+import org.crayne.mu.parsing.parser.ValueParser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

@@ -69,7 +69,7 @@ public class ValueParser {
         if (!eat(":")) {
             final Token val = y.node.value();
             parserError("Expected ':' after ternary expression", val.line(), val.column());
-            return null;
+            return new TypedNode(null, new Node(NodeType.VALUE));
         }
         final TypedNode z = parseExpression();
         final boolean areEqual = z.type.equals(y.type);
@@ -78,7 +78,11 @@ public class ValueParser {
             parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator",
                     val.line(), val.column(),
                     "'if' part is of type " + y.type.getName() + ", while 'else' part is " + z.type.getName());
-            return null;
+            return new TypedNode(null, new Node(NodeType.VALUE));
+        }
+        if (x.type.notPrimitive() || !x.type.getPrimitive().equals(PrimitiveDatatype.BOOL)) {
+            parserParent.parserError("Ternary operator condition should be of type 'bool' but is instead '" + x.type.getName() + "'", x.node.value());
+            return new TypedNode(null, new Node(NodeType.VALUE));
         }
         return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR,
                 new Node(NodeType.CONDITION, x.node),
@@ -97,10 +101,10 @@ public class ValueParser {
         if (!operatorDefined) {
             if (x.type == y.type) {
                 parserError("Operator '" + op.token() + "' is not defined for operand type " + x.type.getName(), op.line(), op.column());
-                return null;
+                return new TypedNode(null, new Node(NodeType.VALUE));
             }
             parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op.line(), op.column());
-            return null;
+            return new TypedNode(null, new Node(NodeType.VALUE));
         }
         return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), x.node, y.node));
     }
@@ -146,13 +150,33 @@ public class ValueParser {
     }
 
     private TypedNode handleFactorPrefixes() {
-        if (eat("+")) return parseFactor();
+        // ****prefixed**** ++ and -- dont de/in-crement
+        final Token prev = currentToken;
+        if (eat("+") || eat("--") || eat("++")) {
+            final TypedNode fact = parseFactor();
+            if (parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
+            if (!fact.type.operatorDefined(NodeType.ADD, Datatype.DOUBLE)) {
+                parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
+            return fact;
+        }
         if (eat("-")) {
             final TypedNode fact = parseFactor();
+            if (parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
+            if (!fact.type.operatorDefined(NodeType.ADD, Datatype.DOUBLE)) {
+                parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
             return new TypedNode(fact.type, new Node(NodeType.NEGATE, fact.node));
         }
         if (eat("!")) {
             final TypedNode fact = parseFactor();
+            if (parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
+            if (fact.type != Datatype.BOOL) {
+                parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
             return new TypedNode(fact.type, new Node(NodeType.BOOL_NOT, fact.node));
         }
         if (currentToken != null && NodeType.of(currentToken).isDatatype()) {

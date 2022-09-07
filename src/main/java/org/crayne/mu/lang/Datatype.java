@@ -155,7 +155,7 @@ public class Datatype {
         return equal(this, y);
     }
 
-    public boolean operatorDefined(final NodeType op, final Datatype y) throws Exception {
+    public boolean operatorDefined(final NodeType op, final Datatype y) {
         return (op == NodeType.EQUALS || op == NodeType.NOTEQUALS) ||
                 (primitive && primitiveDatatype != null && primitiveDatatype.operatorDefined(op, y.primitive && y.primitiveDatatype != null ? y.primitiveDatatype : null));
     }

@@ -140,7 +140,7 @@ public enum PrimitiveDatatype {
         };
     }
 
-    public boolean operatorDefined(final NodeType op, final PrimitiveDatatype y) throws Exception {
+    public boolean operatorDefined(final NodeType op, final PrimitiveDatatype y) {
         if (y == null) return false;
         final Map<NodeType, Callable<Boolean>> operatorMap = new HashMap<>() {{
             this.put(NodeType.ADD, () -> addDefined(y));
@@ -162,7 +162,11 @@ public enum PrimitiveDatatype {
             this.put(NodeType.LESS_THAN_EQ, () -> lessequalsDefined(y));
             this.put(NodeType.GREATER_THAN_EQ, () -> greaterequalsDefined(y));
         }};
-        return operatorMap.get(op).call();
+        try {
+            return operatorMap.get(op).call();
+        } catch (final Exception e) {
+            return false;
+        }
     }
 
     public boolean addDefined(final PrimitiveDatatype y) {

@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class RDatatype {
 
@@ -55,14 +56,23 @@ public class RDatatype {
         this.put(PrimitiveDatatype.CHAR.name(), 6);
     }};
 
-    public static RDatatype getHeavierType(@NotNull final RDatatype d1, @NotNull final RDatatype d2) {
-        if ((d1.primitive() && !d2.primitive()) || (!d1.primitive() && d2.primitive())) return null;
-        if (d1.getPrimitive() == null || d2.getPrimitive() == null) return d2;
+    public static final RDatatype BOOL = RDatatype.of(Datatype.BOOL);
+    public static final RDatatype STRING = RDatatype.of(Datatype.STRING);
+    public static final RDatatype DOUBLE = RDatatype.of(Datatype.DOUBLE);
+    public static final RDatatype FLOAT = RDatatype.of(Datatype.FLOAT);
+    public static final RDatatype LONG = RDatatype.of(Datatype.LONG);
+    public static final RDatatype INT = RDatatype.of(Datatype.INT);
+    public static final RDatatype CHAR = RDatatype.of(Datatype.CHAR);
+    public static final RDatatype NULL = RDatatype.of(Datatype.NULL);
+
+    public static Optional<RDatatype> getHeavierType(@NotNull final RDatatype d1, @NotNull final RDatatype d2) {
+        if ((d1.primitive() && !d2.primitive()) || (!d1.primitive() && d2.primitive())) return Optional.empty();
+        if (d1.getPrimitive() == null || d2.getPrimitive() == null) return Optional.of(d2);
 
         final Integer r1 = datatypeRanking.get(d1.getName().toUpperCase());
         final Integer r2 = datatypeRanking.get(d2.getName().toUpperCase());
-        if (r1 == null || r2 == null) return null;
-        return r1 < r2 ? d1 : d2;
+        if (r1 == null || r2 == null) return Optional.empty();
+        return Optional.of(r1 < r2 ? d1 : d2);
     }
 
     @Override

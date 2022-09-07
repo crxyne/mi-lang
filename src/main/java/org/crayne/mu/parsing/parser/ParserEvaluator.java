@@ -353,15 +353,17 @@ public class ParserEvaluator {
     }
 
     protected Optional<Variable> findVariable(@NotNull final Token identifierTok, final boolean panic) {
-        final FunctionScope functionScope = expectFunctionScope(identifierTok);
-        if (functionScope == null) return Optional.empty();
+        final Optional<Scope> scope = parser.scope();
+        if (scope.isEmpty()) return Optional.empty();
+        if (scope.get() instanceof final FunctionScope functionScope) {
+            return Optional.ofNullable(functionScope.localVariable(parser, identifierTok).orElseGet(() -> {
+                if (parser.encounteredError)
+                    return null; // localVariable() returns null if the needed variable is global but does not actually print an error into the logs
 
-
-        return Optional.ofNullable(functionScope.localVariable(parser, identifierTok).orElseGet(() -> {
-            if (parser.encounteredError) return null; // localVariable() returns null if the needed variable is global but does not actually print an error into the logs
-
-            return findGlobalVariable(identifierTok, functionScope.using(), panic);
-        }));
+                return findGlobalVariable(identifierTok, functionScope.using(), panic);
+            }));
+        }
+        return Optional.ofNullable(findGlobalVariable(identifierTok, Collections.emptyList(), panic));
     }
 
     protected Variable findGlobalVariable(@NotNull final Token identifierTok, final List<String> usingMods, final boolean panic) {

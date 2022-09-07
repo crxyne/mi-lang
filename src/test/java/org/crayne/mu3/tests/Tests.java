@@ -7,15 +7,9 @@ public class Tests {
 
     public static void main(@NotNull final String... args) {
         final String code = """
-                pub enum hi {
-                    TEST
-                }
-                
                 pub? true = 1b;
                 pub? false = 0b;
-                pub? c = 65;
-                pub? test = (4 + 4) * 3;
-                pub? test2 = (1.0 / 0) / 1.0;
+                pub? test = 1.0 / 0.0;
                 
                 module std {
                 

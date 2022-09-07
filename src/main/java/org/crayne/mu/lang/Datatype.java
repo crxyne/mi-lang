@@ -25,6 +25,7 @@ public class Datatype {
     public static final Datatype INT = new Datatype(PrimitiveDatatype.INT);
     public static final Datatype CHAR = new Datatype(PrimitiveDatatype.CHAR);
     public static final Datatype VOID = new Datatype(PrimitiveDatatype.VOID);
+    public static final Datatype NULL = new Datatype(PrimitiveDatatype.NULL);
 
 
     public Datatype(@NotNull final PrimitiveDatatype primitiveDatatype) {
@@ -91,6 +92,7 @@ public class Datatype {
     }
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
+        this.put(PrimitiveDatatype.NULL.name(), 0);
         this.put(PrimitiveDatatype.BOOL.name(), 1);
         this.put(PrimitiveDatatype.STRING.name(), 2);
         this.put(PrimitiveDatatype.DOUBLE.name(), 3);
@@ -115,6 +117,7 @@ public class Datatype {
         if ((newType.primitive && !oldType.primitive) || (!newType.primitive && oldType.primitive)) return false;
         if (newType.primitiveDatatype == null) return newType.enumDatatype.equals(oldType.enumDatatype);
         if (oldType.primitiveDatatype == null) return false;
+        if (newType.primitiveDatatype == PrimitiveDatatype.NULL) return true;
 
         final Integer newRank = datatypeRanking.get(newType.primitiveDatatype.name());
         final Integer oldRank = datatypeRanking.get(oldType.primitiveDatatype.name());

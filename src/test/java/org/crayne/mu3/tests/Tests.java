@@ -16,7 +16,7 @@ public class Tests {
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.std.StandardLib";
                     
                 }
-                                
+                
                 STANDARDLIB_MU_FINISH_CODE;
                 
                 module helloworld {

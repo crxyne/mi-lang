@@ -32,7 +32,7 @@ public enum NodeType {
     LITERAL_STRING("string", Datatype.STRING),
     LITERAL_CHAR("char", Datatype.CHAR),
     LITERAL_VOID("void", Datatype.VOID),
-    LITERAL_NULL("null"),
+    LITERAL_NULL("null", Datatype.NULL),
     LITERAL_MODULE("module"),
     LITERAL_PUB("pub"),
     LITERAL_PRIV("priv"),
@@ -182,6 +182,7 @@ public enum NodeType {
 
     public static Datatype getAsDataType(@NotNull final Parser parser, @NotNull final Node node) {
         final Datatype primitive = node.type().getAsDataType();
+
         if (primitive == null) return new Datatype(parser, node.value());
         return primitive;
     }
@@ -196,6 +197,7 @@ public enum NodeType {
             case STRING -> LITERAL_STRING;
             case BOOL -> LITERAL_BOOL;
             case VOID -> LITERAL_VOID;
+            case NULL -> LITERAL_NULL;
         };
     }
 

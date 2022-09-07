@@ -175,7 +175,7 @@ public class ValueParser {
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
 
-        if (nextPart != null && nextPart.token().equals("::") && parsingPosition + 2 < expr.size()) {
+        if (NodeType.of(currentToken) == NodeType.IDENTIFIER && nextPart != null && nextPart.token().equals("::") && parsingPosition + 2 < expr.size()) {
             final Token enumMember = expr.get(parsingPosition + 2);
             if (NodeType.of(enumMember) == NodeType.IDENTIFIER) {
                 final Token enumName = currentToken;
@@ -184,6 +184,7 @@ public class ValueParser {
 
                 final FunctionScope functionScope = parserParent.evaluator().expectFunctionScope(enumName);
                 if (functionScope == null) return new TypedNode(null, new Node(NodeType.VALUE));
+
                 final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope.using(), enumName, true);
 
                 if (foundEnum == null) return new TypedNode(null, new Node(NodeType.VALUE));
@@ -262,6 +263,10 @@ public class ValueParser {
         final NodeType nodeType = result == null ? null : NodeType.of(result.token());
         final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(parserParent, new Node(nodeType, result));
         if (datatype == null) return new TypedNode(null, new Node(NodeType.VALUE));
+        if (datatype == Datatype.NULL && !parserParent.stdlib && parserParent.skimming) {
+            parserError("Unexpected token 'null'", "Only the standard library may use 'null' as a raw value, use Optional<T> to use nullable types");
+            return new TypedNode(null, new Node(NodeType.VALUE));
+        }
         nextPart();
         return new TypedNode(datatype, new Node(nodeType, result));
     }

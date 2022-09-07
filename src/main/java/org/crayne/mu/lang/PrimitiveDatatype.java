@@ -104,7 +104,11 @@ public enum PrimitiveDatatype {
         public boolean lessequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean greaterequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
     },
-    VOID("Void");
+    VOID("Void"),
+    NULL("Null") {
+        public boolean equalDefined(final PrimitiveDatatype y) {return true;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return true;}
+    };
 
     private static final List<String> comparatorOperators = Arrays.asList(
             "<", "<=", ">", ">=", "!=", "=="

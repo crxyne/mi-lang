@@ -19,7 +19,9 @@ public class REvaluator {
 
     public RValue evaluateExpression(final Node node) {
         if (node == null) return null;
-        if (node.children().isEmpty() && node.type().getAsDataType() != null) {
+        if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
+            return ofLiteral(node.child(0));
+        } else if (node.children().isEmpty() && node.type().getAsDataType() != null) {
             return ofLiteral(node);
         }
         return operator(node.type(), node.children(), node.value());

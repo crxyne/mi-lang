@@ -1,7 +1,6 @@
 package org.crayne.mu3.tests;
 
 import org.crayne.mu.runtime.Runtime;
-import org.crayne.mu.runtime.parsing.ast.SyntaxTree;
 import org.jetbrains.annotations.NotNull;
 
 public class Tests {
@@ -29,8 +28,7 @@ public class Tests {
                 """;
 
         final Runtime runtime = new Runtime(System.out, true);
-        final SyntaxTree AST = runtime.parse(code);
-        if (AST != null) System.out.println(AST.getAST());
+        runtime.execute(code);
     }
 
 }

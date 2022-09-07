@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 public class Runtime {
 
@@ -24,15 +25,19 @@ public class Runtime {
         return out;
     }
 
-    public SyntaxTree parse(@NotNull final String code) {
+    public Optional<SyntaxTree> parse(@NotNull final String code) {
         this.out.setProgram(code);
 
         final Tokenizer tokenizer = new Tokenizer(out, multiTokens);
         final List<Token> tokenList = tokenizer.tokenize(code);
-        if (tokenizer.encounteredError()) return null;
+        if (tokenizer.encounteredError()) return Optional.empty();
 
         final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine());
-        return parser.parse();
+        return Optional.ofNullable(parser.parse());
+    }
+
+    public void execute(@NotNull final String code) {
+        parse(code).ifPresent(SyntaxTree::execute);
     }
 
 }

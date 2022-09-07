@@ -6,6 +6,7 @@ import org.crayne.mu.lang.*;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
+import org.crayne.mu.runtime.parsing.ast.SyntaxTree;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
@@ -24,7 +25,7 @@ public class Parser {
     private final List<Token> tokens;
     private final List<Module> currentModule = new ArrayList<>();
     private Module buildCurrentModule = null;
-    private final Module parentModule = new Module("!PARENT", 0, null);
+    private Module parentModule = new Module("!PARENT", 0, null);
     private ParserEvaluator evaluator;
     public boolean encounteredError = false;
     public boolean skimming = true;
@@ -49,7 +50,7 @@ public class Parser {
         evaluator = new ParserEvaluator(this);
     }
 
-    public Node parse() {
+    public SyntaxTree parse() {
         encounteredError = false;
         evaluator = new ParserEvaluator(this);
         skim();
@@ -60,17 +61,12 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        return parent;
+        final SyntaxTree result = new SyntaxTree(parentModule(), parent);
+        parentModule = new Module("!PARENT", 0, null);
+        return result;
     }
 
-    public void skim() {
-        skimming = true;
-        while (currentTokenIndex < tokens.size() && !encounteredError) {
-            parseStatement(false);
-        }
-        if (!currentScope.isEmpty() && scopeIndent != 0) {
-            parserError("Expected '}', unfinished scope", tokens.get(currentTokenIndex - 1));
-        }
+    public void reset() {
         currentTokenIndex = 0;
         currentToken = null;
         scopeIndent = 0;
@@ -78,6 +74,18 @@ public class Parser {
         currentScope.clear();
         currentScope.add(new Scope(ScopeType.PARENT, 0, 0));
         skimming = false;
+    }
+
+    public void skim() {
+        skimming = true;
+        reset();
+        while (currentTokenIndex < tokens.size() && !encounteredError) {
+            parseStatement(false);
+        }
+        if (!currentScope.isEmpty() && scopeIndent != 0) {
+            parserError("Expected '}', unfinished scope", tokens.get(currentTokenIndex - 1));
+        }
+        reset();
     }
 
     public Node parseStatement(final boolean expectedUnscopedWhile) {

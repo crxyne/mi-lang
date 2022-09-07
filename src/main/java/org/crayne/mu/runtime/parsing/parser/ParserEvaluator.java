@@ -748,6 +748,7 @@ public class ParserEvaluator {
             case STRING -> String.class;
             case CHAR -> char.class;
             case VOID -> void.class;
+            case NULL -> Object.class;
         };
     }
 

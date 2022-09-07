@@ -1,7 +1,7 @@
 package org.crayne.mu.runtime;
 
 import org.crayne.mu.log.MessageHandler;
-import org.crayne.mu.runtime.parsing.ast.Node;
+import org.crayne.mu.runtime.parsing.ast.SyntaxTree;
 import org.crayne.mu.runtime.parsing.lexer.Token;
 import org.crayne.mu.runtime.parsing.lexer.Tokenizer;
 import org.crayne.mu.runtime.parsing.parser.Parser;
@@ -24,7 +24,7 @@ public class Runtime {
         return out;
     }
 
-    public Node parse(@NotNull final String code) {
+    public SyntaxTree parse(@NotNull final String code) {
         this.out.setProgram(code);
 
         final Tokenizer tokenizer = new Tokenizer(out, multiTokens);

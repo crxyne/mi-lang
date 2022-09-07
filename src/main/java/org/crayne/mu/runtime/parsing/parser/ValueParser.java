@@ -159,6 +159,10 @@ public class ValueParser {
         }
         if (currentToken != null && NodeType.of(currentToken).isDatatype()) {
             final String datatype = currentToken.token();
+            if (parsingPosition + 1 >= expr.size()) {
+                parserParent.parserError("Expected value after '" + datatype + "' to cast", currentToken, true);
+                return new TypedNode(null, new Node(NodeType.VALUE));
+            }
             nextPart();
             return castValue(parseFactor(), Token.of(datatype));
         }

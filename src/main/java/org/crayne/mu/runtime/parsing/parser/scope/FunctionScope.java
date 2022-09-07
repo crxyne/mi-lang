@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 public class FunctionScope extends Scope {
 
     private final List<LocalVariable> localVariables;
-    private final FunctionScope parent;
+    protected final FunctionScope parent;
     private final Map<Integer, List<String>> using = new ConcurrentHashMap<>();
     private boolean reachedEnd;
 
@@ -50,10 +50,9 @@ public class FunctionScope extends Scope {
     public void reachedEnd() {
         if (parent != null) {
             FunctionScope scope = this;
-            while (!isConditionalScope(scope.type)) {
+            if (!isConditionalScope(scope.type)) {
                 scope = scope.parent;
-                if (scope == null) break;
-                scope.reachedEnd();
+                if (scope != null) scope.reachedEnd();
             }
         }
         reachedEnd = true;
@@ -63,14 +62,22 @@ public class FunctionScope extends Scope {
         return reachedEnd;
     }
 
-    public void addLocalVariable(@NotNull final Parser parser, @NotNull final Variable var) {
+    public boolean unreachable() {
+        return hasReachedEnd();
+    }
+
+    public void addLocalVariable(@NotNull final Parser parser, @NotNull final LocalVariable var, @NotNull final Token at) {
         final String name = var.name();
-        final Optional<LocalVariable> existingVar = localVariable(parser, Token.of(name), false);
-        if (existingVar.isPresent()) {
-            parser.parserError("A variable with name '" + name + "' already exists in this scope.",
-                    "Enclose the already existing variable into its own local scope or rename it.",
-                    "Renaming your new variable works too.");
-            return;
+        FunctionScope functionParent = var.parent();
+        while (functionParent != null) {
+            final Optional<LocalVariable> existingVar = functionParent.localVariable(parser, Token.of(name), false);
+            if (existingVar.isPresent()) {
+                parser.parserError("A variable with name '" + name + "' already exists in this scope.", at,
+                        "Enclose the already existing variable into its own local scope or rename it.",
+                        "Renaming your new variable works too.");
+                return;
+            }
+            functionParent = functionParent.parent;
         }
         localVariables.add(new LocalVariable(var, this));
     }

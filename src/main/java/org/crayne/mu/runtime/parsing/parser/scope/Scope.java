@@ -33,6 +33,10 @@ public class Scope {
 
     }
 
+    public boolean unreachable() {
+        return false;
+    }
+
     @Override
     public String toString() {
         return "Scope{" +

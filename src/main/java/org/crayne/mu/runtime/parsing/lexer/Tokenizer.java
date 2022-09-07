@@ -248,6 +248,7 @@ public class Tokenizer {
     }
 
     private char nextChar = 0;
+    private char nextNextChar = 0;
 
     private char lastCharCurrent() {
         return currentToken.charAt(currentToken.toString().length() - 1);
@@ -255,6 +256,10 @@ public class Tokenizer {
 
     private char nextCharCurrent() {
         return nextChar;
+    }
+
+    private char nextNextCharCurrent() {
+        return nextNextChar;
     }
 
     private void handleNewlines() {
@@ -276,7 +281,10 @@ public class Tokenizer {
 
     private boolean handleWhitespaces() {
         if (Character.isWhitespace(atPos)) {
-            if (!currentToken.isEmpty() && ((lastCharCurrent() != '.' && nextCharCurrent() != '.') || NodeType.of(currentToken()).isKeyword())) {
+            if (!currentToken.isEmpty() && ((lastCharCurrent() != '.' && nextCharCurrent() != '.')
+                    || (nextCharCurrent() == '.' && nextNextCharCurrent() == '.')
+                    || NodeType.of(currentToken()) == NodeType.DOUBLE_DOT
+                    || NodeType.of(currentToken()).isKeyword())) {
                 addCurrent();
                 clearCurrent();
             }
@@ -383,7 +391,13 @@ public class Tokenizer {
 
             for (int j = i + 1; j < code.length() && i + 1 < code.length(); j++) {
                 nextChar = code.charAt(j);
-                if (!Character.isWhitespace(nextChar)) break;
+                if (!Character.isWhitespace(nextChar)) {
+                    for (int k = j + 1; k < code.length() && j + 1 < code.length(); k++) {
+                        nextNextChar = code.charAt(k);
+                        if (!Character.isWhitespace(nextNextChar)) break;
+                    }
+                    break;
+                }
             }
             column++;
 

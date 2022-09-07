@@ -7,10 +7,7 @@ import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.scope.EnumScope;
-import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
-import org.crayne.mu.runtime.parsing.parser.scope.Scope;
-import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
+import org.crayne.mu.runtime.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -134,8 +131,8 @@ public class Parser {
 
         final Optional<Scope> curScope = scope();
         if (tokens.size() != 1 && !last.equals(SCOPE_END) && curScope.isPresent() && curScope.get() instanceof final FunctionScope functionScope) {
-            if (functionScope.hasReachedEnd()) {
-                parserError("Unreachable statement", firstToken, "Delete the unreachable statement or move it before the 'ret' statement");
+            if (functionScope.unreachable()) {
+                parserError("Unreachable statement", firstToken, "Delete the unreachable statement or move it before the last statement");
                 return null;
             }
         }
@@ -195,7 +192,12 @@ public class Parser {
                     }
                     final Optional<Scope> current = scope();
                     if (current.isPresent()) {
-                        switch (current.get().type()) {
+                        final Scope scope = current.get();
+                        if (scope instanceof FunctionScope) {
+                            switch (result.type()) {
+                                case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> evaluator.addLocalVarFromResult(result);
+                            }
+                        } else switch (current.get().type()) {
                             case MODULE, PARENT -> {
                                 if (skimming) {
                                     switch (result.type()) {
@@ -207,11 +209,6 @@ public class Parser {
                                         }
                                         case VAR_DEF_AND_SET_VALUE -> evaluator.addGlobalVarFromResult(result);
                                     }
-                                }
-                            }
-                            case FUNCTION -> {
-                                switch (result.type()) {
-                                    case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> evaluator.addLocalVarFromResult(result);
                                 }
                             }
                         }
@@ -278,6 +275,8 @@ public class Parser {
             case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);
             case LITERAL_RET -> evaluator.evalReturnStatement(tokens, modifiers);
             case LITERAL_USE -> evaluator.evalUseStatement(tokens, modifiers);
+            case LITERAL_BREAK -> evaluator.evalBreak(tokens, modifiers);
+            case LITERAL_CONTINUE -> evaluator.evalContinue(tokens, modifiers);
             case LITERAL_ELSE -> {
                 parserError("Unexpected token 'else' without 'if' scope", tokens.get(0));
                 yield null;
@@ -406,6 +405,7 @@ public class Parser {
 
         if (type == ScopeType.FUNCTION) functionRootScope();
         else if (type == ScopeType.ENUM) enumScope();
+        else if (type == ScopeType.FOR || type == ScopeType.WHILE) loopScope(type);
         else if (current.isPresent() && current.get() instanceof FunctionScope) functionScope(type);
         else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
     }
@@ -414,13 +414,22 @@ public class Parser {
         currentScope.add(new FunctionScope(ScopeType.FUNCTION, scopeIndent + 1, actualIndent + 1, null));
     }
 
+    private void loopScope(@NotNull final ScopeType type) {
+        final Optional<Scope> current = scope();
+        current.ifPresent(scope -> currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope)));
+    }
+
     private void enumScope() {
         currentScope.add(new EnumScope(ScopeType.ENUM, scopeIndent + 1, actualIndent + 1));
     }
 
     private void functionScope(@NotNull final ScopeType type) {
         final Optional<Scope> current = scope();
-        current.ifPresent(scope -> currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope)));
+
+        current.ifPresent(scope -> {
+            if (scope instanceof final LoopScope loopScope) currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, loopScope));
+            else currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope));
+        });
     }
 
     public Optional<Scope> scope() {

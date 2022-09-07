@@ -6,10 +6,7 @@ import org.crayne.mu.lang.*;
 import org.crayne.mu.runtime.parsing.ast.Node;
 import org.crayne.mu.runtime.parsing.ast.NodeType;
 import org.crayne.mu.runtime.parsing.lexer.Token;
-import org.crayne.mu.runtime.parsing.parser.scope.EnumScope;
-import org.crayne.mu.runtime.parsing.parser.scope.FunctionScope;
-import org.crayne.mu.runtime.parsing.parser.scope.Scope;
-import org.crayne.mu.runtime.parsing.parser.scope.ScopeType;
+import org.crayne.mu.runtime.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
@@ -24,49 +21,47 @@ public class ParserEvaluator {
         this.parser = parser;
     }
 
-    private static boolean restrictedName(@NotNull final String name, @NotNull final IdentifierType identifierType) {
-        return (identifierType != IdentifierType.MODULE && name.contains(".")) || name.endsWith(".") || name.startsWith(".");
+    private static boolean restrictedName(@NotNull final String name, @SuppressWarnings("unused") @NotNull final IdentifierType identifierType) {
+        return name.contains(".");
     }
 
-    private boolean handleRestrictedName(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar) {
+    private boolean handleRestrictedName(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar, final boolean localVariable) {
         final String tok = name.token();
         if (!restrictedName(tok, identifierType)) {
-            warnUnconventional(name, identifierType, constVar);
+            warnUnconventional(name, identifierType, constVar, localVariable);
             return false;
         }
         parser.parserError("Cannot use restricted name '" + tok + "'", name,
-                "'.' characters are only allowed to be inserted into module identifiers",
-                "No identifier may start / end with a '.' character");
+                "'.' characters are only allowed when searching for submodules or functions inside of modules");
         return true;
     }
 
-    private static boolean isMixedCaseCapitalized(@NotNull final String ident) {
-        return !ident.isEmpty() && StringUtils.isMixedCase(ident) && Character.isUpperCase(ident.charAt(0));
+    private static boolean isCapitalized(@NotNull final String ident) {
+        return !ident.isEmpty() && Character.isUpperCase(ident.charAt(0));
     }
 
-    private void warnUnconventional(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar) {
-        if (!parser.skimming) return;
+    private void warnUnconventional(@NotNull final Token name, @NotNull final IdentifierType identifierType, final boolean constVar, final boolean localVariable) {
+        if (!parser.skimming || parser.stdlib) return;
         final String tok = name.token();
         final String nounder = tok.replace("_", "");
         final String identName = identifierType.name().toLowerCase();
 
-        if (!nounder.isEmpty() && identifierType == IdentifierType.ENUM_MEMBER && !Character.isUpperCase(nounder.charAt(0))) {
+        if (!nounder.isEmpty() && (identifierType == IdentifierType.ENUM_MEMBER || constVar) && !Character.isUpperCase(nounder.charAt(0)) && !localVariable) {
             parser.parserWarning(
-                    "Name '" + tok + "' does not follow Mu conventions; Enum members should be capitalized, but encountered an uncapitalized enum member name", name);
+                    "Name '" + tok + "' does not follow Mu conventions; " +
+                            (identifierType == IdentifierType.ENUM_MEMBER ? "Enum members" : "Global constants")
+                            + " should be capitalized, but encountered an uncapitalized " +
+                            (identifierType == IdentifierType.ENUM_MEMBER ? "enum member" : "global constant")
+                            + " name", name);
         }
-        if (identifierType != IdentifierType.ENUM && identifierType != IdentifierType.ENUM_MEMBER && isMixedCaseCapitalized(nounder)) {
+        if (identifierType != IdentifierType.ENUM && identifierType != IdentifierType.ENUM_MEMBER && isCapitalized(nounder) && (!constVar || localVariable)) {
             parser.parserWarning(
-                    "Name '" + tok + "' does not follow Mu conventions; Only enum names and members should be capitalized, but encountered a capitalized " + identName + " name",
-                    name, "Variable, module and function names should be uncapitalized");
+                    "Name '" + tok + "' does not follow Mu conventions; Only enum names, global constants and members should be capitalized, but encountered a capitalized " + identName + " name",
+                    name, "Variable, local constant, module and function names should be uncapitalized");
         }
-        if (identifierType == IdentifierType.ENUM && !isMixedCaseCapitalized(nounder)) {
+        if (identifierType == IdentifierType.ENUM && !isCapitalized(nounder)) {
             parser.parserWarning(
                     "Name '" + tok + "' does not follow Mu conventions; Enum names should be capitalized, but encountered an uncapitalized enum name", name);
-        }
-
-        if (!constVar && StringUtils.isAllUpperCase(nounder)) {
-            parser.parserWarning("Name '" + tok + "' does not follow Mu conventions; Only constant variables should be uppercase, but encountered an uppercase " + identName + " name",
-                    name, "Anything that is not constant should not be capitalized");
         }
     }
 
@@ -91,7 +86,7 @@ public class ParserEvaluator {
                 result.children().size() == 4
         );
 
-        if (handleRestrictedName(ident, IdentifierType.VARIABLE, var.isConstant())) return;
+        if (handleRestrictedName(ident, IdentifierType.VARIABLE, var.isConstant(), false)) return;
 
         module.addGlobalVariable(parser, var);
     }
@@ -101,19 +96,20 @@ public class ParserEvaluator {
 
         final Token ident = result.child(1).value();
         final FunctionScope functionScope = expectFunctionScope(ident);
+
         final Datatype datatype = Datatype.of(parser, result.child(2).value());
         if (functionScope == null || datatype == null) return;
 
-        final Variable var = new Variable(
+        final LocalVariable var = new LocalVariable(new Variable(
                 ident.token(),
                 datatype,
                 modifiers,
                 result.children().size() == 4
-        );
+        ), functionScope);
 
-        if (handleRestrictedName(ident, IdentifierType.VARIABLE, var.isConstant())) return;
+        if (handleRestrictedName(ident, IdentifierType.VARIABLE, var.isConstant(), true)) return;
 
-        functionScope.addLocalVariable(parser, var);
+        functionScope.addLocalVariable(parser, var, ident);
     }
 
     protected void addFunctionFromResult(@NotNull final Node result) {
@@ -134,7 +130,7 @@ public class ParserEvaluator {
             }).toList();
 
             final Token nameToken = result.child(0).value();
-            if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false)) return;
+            if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false, false)) return;
 
             final Datatype datatype = Datatype.of(parser, result.child(1).value());
             if (datatype == null) throw new NullPointerException();
@@ -179,7 +175,7 @@ public class ParserEvaluator {
             }).toList();
 
             final Token nameToken = result.child(0).value();
-            if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false)) return;
+            if (handleRestrictedName(nameToken, IdentifierType.FUNCTION, false, false)) return;
 
             final Datatype datatype = Datatype.of(parser, result.child(1).value());
             if (datatype == null) throw new NullPointerException();
@@ -300,7 +296,7 @@ public class ParserEvaluator {
                 parser.parserError("Expected ','");
                 return null;
             }
-            warnUnconventional(token, IdentifierType.ENUM_MEMBER, true);
+            warnUnconventional(token, IdentifierType.ENUM_MEMBER, true, false);
             current = token.token();
         }
         if (current != null) result.add(current);
@@ -512,6 +508,34 @@ public class ParserEvaluator {
         );
     }
 
+    public Node evalBreak(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final Token breakToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_BREAK);
+        final Token semi = parser.getAndExpect(tokens, 1, NodeType.SEMI);
+        if (Parser.anyNull(breakToken, semi)) return null;
+
+        final LoopScope expectFunctionScope = expectLoopScope(breakToken);
+        if (expectFunctionScope == null) return null;
+
+        expectFunctionScope.reachedLoopStepBreak();
+
+        return new Node(NodeType.BREAK_STATEMENT, breakToken);
+    }
+
+    public Node evalContinue(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final Token continueToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_CONTINUE);
+        final Token semi = parser.getAndExpect(tokens, 1, NodeType.SEMI);
+        if (Parser.anyNull(continueToken, semi)) return null;
+
+        final LoopScope expectFunctionScope = expectLoopScope(continueToken);
+        if (expectFunctionScope == null) return null;
+
+        expectFunctionScope.reachedLoopStepBreak();
+
+        return new Node(NodeType.CONTINUE_STATEMENT, continueToken);
+    }
+
     public ValueParser.TypedNode parseExpression(@NotNull final List<Token> tokens) {
         return new ValueParser(tokens, parser).parse();
     }
@@ -676,7 +700,7 @@ public class ParserEvaluator {
     public Node evalNativeFunction(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final int extraIndex,
                                    @NotNull final Token last, @NotNull final Token identifier, @NotNull final Datatype returnType) {
         final Token beforeLastArrow = parser.getAny(tokens, tokens.size() - 3);
-        if (beforeLastArrow == null || NodeType.of(beforeLastArrow) != NodeType.BECOMES) {
+        if (beforeLastArrow == null || NodeType.of(beforeLastArrow) != NodeType.ARROW) {
             parser.parserError("Expected '-> <constant-string-literal>' after ')' in native function definition", last,
                     "The scheme for native functions is: <modifiers> <identifier> <return-definition> ( <args> ) -> <constant-string-literal>");
             return null;
@@ -854,7 +878,7 @@ public class ParserEvaluator {
     public Node evalTransitionalForStatement(@NotNull final List<List<Token>> exprs) {
         final List<Token> transition = exprs.get(1);
         final Token identifier = parser.getAndExpect(transition, 0, NodeType.IDENTIFIER);
-        final Token arrow = parser.getAndExpect(transition, 1, NodeType.BECOMES);
+        final Token arrow = parser.getAndExpect(transition, 1, NodeType.DOUBLE_DOT);
         if (Parser.anyNull(arrow, identifier)) return null;
 
         final List<Token> val = transition.subList(2, transition.size());
@@ -942,7 +966,7 @@ public class ParserEvaluator {
 
         if (expectModuleOrRoot(IdentifierType.MODULE)) return null;
         parser.scope(ScopeType.MODULE);
-        if (handleRestrictedName(identifier, IdentifierType.MODULE, false)) return null;
+        if (handleRestrictedName(identifier, IdentifierType.MODULE, false, false)) return null;
 
         return new Node(NodeType.CREATE_MODULE,
                 new Node(NodeType.IDENTIFIER, identifier)
@@ -971,7 +995,7 @@ public class ParserEvaluator {
         enumScope.modifiers(modifiers.stream().map(n -> Modifier.of(n.type())).collect(Collectors.toList()));
         enumScope.name(identifier.token());
         enumScope.module(parser.lastModule());
-        warnUnconventional(identifier, IdentifierType.ENUM, false);
+        warnUnconventional(identifier, IdentifierType.ENUM, false, false);
 
         return new Node(NodeType.CREATE_ENUM,
                 new Node(NodeType.IDENTIFIER, identifier)
@@ -1013,6 +1037,15 @@ public class ParserEvaluator {
             return null;
         }
         return functionScope;
+    }
+
+    public LoopScope expectLoopScope(@NotNull final Token at) {
+        final Optional<Scope> currentScope = parser.scope();
+        if (currentScope.isEmpty() || !(currentScope.get() instanceof final LoopScope loopScope)) {
+            parser.parserError("Unexpected parsing error, expected statement to be inside of a loop (while or for)", at, "Delete unavailable statement");
+            return null;
+        }
+        return loopScope;
     }
 
     private EnumScope expectEnumScope(@NotNull final Token at) {

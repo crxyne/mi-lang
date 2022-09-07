@@ -91,6 +91,10 @@ public class Datatype {
         return !primitive;
     }
 
+    public boolean primitive() {
+        return primitive;
+    }
+
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
         this.put(PrimitiveDatatype.NULL.name(), 0);
         this.put(PrimitiveDatatype.BOOL.name(), 1);

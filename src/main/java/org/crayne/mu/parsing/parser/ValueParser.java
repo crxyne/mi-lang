@@ -6,12 +6,10 @@ import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.scope.FunctionScope;
+import org.crayne.mu.parsing.parser.scope.Scope;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ValueParser {
 
@@ -186,10 +184,10 @@ public class ValueParser {
                 final String enumMemberStr = enumMember.token();
                 final String enumNameStr = enumName.token();
 
-                final FunctionScope functionScope = parserParent.evaluator().expectFunctionScope(enumName);
-                if (functionScope == null) return new TypedNode(null, new Node(NodeType.VALUE));
+                final Optional<Scope> scope = parserParent.scope();
+                final FunctionScope functionScope = scope.isPresent() && scope.get() instanceof FunctionScope ? (FunctionScope) scope.get() : null;
 
-                final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope.using(), enumName, true);
+                final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope != null ? functionScope.using() : Collections.emptyList(), enumName, true);
 
                 if (foundEnum == null) return new TypedNode(null, new Node(NodeType.VALUE));
                 if (!foundEnum.members().contains(enumMemberStr)) {

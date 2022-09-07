@@ -10,6 +10,7 @@ public class RValue {
     public RValue(@NotNull final RDatatype type, @NotNull final Object value) {
         this.type = type;
         this.value = value;
+        System.out.println("NEW RVALUE " + type + " " + value);
     }
 
     public Object getValue() {

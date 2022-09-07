@@ -13,6 +13,7 @@ public class LogHandler {
         WARN(Color.YELLOW),
         HINT(Color.CYAN),
         SUCCESS(Color.GREEN),
+        FATAL(Color.RED.darker()),
         ERROR(Color.RED);
         private final Color color;
         Level(@NotNull final Color color) {

@@ -738,7 +738,7 @@ public class ParserEvaluator {
         return result;
     }
 
-    private static Class<?> primitiveToJavaType(@NotNull final PrimitiveDatatype primitiveDatatype) {
+    public static Class<?> primitiveToJavaType(@NotNull final PrimitiveDatatype primitiveDatatype) {
         return switch (primitiveDatatype) {
             case INT -> int.class;
             case LONG -> long.class;

@@ -176,7 +176,7 @@ public enum NodeType {
         return asString;
     }
 
-    private Datatype getAsDataType() {
+    public Datatype getAsDataType() {
         return type;
     }
 

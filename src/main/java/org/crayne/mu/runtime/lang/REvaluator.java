@@ -1,7 +1,6 @@
 package org.crayne.mu.runtime.lang;
 
 import org.crayne.mu.lang.Datatype;
-import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
@@ -20,9 +19,7 @@ public class REvaluator {
 
     public RValue evaluateExpression(final Node node) {
         if (node == null) return null;
-        if (node.children().size() == 1 && node.child(0).type().getAsDataType() != null) {
-            return ofLiteral(node.child(0));
-        } else if (node.children().isEmpty() && node.type().getAsDataType() != null) {
+        if (node.children().isEmpty() && node.type().getAsDataType() != null) {
             return ofLiteral(node);
         }
         return operator(node.type(), node.children(), node.value());
@@ -173,10 +170,6 @@ public class REvaluator {
         final RValue x = evaluateExpression(v1);
         final RValue y = evaluateExpression(v2);
         return x.bitShiftRight(this, y);
-    }
-
-    public static boolean isString(@NotNull final RValue v) {
-        return v.getType().primitive() && v.getType().getPrimitive() == PrimitiveDatatype.STRING;
     }
 
     public static RValue concat(@NotNull final RValue x, @NotNull final RValue y) {

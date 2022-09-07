@@ -9,7 +9,7 @@ public class Tests {
         final String code = """
                 pub? true = 1b;
                 pub? false = 0b;
-                pub? test = 1.0 / 0.0;
+                pub? test = -1.0f / 0.0f;
                 
                 module std {
                 

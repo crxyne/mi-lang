@@ -77,8 +77,8 @@ public class Parser {
     }
 
     public void skim() {
-        skimming = true;
         reset();
+        skimming = true;
         while (currentTokenIndex < tokens.size() && !encounteredError) {
             parseStatement(false);
         }

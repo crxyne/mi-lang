@@ -47,11 +47,11 @@ public class Module {
                     parser.parserError("A function with the same parameters already exists", at, "Change either of the function names");
                     return;
                 }
-                functionConcept.addDefinition(def.parameters(), def.modifiers(), def.scope());
+                functionConcept.addDefinition(def.parameters(), def.modifiers(), def.scope(), def.nativeMethod());
                 return;
             }
         }
-        concept.addDefinition(def.parameters(), def.modifiers(), def.scope());
+        concept.addDefinition(def.parameters(), def.modifiers(), def.scope(), def.nativeMethod());
         functionConcepts.add(concept);
     }
 

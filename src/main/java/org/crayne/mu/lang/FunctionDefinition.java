@@ -75,6 +75,7 @@ public class FunctionDefinition {
                 ", parameters=" + parameters +
                 ", modifiers=" + modifiers +
                 ", scope=" + scope +
+                ", nativeMethod=" + (nativeMethod != null ? (nativeMethod.getDeclaringClass().getName() + "." + nativeMethod.getName()) : null) +
                 '}';
     }
 }

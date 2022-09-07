@@ -44,7 +44,7 @@ public class FunctionScope extends Scope {
     }
 
     private static boolean isConditionalScope(@NotNull final ScopeType type) {
-        return type == ScopeType.IF || type == ScopeType.FOR || type == ScopeType.WHILE;
+        return type == ScopeType.IF || type == ScopeType.FOR || type == ScopeType.WHILE || type == ScopeType.DO;
     }
 
     public void reachedEnd() {

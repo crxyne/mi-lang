@@ -2,6 +2,7 @@ package org.crayne.mu.runtime.util;
 
 import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.runtime.lang.RModule;
+import org.crayne.mu.runtime.lang.RVariable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
@@ -23,6 +24,16 @@ public class MuUtil {
             if (mod == null) break;
         }
         return mod;
+    }
+
+    public static void defineAllGlobalVariables(@NotNull final SyntaxTreeExecution tree, @NotNull final RModule module) {
+        for (final RVariable variable : module.getGlobalModuleVariables()) {
+            if (variable.getValue() != null) continue;
+            variable.setValue(tree.getEvaluator().evaluateExpression(variable.getNodeValue()));
+        }
+        for (final RModule sub : module.getSubModules()) {
+            defineAllGlobalVariables(tree, sub);
+        }
     }
 
 

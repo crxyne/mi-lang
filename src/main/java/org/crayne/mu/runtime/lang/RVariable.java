@@ -12,16 +12,19 @@ public class RVariable {
     private final String name;
     private final RDatatype type;
     private RValue value;
+    private final Node nodeValue;
 
-    public RVariable(@NotNull final String name, @NotNull final RDatatype datatype) {
+    public RVariable(@NotNull final String name, @NotNull final RDatatype datatype, final Node nodeValue) {
         this.name = name;
         this.type = datatype;
+        this.nodeValue = nodeValue;
     }
 
-    public RVariable(@NotNull final String name, @NotNull final RDatatype datatype, final RValue value) {
+    public RVariable(@NotNull final String name, @NotNull final RDatatype datatype, final RValue value, final Node nodeValue) {
         this.name = name;
         this.type = datatype;
         this.value = value;
+        this.nodeValue = nodeValue;
     }
 
     public RDatatype getType() {
@@ -41,7 +44,7 @@ public class RVariable {
     }
 
     public static RVariable of(@NotNull final Variable v) {
-        return new RVariable(v.name(), new RDatatype(v.type().getName()));
+        return new RVariable(v.name(), new RDatatype(v.type().getName()), v.node());
     }
 
     public static RVariable of(@NotNull final SyntaxTreeExecution tree, @NotNull final Node varDefinition) {
@@ -51,10 +54,14 @@ public class RVariable {
         final String name = values.get(1).value().token();
         final RDatatype type = new RDatatype(values.get(2).value().token());
 
-        if (values.size() == 3) return new RVariable(name, type); // no value specified
+        if (values.size() == 3) return new RVariable(name, type, null); // no value specified in AST
 
         final RValue value = tree.getEvaluator().evaluateExpression(values.get(3));
-        return new RVariable(name, type, value);
+        return new RVariable(name, type, value, values.get(3));
+    }
+
+    public Node getNodeValue() {
+        return nodeValue;
     }
 
     @Override

@@ -9,48 +9,38 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 public class RModule {
 
     private final String name;
-    private final HashSet<RVariable> globalModuleVariables;
-    private final HashSet<RModule> subModules;
+    private final List<RVariable> globalModuleVariables;
+    private final List<RModule> subModules;
     private final HashSet<REnum> enums;
     private final HashSet<RFunction> functions;
-    private final RModule parent;
 
-    public RModule(@NotNull final String name, final RModule parent) {
+    public RModule(@NotNull final String name) {
         this.name = name;
-        this.parent = parent;
-        this.globalModuleVariables = new HashSet<>();
-        this.subModules = new HashSet<>();
+        this.globalModuleVariables = new ArrayList<>();
+        this.subModules = new ArrayList<>();
         this.enums = new HashSet<>();
         this.functions = new HashSet<>();
     }
 
-    public RModule(@NotNull final String name, final RModule parent, @NotNull final Collection<RVariable> globalVariables,
+    public RModule(@NotNull final String name, @NotNull final Collection<RVariable> globalVariables,
                    @NotNull final Collection<RModule> subModules, @NotNull final Collection<REnum> enums, Collection<RFunction> functions) {
         this.name = name;
-        this.parent = parent;
-        this.globalModuleVariables = new HashSet<>();
-        this.globalModuleVariables.addAll(globalVariables);
-        this.subModules = new HashSet<>();
-        this.subModules.addAll(subModules);
-        this.enums = new HashSet<>();
-        this.enums.addAll(enums);
-        this.functions = new HashSet<>();
-        this.functions.addAll(functions);
+        this.globalModuleVariables = new ArrayList<>(globalVariables);
+        this.subModules = new ArrayList<>(subModules);
+        this.enums = new HashSet<>(enums);
+        this.functions = new HashSet<>(functions);
     }
 
     public String getName() {
         return name;
     }
 
-    public HashSet<RModule> getSubModules() {
+    public List<RModule> getSubModules() {
         return subModules;
-    }
-
-    public Optional<RModule> getParent() {
-        return Optional.ofNullable(parent);
     }
 
     public HashSet<REnum> getEnums() {
@@ -61,16 +51,15 @@ public class RModule {
         return functions;
     }
 
-    public HashSet<RVariable> getGlobalModuleVariables() {
+    public List<RVariable> getGlobalModuleVariables() {
         return globalModuleVariables;
     }
 
-    public static RModule of(@NotNull final Module m, final boolean includeChildren) {
+    public static RModule of(@NotNull final Module m) {
         return new RModule(
                 m.name(),
-                m.parent() != null ? RModule.of(m.parent(), false) : null,
                 globalVarsOf(m.moduleVariables()),
-                includeChildren ? submodulesOf(m.subModules()) : Collections.emptyList(),
+                submodulesOf(m.subModules()),
                 enumsOf(m.enums()),
                 functionsOf(m.functionConcepts())
         );
@@ -84,11 +73,11 @@ public class RModule {
         );
     }
 
-    public static Set<RModule> submodulesOf(@NotNull final HashSet<Module> submodules) {
+    public static Set<RModule> submodulesOf(@NotNull final List<Module> submodules) {
         return MuUtil.unmodifiableSet(
                 submodules
                         .stream()
-                        .map(m -> RModule.of(m, true))
+                        .map(RModule::of)
         );
     }
 
@@ -118,7 +107,6 @@ public class RModule {
                 ", subModules=" + subModules +
                 ", enums=" + enums +
                 ", functions=" + functions +
-                ", parent=" + parent +
                 '}';
     }
 

@@ -1,5 +1,6 @@
 package org.crayne.mu.lang;
 
+import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
@@ -11,23 +12,30 @@ public class Variable {
 
     private final List<Modifier> modifiers;
     private final Module module;
+    private final Node node;
     private final Datatype type;
     private final String name;
     private boolean initialized = false;
 
-    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Module module) {
+    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Module module, final Node node) {
         this.name = name;
         this.type = type;
         this.modifiers = modifiers;
         this.module = module;
+        this.node = node;
     }
 
-    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Module module, final boolean initialized) {
+    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Module module, final boolean initialized, final Node node) {
         this.name = name;
         this.type = type;
         this.modifiers = modifiers;
         this.module = module;
         this.initialized = initialized;
+        this.node = node;
+    }
+
+    public Node node() {
+        return node;
     }
 
     public static Optional<Variable> findVariableByName(@NotNull final List<Variable> globalModuleVariables, @NotNull final String name) {

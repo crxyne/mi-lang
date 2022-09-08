@@ -7,6 +7,7 @@ import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.runtime.lang.REvaluator;
 import org.crayne.mu.runtime.lang.RModule;
 import org.crayne.mu.runtime.lang.RVariable;
+import org.crayne.mu.runtime.util.MuUtil;
 import org.crayne.mu.runtime.util.errorhandler.Traceback;
 import org.crayne.mu.runtime.util.errorhandler.TracebackElement;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +27,7 @@ public class SyntaxTreeExecution {
     private boolean error;
 
     public SyntaxTreeExecution(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
-        this.parentModule = RModule.of(parentModule, true);
+        this.parentModule = RModule.of(parentModule);
         this.parentNode = parentNode;
         this.out = out;
         this.code = Arrays.stream(code.split("\n")).toList();
@@ -68,6 +69,8 @@ public class SyntaxTreeExecution {
     }
 
     public void execute() {
+        MuUtil.defineAllGlobalVariables(this, parentModule);
+        System.out.println(parentModule);
         for (final Node statement : parentNode.children()) {
             evalStatement(statement);
             if (error) return;

@@ -11,9 +11,9 @@ public class Module {
     private final String name;
     private final int scopeIndent;
     private final List<Variable> globalModuleVariables;
-    private final HashSet<Module> subModules;
+    private final List<Module> subModules; // these HAVE TO be Lists, or else there could be runtime errors with illegal forward referencing
     private final HashSet<Enum> enums;
-    private final HashSet<FunctionConcept> functionConcepts;
+    private final HashSet<FunctionConcept> functionConcepts; // here the order would not matter
     private final Module parent;
 
     public Module(@NotNull final String name, final int scopeIndent, final Module parent) {
@@ -21,7 +21,7 @@ public class Module {
         this.scopeIndent = scopeIndent;
         this.parent = parent;
         this.globalModuleVariables = new ArrayList<>();
-        this.subModules = new HashSet<>();
+        this.subModules = new ArrayList<>();
         this.functionConcepts = new HashSet<>();
         this.enums = new HashSet<>();
     }
@@ -98,11 +98,11 @@ public class Module {
         return Variable.findVariableByName(globalModuleVariables, name);
     }
 
-    public static boolean foundModuleByName(@NotNull final Set<Module> modules, @NotNull final String mod) {
+    public static boolean foundModuleByName(@NotNull final Collection<Module> modules, @NotNull final String mod) {
         return modules.stream().map(Module::name).anyMatch(s -> s.equals(mod));
     }
 
-    public static Module findModuleByName(@NotNull final Set<Module> modules, @NotNull final String mod) {
+    public static Module findModuleByName(@NotNull final Collection<Module> modules, @NotNull final String mod) {
         return modules.stream().filter(m -> m.name.equals(mod)).findFirst().orElse(null);
     }
 
@@ -110,7 +110,7 @@ public class Module {
         return functionConcepts.stream().filter(f -> f.name().equals(name)).findFirst();
     }
 
-    public HashSet<Module> subModules() {
+    public List<Module> subModules() {
         return subModules;
     }
 

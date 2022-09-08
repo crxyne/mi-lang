@@ -47,18 +47,18 @@ public class ParserEvaluator {
         }
         final Datatype datatype = Datatype.of(parser, Collections.emptyList(), result.child(2).value());
         if (datatype == null) return;
-
+        final boolean init = result.children().size() == 4;
 
         final Variable var = new Variable(
                 ident.token(),
                 datatype,
                 modifiers,
                 module,
-                result.children().size() == 4
+                init,
+                init ? result.child(3) : null
         );
 
         if (handleRestrictedName(ident)) return;
-
         module.addGlobalVariable(parser, var);
     }
 
@@ -76,7 +76,8 @@ public class ParserEvaluator {
                 datatype,
                 modifiers,
                 null,
-                result.children().size() == 4
+                result.children().size() == 4,
+                null
         ), functionScope);
 
         if (handleRestrictedName(ident)) return;

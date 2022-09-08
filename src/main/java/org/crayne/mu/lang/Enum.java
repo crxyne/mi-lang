@@ -4,10 +4,7 @@ import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.scope.EnumScope;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class Enum {
 
@@ -56,7 +53,7 @@ public class Enum {
         );
     }
 
-    public static Optional<Enum> findEnumByName(@NotNull final HashSet<Enum> moduleEnums, @NotNull final String name) {
+    public static Optional<Enum> findEnumByName(@NotNull final Collection<Enum> moduleEnums, @NotNull final String name) {
         Enum result = null;
         for (final Enum var : moduleEnums) if (var.name.equals(name)) result = var;
         return Optional.ofNullable(result);

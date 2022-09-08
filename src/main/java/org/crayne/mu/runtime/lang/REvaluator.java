@@ -6,9 +6,11 @@ import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.lexer.Tokenizer;
 import org.crayne.mu.runtime.SyntaxTreeExecution;
+import org.crayne.mu.runtime.util.MuUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Optional;
 
 public class REvaluator {
 
@@ -60,6 +62,11 @@ public class REvaluator {
                 final boolean ternaryCondition = isTrue(evaluateExpression(values.get(0).child(0)).getValue());
                 if (ternaryCondition) yield evaluateExpression(values.get(1).child(0));
                 yield evaluateExpression(values.get(2).child(0));
+            }
+            case IDENTIFIER -> {
+                final Optional<RVariable> find = MuUtil.findVariable(tree, nodeVal.token());
+                if (find.isEmpty()) yield null;
+                yield find.get().getValue();
             }
             case CAST_VALUE -> {
                 if (x == null) yield null;

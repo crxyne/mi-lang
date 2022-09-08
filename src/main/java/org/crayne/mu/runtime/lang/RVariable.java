@@ -39,7 +39,7 @@ public class RVariable {
         return value;
     }
 
-    public void setValue(@NotNull final RValue value) {
+    public void setValue(final RValue value) {
         this.value = value;
     }
 

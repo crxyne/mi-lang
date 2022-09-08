@@ -9,11 +9,12 @@ public class Tests {
         final String code = """
                 pub? true = 1b;
                 pub? false = 0b;
+                pub? isStupid = true;
                 
                 module std {
                 
                     module math {
-                        pub mut? PI = 3.14159265358979;
+                        pub? Pi = 3.14159265358979;
                     }
                     
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";

@@ -70,7 +70,7 @@ public class SyntaxTreeExecution {
 
     public void execute() {
         MuUtil.defineAllGlobalVariables(this, parentModule);
-        System.out.println(parentModule);
+
         for (final Node statement : parentNode.children()) {
             evalStatement(statement);
             if (error) return;

@@ -5,7 +5,7 @@ import org.crayne.mu.runtime.lang.REvaluator;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
-public class RString implements RPrimitiveType {
+public class RString implements ROperand {
 
     private final SyntaxTree runtime;
 

@@ -83,6 +83,7 @@ public class ParserEvaluator {
                 ident.token(),
                 datatype,
                 modifiers,
+                module,
                 result.children().size() == 4
         );
 
@@ -104,6 +105,7 @@ public class ParserEvaluator {
                 ident.token(),
                 datatype,
                 modifiers,
+                null,
                 result.children().size() == 4
         ), functionScope);
 
@@ -141,6 +143,7 @@ public class ParserEvaluator {
                         datatype,
                         params,
                         modifiers,
+                        module,
                         result.child(4)
                 ));
                 return;
@@ -149,7 +152,8 @@ public class ParserEvaluator {
                     nameToken.token(),
                     datatype,
                     params,
-                    modifiers
+                    modifiers,
+                    module
             ));
         } catch (final NullPointerException e) {
             e.printStackTrace();
@@ -187,6 +191,7 @@ public class ParserEvaluator {
                             datatype,
                             params,
                             modifiers,
+                            module,
                             nativeMethod
                     ));
                     return;
@@ -196,6 +201,7 @@ public class ParserEvaluator {
                         datatype,
                         params,
                         modifiers,
+                        module,
                         result.child(4)
                 ));
             }
@@ -322,16 +328,20 @@ public class ParserEvaluator {
         final Optional<Variable> foundVariable = findVariable(identifier, true);
         if (foundVariable.isEmpty()) return null;
 
-        return evalVariableChange(identifier, value, equal);
+        return evalVariableChange(identifier, value, equal, foundVariable.get());
     }
 
-    public Node evalVariableChange(@NotNull final Token identifier, @NotNull final ValueParser.TypedNode value, @NotNull final Token equal) {
+    public Node evalVariableChange(@NotNull final Token identifier, @NotNull final ValueParser.TypedNode value, @NotNull final Token equal, @NotNull final Variable var) {
         final FunctionScope functionScope = expectFunctionScope(identifier);
         if (functionScope == null) return null;
 
         final EqualOperation eq = EqualOperation.of(equal.token());
         if (eq == null) {
             parser.parserError("Unexpected parsing error, invalid equals operation '" + equal.token() + "'", equal);
+            return null;
+        }
+        if (eq != EqualOperation.EQUAL && !var.type().operatorDefined(NodeType.of(equal.token().substring(0, 1)), var.type())) {
+            parser.parserError("Undefined operator '" + equal.token() + "' for datatype '" + var.type().getName() + "'", equal);
             return null;
         }
 
@@ -346,7 +356,7 @@ public class ParserEvaluator {
         };
 
         return new Node(NodeType.VAR_SET_VALUE,
-                new Node(NodeType.IDENTIFIER, identifier),
+                new Node(NodeType.IDENTIFIER, var.asIdentifierToken(identifier)),
                 new Node(NodeType.OPERATOR, finalEq),
                 new Node(NodeType.VALUE, value.node())
         );
@@ -385,8 +395,11 @@ public class ParserEvaluator {
             }
 
         if (globalVar.isEmpty()) {
-            if (panic) parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
-            return null;
+            globalVar = parser.parentModule().findVariableByName(identifier);
+            if (globalVar.isEmpty()) {
+                if (panic) parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
+                return null;
+            }
         }
         parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifierTok, globalVar.get().modifiers());
         return globalVar.get();
@@ -407,12 +420,11 @@ public class ParserEvaluator {
         if (Parser.anyNull(identifierTok)) return null;
 
         final List<ValueParser.TypedNode> params = parseParametersCallFunction(tokens.subList(2, tokens.size() - 2));
+        final FunctionDefinition def = checkValidFunctionCall(identifierTok, params, true, true);
+        if (def == null) return null;
 
-        if (parser.skimming) {
-            if (checkValidFunctionCall(identifierTok, params, true, true) == null) return null;
-        }
         return new Node(NodeType.FUNCTION_CALL,
-                new Node(NodeType.IDENTIFIER, identifierTok),
+                new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifierTok)),
                 new Node(NodeType.PARAMETERS, params.stream().map(n -> new Node(NodeType.VALUE, n.node())).toList())
         );
     }

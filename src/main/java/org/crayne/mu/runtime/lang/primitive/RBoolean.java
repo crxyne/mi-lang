@@ -4,11 +4,9 @@ import org.crayne.mu.runtime.SyntaxTree;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
-public class RBoolean implements RPrimitiveType {
+public class RBoolean implements ROperand {
 
     private final SyntaxTree runtime;
-
-
     public SyntaxTree runtime() {
         return runtime;
     }

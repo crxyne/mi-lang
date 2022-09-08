@@ -5,7 +5,7 @@ import org.crayne.mu.runtime.lang.RDatatype;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
-public interface RPrimitiveType {
+public interface ROperand {
 
     SyntaxTree runtime();
 
@@ -86,8 +86,8 @@ public interface RPrimitiveType {
         return unexpectedOperator(">=");
     }
 
-    static RPrimitiveType of(@NotNull final RDatatype type, @NotNull final SyntaxTree tree) {
-        if (!type.primitive()) return null;
+    static ROperand of(@NotNull final RDatatype type, @NotNull final SyntaxTree tree) {
+        if (!type.primitive()) return new REnumOperand(tree); // because we currently only have enums as non primitive types
 
         return switch (type.getPrimitive()) {
             case BOOL -> new RBoolean(tree);

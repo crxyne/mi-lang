@@ -1,7 +1,7 @@
 package org.crayne.mu.runtime.lang;
 
 import org.crayne.mu.lang.Datatype;
-import org.crayne.mu.runtime.lang.primitive.RPrimitiveType;
+import org.crayne.mu.runtime.lang.primitive.ROperand;
 import org.jetbrains.annotations.NotNull;
 
 public class RValue {
@@ -31,146 +31,146 @@ public class RValue {
 
     public RValue equals(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.equals(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.equals(cast(heavier), y.cast(heavier));
+        return operand.equals(cast(heavier), y);
     }
 
     public RValue notEquals(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.notEquals(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.notEquals(cast(heavier), y.cast(heavier));
+        return operand.notEquals(cast(heavier), y);
     }
 
     public RValue lessThan(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.lessThan(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.lessThan(cast(heavier), y.cast(heavier));
+        return operand.lessThan(cast(heavier), y);
     }
 
     public RValue greaterThan(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.greaterThan(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.greaterThan(cast(heavier), y.cast(heavier));
+        return operand.greaterThan(cast(heavier), y);
     }
 
     public RValue lessThanOrEquals(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.lessThanOrEquals(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.lessThanOrEquals(cast(heavier), y.cast(heavier));
+        return operand.lessThanOrEquals(cast(heavier), y);
     }
 
     public RValue greaterThanOrEquals(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.greaterThanOrEquals(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.greaterThanOrEquals(cast(heavier), y.cast(heavier));
+        return operand.greaterThanOrEquals(cast(heavier), y);
     }
 
     public RValue add(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.add(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.add(cast(heavier), y.cast(heavier));
+        return operand.add(cast(heavier), y);
     }
 
     public RValue subtract(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.subtract(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.subtract(cast(heavier), y.cast(heavier));
+        return operand.subtract(cast(heavier), y);
     }
 
     public RValue multiply(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.multiply(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.multiply(cast(heavier), y.cast(heavier));
+        return operand.multiply(cast(heavier), y);
     }
 
     public RValue divide(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.divide(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.divide(cast(heavier), y.cast(heavier));
+        return operand.divide(cast(heavier), y);
     }
 
     public RValue modulus(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.modulus(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.modulus(cast(heavier), y.cast(heavier));
+        return operand.modulus(cast(heavier), y);
     }
 
     public RValue logicalAnd(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.logicalAnd(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.logicalAnd(cast(heavier), y.cast(heavier));
+        return operand.logicalAnd(cast(heavier), y);
     }
 
     public RValue logicalOr(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.logicalOr(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.logicalOr(cast(heavier), y.cast(heavier));
+        return operand.logicalOr(cast(heavier), y);
     }
 
     public RValue bitXor(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.bitXor(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.bitXor(cast(heavier), y.cast(heavier));
+        return operand.bitXor(cast(heavier), y);
     }
 
     public RValue bitAnd(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.bitAnd(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.bitAnd(cast(heavier), y.cast(heavier));
+        return operand.bitAnd(cast(heavier), y);
     }
 
     public RValue bitOr(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.bitOr(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.bitOr(cast(heavier), y.cast(heavier));
+        return operand.bitOr(cast(heavier), y);
     }
 
     public RValue bitShiftLeft(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.bitShiftLeft(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.bitShiftLeft(cast(heavier), y.cast(heavier));
+        return operand.bitShiftLeft(cast(heavier), y);
     }
 
     public RValue bitShiftRight(@NotNull final REvaluator evaluator, @NotNull final RValue y) {
         final RDatatype heavier = RDatatype.getHeavierType(type, y.type).orElseThrow(NullPointerException::new);
-        final RPrimitiveType primitiveType = RPrimitiveType.of(heavier, evaluator.tree);
+        final ROperand operand = ROperand.of(heavier, evaluator.tree);
 
-        if (heavier.primitive() && primitiveType != null) return primitiveType.bitShiftRight(cast(heavier), y.cast(heavier));
-        return null;
+        if (heavier.primitive()) return operand.bitShiftRight(cast(heavier), y.cast(heavier));
+        return operand.bitShiftRight(cast(heavier), y);
     }
 
     @Override

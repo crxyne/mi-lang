@@ -1,5 +1,6 @@
 package org.crayne.mu.lang;
 
+import org.crayne.mu.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -9,20 +10,23 @@ import java.util.Optional;
 public class Variable {
 
     private final List<Modifier> modifiers;
+    private final Module module;
     private final Datatype type;
     private final String name;
     private boolean initialized = false;
 
-    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers) {
+    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Module module) {
         this.name = name;
         this.type = type;
         this.modifiers = modifiers;
+        this.module = module;
     }
 
-    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final boolean initialized) {
+    public Variable(@NotNull final String name, @NotNull final Datatype type, @NotNull final List<Modifier> modifiers, final Module module, final boolean initialized) {
         this.name = name;
         this.type = type;
         this.modifiers = modifiers;
+        this.module = module;
         this.initialized = initialized;
     }
 
@@ -46,6 +50,10 @@ public class Variable {
         return initialized;
     }
 
+    public Module module() {
+        return module;
+    }
+
     public String name() {
         return name;
     }
@@ -64,6 +72,15 @@ public class Variable {
 
     public static boolean isConstant(@NotNull final Collection<Modifier> modifiers) {
         return modifiers.contains(Modifier.CONSTANT) || !modifiers.contains(Modifier.MUTABLE);
+    }
+
+    public Token asIdentifierToken(@NotNull final Token identifierTok) {
+        return new Token(
+                module != null ? (module().fullName() + "." + name()) : name(),
+                identifierTok.actualLine(),
+                identifierTok.line(),
+                identifierTok.column()
+        );
     }
 
     @Override

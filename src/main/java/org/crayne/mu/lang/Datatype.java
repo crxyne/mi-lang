@@ -57,10 +57,14 @@ public class Datatype {
             if (findUsing != null) return findUsing;
         }
         if (module.isEmpty()) return null;
-        final Optional<Enum> foundEnum = module.get().findEnumByName(ParserEvaluator.identOf(enumNameStr));
+        Optional<Enum> foundEnum = module.get().findEnumByName(ParserEvaluator.identOf(enumNameStr));
         if (foundEnum.isEmpty()) {
-            if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);
-            return null;
+            foundEnum = parser.parentModule().findEnumByName(ParserEvaluator.identOf(enumNameStr));
+
+            if (foundEnum.isEmpty()) {
+                if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);
+                return null;
+            }
         }
         parser.checkAccessValidity(module.get(), IdentifierType.ENUM, identifier, foundEnum.get().modifiers());
         return foundEnum.get();
@@ -156,7 +160,7 @@ public class Datatype {
     }
 
     public boolean operatorDefined(final NodeType op, final Datatype y) {
-        return (op == NodeType.EQUALS || op == NodeType.NOTEQUALS) ||
+        return (enumDatatype.equals(y.enumDatatype) && (op == NodeType.EQUALS || op == NodeType.NOTEQUALS)) ||
                 (primitive && primitiveDatatype != null && primitiveDatatype.operatorDefined(op, y.primitive && y.primitiveDatatype != null ? y.primitiveDatatype : null));
     }
 

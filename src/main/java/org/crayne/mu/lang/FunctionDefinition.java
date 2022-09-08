@@ -1,6 +1,7 @@
 package org.crayne.mu.lang;
 
 import org.crayne.mu.parsing.ast.Node;
+import org.crayne.mu.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
@@ -14,28 +15,35 @@ public class FunctionDefinition {
     private final List<Modifier> modifiers;
     private Node scope;
     private Method nativeMethod;
+    private final Module module;
 
-    public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters, @NotNull final List<Modifier> modifiers) {
+    public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
+                              @NotNull final List<Modifier> modifiers, @NotNull final Module module) {
         this.name = name;
         this.returnType = returnType;
         this.parameters = parameters;
         this.modifiers = modifiers;
+        this.module = module;
     }
 
-    public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters, @NotNull final List<Modifier> modifiers, @NotNull final Method nativeMethod) {
+    public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
+                              @NotNull final List<Modifier> modifiers, @NotNull final Module module, @NotNull final Method nativeMethod) {
         this.name = name;
         this.returnType = returnType;
         this.parameters = parameters;
         this.modifiers = modifiers;
+        this.module = module;
         this.nativeMethod = nativeMethod;
     }
 
 
-    public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters, @NotNull final List<Modifier> modifiers, @NotNull final Node scope) {
+    public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
+                              @NotNull final List<Modifier> modifiers, @NotNull final Module module, @NotNull final Node scope) {
         this.name = name;
         this.returnType = returnType;
         this.parameters = parameters;
         this.modifiers = modifiers;
+        this.module = module;
         this.scope = scope;
     }
 
@@ -63,8 +71,20 @@ public class FunctionDefinition {
         return modifiers;
     }
 
+    public Module module() {
+        return module;
+    }
+
     public Node scope() {
         return scope;
+    }
+    public Token asIdentifierToken(@NotNull final Token identifierTok) {
+        return new Token(
+                module().fullName() + "." + name(),
+                identifierTok.actualLine(),
+                identifierTok.line(),
+                identifierTok.column()
+        );
     }
 
     @Override

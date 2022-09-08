@@ -50,6 +50,11 @@ public class REvaluator {
             case EQUALS -> equals(x, y);
             case NOTEQUALS -> notEquals(x, y);
             case NEGATE -> subtract(Node.of(Token.of("0")), x);
+            case GET_ENUM_MEMBER -> {
+                final String identifier = values.get(0).value().token();
+                final String member = values.get(1).value().token();
+                yield new RValue(RDatatype.of(identifier + "_enum!"), member);
+            }
             case TERNARY_OPERATOR -> {
                 final boolean ternaryCondition = isTrue(evaluateExpression(values.get(0).child(0)).getValue());
                 if (ternaryCondition) yield evaluateExpression(values.get(1).child(0));

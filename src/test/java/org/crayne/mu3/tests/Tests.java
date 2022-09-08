@@ -7,22 +7,33 @@ public class Tests {
 
     public static void main(@NotNull final String... args) {
         final String code = """
+                pub enum TestEnum {
+                    TEST
+                }
+                
                 pub? true = 1b;
                 pub? false = 0b;
-                pub? test = 1.0f / 0.0f;
+                
                 
                 module std {
                 
+                    pub enum TestEnum {
+                        TEST, OTHER
+                    }
+                    
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
                     
                 }
+                
+                pub? test = TestEnum::TEST == TestEnum::TEST;
                 
                 STANDARDLIB_MU_FINISH_CODE;
                 
                 module helloworld {
                 
                     pub fn main {
-                        
+                        use std;
+                        println("hi");
                     }
                     
                 }

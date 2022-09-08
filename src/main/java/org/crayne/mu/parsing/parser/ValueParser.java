@@ -43,40 +43,22 @@ public class ValueParser {
         final TypedNode x = parseExpression();
         if (parsingPosition < expr.size()) {
             final Token val = expr.get(parsingPosition);
-            parserError("Unexpected token '" + expr.get(parsingPosition).token() + "', couldn't parse expression", val);
+            parserParent.parserError("Unexpected token '" + expr.get(parsingPosition).token() + "', couldn't parse expression", val);
         }
         return x;
-    }
-
-    protected void parserError(@NotNull final String message, @NotNull final String... quickFixes) {
-        if (currentToken == null) parserError(message, parserParent.currentToken(), quickFixes);
-        else parserError(message, currentToken, quickFixes);
-    }
-
-    private void parserError(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
-        if (parserParent.encounteredError) return;
-        parserParent.output.astHelperError(message, token.line(), token.column(), parserParent.stdlibFinishLine, parserParent.stdlib, quickFixes);
-        parserParent.encounteredError = true;
-    }
-
-    private void parserError(@NotNull final String message, final int line, final int column, @NotNull final String... quickFixes) {
-        if (parserParent.encounteredError) return;
-        parserParent.output.astHelperError(message, line, column, parserParent.stdlibFinishLine, parserParent.stdlib, quickFixes);
-        parserParent.encounteredError = true;
     }
 
     private TypedNode evalTernaryOperator(final TypedNode x, final TypedNode y) {
         if (!eat(":")) {
             final Token val = y.node.value();
-            parserError("Expected ':' after ternary expression", val.line(), val.column());
+            parserParent.parserError("Expected ':' after ternary expression", val);
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         final TypedNode z = parseExpression();
         final boolean areEqual = z.type.equals(y.type);
         if (!areEqual) {
             final Token val = z.node.value();
-            parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator",
-                    val.line(), val.column(),
+            parserParent.parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator", val,
                     "'if' part is of type " + y.type.getName() + ", while 'else' part is " + z.type.getName());
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
@@ -100,10 +82,10 @@ public class ValueParser {
         } catch (final Exception ignored) {}
         if (!operatorDefined) {
             if (x.type == y.type) {
-                parserError("Operator '" + op.token() + "' is not defined for operand type " + x.type.getName(), op.line(), op.column());
+                parserParent.parserError("Operator '" + op.token() + "' is not defined for operand type " + x.type.getName(), op);
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
-            parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op.line(), op.column());
+            parserParent.parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op);
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), x.node, y.node));
@@ -130,7 +112,7 @@ public class ValueParser {
     private TypedNode parseExpression(final int precendece) {
         TypedNode nodeX = precendece > 0 ? parseExpression(precendece - 1) : parseFactor();
         if (nodeX == null) {
-            parserError("Unexpected parsing error");
+            parserParent.parserError("Unexpected parsing error");
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         for (; ; ) {
@@ -196,7 +178,7 @@ public class ValueParser {
         if (prefixed != null) return prefixed;
 
         if (currentToken == null) {
-            parserError("Unexpected parsing error");
+            parserParent.parserError("Unexpected parsing error");
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
@@ -224,11 +206,11 @@ public class ValueParser {
                 final Datatype datatype = new Datatype(parserParent, enumName);
 
                 return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER,
-                        new Node(NodeType.IDENTIFIER, enumName),
+                        new Node(NodeType.IDENTIFIER, foundEnum.asIdentifierToken(enumName)),
                         new Node(NodeType.MEMBER, enumMember)
                 ));
             } else {
-                parserError("Unexpected token '::'", nextPart);
+                parserParent.parserError("Unexpected token '::'", nextPart);
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
         }
@@ -247,12 +229,12 @@ public class ValueParser {
                             ? new TypedNode(Datatype.INT, new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1")))
                             : parseExpression();
 
-                    return new TypedNode(findVar.get().type(), parserParent.evaluator().evalVariableChange(identifier, val, nextPart));
+                    return new TypedNode(findVar.get().type(), parserParent.evaluator().evalVariableChange(identifier, val, nextPart, findVar.get()));
                 }
             }
 
             if (!findVar.get().initialized()) {
-                parserError("Variable '" + identifier.token() + "' might not have been initialized yet", identifier, "Set the value of the variable upon declaration");
+                parserParent.parserError("Variable '" + identifier.token() + "' might not have been initialized yet", identifier, "Set the value of the variable upon declaration");
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
             final TypedNode result = new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, identifier));
@@ -261,7 +243,7 @@ public class ValueParser {
         }
         if (eat("(")) {
             final TypedNode result = parseExpression();
-            if (!eat(")")) parserError("Expected ')' after expression in parenthesis");
+            if (!eat(")")) parserParent.parserError("Expected ')' after expression in parenthesis", currentToken);
             return result;
         }
         if (nextPart != null && nextPart.token().equals("(")) {
@@ -275,12 +257,12 @@ public class ValueParser {
 
                 final Datatype retType = def.returnType();
                 if (retType == Datatype.VOID) {
-                    parserError("Usage of void function as a value in expression", identifier);
+                    parserParent.parserError("Usage of void function as a value in expression", identifier);
                     return new TypedNode(null, new Node(NodeType.VALUE));
                 }
 
                 return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL,
-                        new Node(NodeType.IDENTIFIER, identifier),
+                        new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifier)),
                         new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())
                 ));
             }
@@ -290,7 +272,7 @@ public class ValueParser {
         final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(parserParent, new Node(nodeType, result));
         if (datatype == null) return new TypedNode(null, new Node(NodeType.VALUE));
         if (datatype == Datatype.NULL && !parserParent.stdlib && parserParent.skimming) {
-            parserError("Unexpected token 'null'", "Only the standard library may use 'null' as a raw value, use Optional<T> to use nullable types");
+            parserParent.parserError("Unexpected token 'null'", "Only the standard library may use 'null' as a raw value, use Optional<T> to use nullable types");
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
         nextPart();
@@ -313,7 +295,7 @@ public class ValueParser {
             nextPart();
         }
         if (foundEndingParen == -1) {
-            parserError("Expected ')' after arguments of function call");
+            parserParent.parserError("Expected ')' after arguments of function call");
             return null;
         }
         nextPart();

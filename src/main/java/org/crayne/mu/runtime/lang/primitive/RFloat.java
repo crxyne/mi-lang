@@ -6,7 +6,7 @@ import org.crayne.mu.runtime.lang.RDatatype;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
-public class RFloat implements RPrimitiveType {
+public class RFloat implements ROperand {
 
     private final SyntaxTree runtime;
 

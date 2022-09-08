@@ -3,7 +3,7 @@ package org.crayne.mu.runtime.lang.primitive;
 import org.crayne.mu.runtime.SyntaxTree;
 import org.jetbrains.annotations.NotNull;
 
-public class RVoid implements RPrimitiveType {
+public class RVoid implements ROperand {
 
     private final SyntaxTree runtime;
 

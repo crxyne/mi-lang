@@ -21,9 +21,9 @@ public class FunctionConcept {
         this.definitions = new HashSet<>();
     }
 
-    public final void addDefinition(@NotNull final List<FunctionParameter> defs, @NotNull final List<Modifier> modifiers, final Node scope, final Method nativeMethod) {
-        if (scope == null) definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, nativeMethod));
-        else definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, scope));
+    public final void addDefinition(@NotNull final List<FunctionParameter> defs, @NotNull final List<Modifier> modifiers, @NotNull final Module module, final Node scope, final Method nativeMethod) {
+        if (scope == null) definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, module, nativeMethod));
+        else definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, module, scope));
     }
 
     public HashSet<FunctionDefinition> definitions() {

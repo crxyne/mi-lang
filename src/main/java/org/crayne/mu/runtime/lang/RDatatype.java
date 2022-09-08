@@ -67,12 +67,16 @@ public class RDatatype {
 
     public static Optional<RDatatype> getHeavierType(@NotNull final RDatatype d1, @NotNull final RDatatype d2) {
         if ((d1.primitive() && !d2.primitive()) || (!d1.primitive() && d2.primitive())) return Optional.empty();
-        if (d1.getPrimitive() == null || d2.getPrimitive() == null) return Optional.of(d2);
+        if (d1.getPrimitive() == null || d2.getPrimitive() == null) return Optional.of(d1);
 
         final Integer r1 = datatypeRanking.get(d1.getName().toUpperCase());
         final Integer r2 = datatypeRanking.get(d2.getName().toUpperCase());
         if (r1 == null || r2 == null) return Optional.empty();
         return Optional.of(r1 < r2 ? d1 : d2);
+    }
+
+    public boolean equals(final RDatatype other) {
+        return name.equals(other.name);
     }
 
     @Override

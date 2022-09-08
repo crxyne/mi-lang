@@ -1,5 +1,6 @@
 package org.crayne.mu.lang;
 
+import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.scope.EnumScope;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,6 +45,15 @@ public class Enum {
 
     public List<Modifier> modifiers() {
         return modifiers;
+    }
+
+    public Token asIdentifierToken(@NotNull final Token identifierTok) {
+        return new Token(
+                module().fullName() + "." + name(),
+                identifierTok.actualLine(),
+                identifierTok.line(),
+                identifierTok.column()
+        );
     }
 
     public static Optional<Enum> findEnumByName(@NotNull final HashSet<Enum> moduleEnums, @NotNull final String name) {

@@ -33,6 +33,15 @@ public class Module {
     public String name() {
         return name;
     }
+    public String fullName() {
+        final StringBuilder result = new StringBuilder(name);
+        Module current = this.parent;
+        while (current != null) {
+            result.insert(0, current.name + ".");
+            current = current.parent;
+        }
+        return result.toString();
+    }
 
     public Module parent() {
         return parent;
@@ -47,11 +56,11 @@ public class Module {
                     parser.parserError("A function with the same parameters already exists", at, "Change either of the function names");
                     return;
                 }
-                functionConcept.addDefinition(def.parameters(), def.modifiers(), def.scope(), def.nativeMethod());
+                functionConcept.addDefinition(def.parameters(), def.modifiers(), def.module(), def.scope(), def.nativeMethod());
                 return;
             }
         }
-        concept.addDefinition(def.parameters(), def.modifiers(), def.scope(), def.nativeMethod());
+        concept.addDefinition(def.parameters(), def.modifiers(), def.module(), def.scope(), def.nativeMethod());
         functionConcepts.add(concept);
     }
 

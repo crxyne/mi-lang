@@ -13,6 +13,25 @@ public class Tests {
                 module std {
                     
                     pub nat fn println~ (string s) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (string s) -> "org.crayne.mu.stdlib.StandardLib";
+                    
+                    pub nat fn println~ (int i) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (int i) -> "org.crayne.mu.stdlib.StandardLib";
+                    
+                    pub nat fn println~ (double d) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (double d) -> "org.crayne.mu.stdlib.StandardLib";
+                    
+                    pub nat fn println~ (float f) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (float f) -> "org.crayne.mu.stdlib.StandardLib";
+                    
+                    pub nat fn println~ (long l) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (long l) -> "org.crayne.mu.stdlib.StandardLib";
+                    
+                    pub nat fn println~ (bool b) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (bool b) -> "org.crayne.mu.stdlib.StandardLib";
+                    
+                    pub nat fn println~ (char c) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn print~ (char c) -> "org.crayne.mu.stdlib.StandardLib";
                     
                 }
                 
@@ -21,7 +40,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        std.println("Hello, world!");
+                        std.print("12L");
                     }
                     
                 }

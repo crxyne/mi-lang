@@ -1,10 +1,8 @@
 package org.crayne.mu.lang;
 
-import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.parser.ValueParser;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -21,10 +19,8 @@ public class FunctionConcept {
         this.definitions = new HashSet<>();
     }
 
-    public final void addDefinition(@NotNull final List<FunctionParameter> defs, @NotNull final List<Modifier> modifiers,
-                                    @NotNull final Module module, final Node scope, final Method nativeMethod, final Class<?> nativeCallClass) {
-        if (scope == null) definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, module, nativeMethod, nativeCallClass));
-        else definitions.add(new FunctionDefinition(name, returnType, defs, modifiers, module, scope));
+    public final void addDefinition(@NotNull final FunctionDefinition def) {
+        definitions.add(def);
     }
 
     public HashSet<FunctionDefinition> definitions() {
@@ -68,7 +64,7 @@ public class FunctionConcept {
     }
 
     public boolean equals(@NotNull final FunctionConcept other) {
-        return other.name.equals(name) && other.returnType.equals(returnType);
+        return other.name.equals(name) && Datatype.equal(other.returnType, returnType);
     }
 
     @Override

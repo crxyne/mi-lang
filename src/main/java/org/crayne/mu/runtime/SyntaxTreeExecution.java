@@ -1,6 +1,7 @@
 package org.crayne.mu.runtime;
 
 import org.crayne.mu.lang.Module;
+import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.log.LogHandler;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
@@ -104,7 +105,21 @@ public class SyntaxTreeExecution {
                 case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> variableDefinition(node);
                 case FUNCTION_DEFINITION -> functionDefinition(node);
                 case FUNCTION_CALL -> functionCall(node);
-                case NOOP -> createLocalScope(node);
+                case IF_STATEMENT -> {
+                    final RValue condition = evaluator.evaluateExpression(node.child(0).child(0));
+                    final Object conditionValue = condition.getValue();
+                    if (!condition.getType().primitive() || condition.getType().getPrimitive() != PrimitiveDatatype.BOOL || !(conditionValue instanceof Boolean)) {
+                        runtimeError("Non-Boolean condition at if statement");
+                        return;
+                    }
+                    final boolean executeIf = (boolean) conditionValue;
+                    if (executeIf) {
+                        createLocalScope(node.child(1));
+                        return;
+                    }
+                    createLocalScope(node.child(2).child(0));
+                }
+                case NOOP -> createLocalScope(node.child(0));
                 case CREATE_MODULE -> createModule(node);
                 //default -> System.out.println("UNHANDLED: " + node.type());
             }
@@ -175,7 +190,7 @@ public class SyntaxTreeExecution {
         }
         final RFunctionScope current = currentFunctionScope;
         currentFunctionScope = new RFunctionScope(currentFunctionScope.getFunction());
-        scope(node.child(0));
+        scope(node);
         currentFunctionScope.deleteLocalVars();
         currentFunctionScope = current;
     }

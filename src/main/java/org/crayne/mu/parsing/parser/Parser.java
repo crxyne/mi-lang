@@ -160,6 +160,7 @@ public class Parser {
                     skimStatement(tokens, first);
                 }
                 scopeEndCheck++;
+                final List<String> using = curScope.isEmpty() || !(curScope.get() instanceof FunctionScope) ? null : ((FunctionScope) curScope.get()).using();
                 result = evalScoped(tokens, first, Collections.emptyList());
                 scopeIndent++;
                 if (result == null) {
@@ -175,6 +176,7 @@ public class Parser {
                         if (NodeType.of(currentToken) == NodeType.LITERAL_ELSE) {
                             skipToken();
                             scope(ScopeType.ELSE);
+                            if (using == null) return null;
                             scopeIndent++;
                             actualIndent++;
                             final Node elseStatement = parseStatement(false);
@@ -246,7 +248,7 @@ public class Parser {
     public Node evalScoped(@NotNull final List<Token> tokens, @NotNull final NodeType first, @NotNull final List<Node> modifiers) {
         if (tokens.size() == 1) {
             final Optional<Scope> current = scope();
-            if (current.isEmpty() || !(current.get() instanceof final FunctionScope functionScope)) {
+            if (current.isEmpty() || !(current.get() instanceof FunctionScope)) {
                 parserError("Unexpected local scope outside of function scope");
                 return null;
             }

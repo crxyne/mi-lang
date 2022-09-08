@@ -54,6 +54,10 @@ public class FunctionScope extends Scope {
         return type;
     }
 
+    public FunctionScope parent() {
+        return parent;
+    }
+
     public List<LocalVariable> localVariables() {
         return localVariables;
     }
@@ -119,7 +123,7 @@ public class FunctionScope extends Scope {
         }
         localVariables.clear();
         using.clear();
-        if (parent == null) return;
+        if (parent == null || parent.type == ScopeType.NORMAL) return;
 
         parent.using.remove(actualIndent);
     }

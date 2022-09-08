@@ -53,7 +53,6 @@ public class RVariable {
             );
         }
         final RValue value = tree.getEvaluator().evaluateExpression(values.get(3));
-        System.out.println(values.get(1).value().token() + " = " + value);
         return new RVariable(
                 values.get(1).value().token(),
                 new RDatatype(values.get(2).value().token()),

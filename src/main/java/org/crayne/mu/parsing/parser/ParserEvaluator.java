@@ -68,17 +68,17 @@ public class ParserEvaluator {
     protected void addGlobalVarFromResult(@NotNull final Node result) {
         final Module module = parser.lastModule();
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
-
+        final Token ident = result.child(1).value();
         final Optional<Scope> current = parser.scope();
         if (!parser.stdlib && (current.isEmpty() || current.get().type() != ScopeType.MODULE)) {
-            parser.parserError("Cannot define global variables at root level",
+            parser.parserError("Cannot define global variables at root level", ident,
                     "Move your variable into a module or create a new module for it");
             return;
         }
         final Datatype datatype = Datatype.of(parser, Collections.emptyList(), result.child(2).value());
         if (datatype == null) return;
 
-        final Token ident = result.child(1).value();
+
         final Variable var = new Variable(
                 ident.token(),
                 datatype,
@@ -243,7 +243,7 @@ public class ParserEvaluator {
         }
         functionScope.reachedEnd();
 
-        return new Node(NodeType.RETURN_VALUE, new Node(NodeType.VALUE, retVal.node()));
+        return new Node(NodeType.RETURN_VALUE, ret.actualLine(), new Node(NodeType.VALUE, ret.actualLine(), retVal.node()));
     }
 
     public Node evalFirstIdentifier(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -355,10 +355,10 @@ public class ParserEvaluator {
             default -> equal;
         };
 
-        return new Node(NodeType.VAR_SET_VALUE,
+        return new Node(NodeType.VAR_SET_VALUE, finalEq.actualLine(),
                 new Node(NodeType.IDENTIFIER, var.asIdentifierToken(identifier)),
                 new Node(NodeType.OPERATOR, finalEq),
-                new Node(NodeType.VALUE, value.node())
+                new Node(NodeType.VALUE, value.node().value().actualLine(), value.node())
         );
     }
 
@@ -423,9 +423,9 @@ public class ParserEvaluator {
         final FunctionDefinition def = checkValidFunctionCall(identifierTok, params, true, true);
         if (def == null) return null;
 
-        return new Node(NodeType.FUNCTION_CALL,
+        return new Node(NodeType.FUNCTION_CALL, identifierTok.actualLine(),
                 new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifierTok)),
-                new Node(NodeType.PARAMETERS, params.stream().map(n -> new Node(NodeType.VALUE, n.node())).toList())
+                new Node(NodeType.PARAMETERS, params.stream().map(n -> new Node(NodeType.VALUE, n.node().value().actualLine(), n.node())).toList())
         );
     }
 
@@ -495,7 +495,7 @@ public class ParserEvaluator {
                 return null;
             }
 
-            return new Node(NodeType.VAR_DEFINITION,
+            return new Node(NodeType.VAR_DEFINITION, identifier.actualLine(),
                     new Node(NodeType.MODIFIERS, modifiers),
                     new Node(NodeType.IDENTIFIER, identifier),
                     new Node(NodeType.TYPE, datatype)
@@ -514,11 +514,11 @@ public class ParserEvaluator {
             return null;
         }
 
-        return new Node(NodeType.VAR_DEF_AND_SET_VALUE,
+        return new Node(NodeType.VAR_DEF_AND_SET_VALUE, identifier.actualLine(),
                 new Node(NodeType.MODIFIERS, modifiers),
                 new Node(NodeType.IDENTIFIER, identifier),
                 finalType,
-                new Node(NodeType.VALUE, value.node())
+                new Node(NodeType.VALUE, identifier.actualLine(), value.node())
         );
     }
 
@@ -670,7 +670,7 @@ public class ParserEvaluator {
             }
             parser.scope(ScopeType.FUNCTION);
             parser.currentFuncReturnType = Datatype.VOID;
-            return new Node(NodeType.FUNCTION_DEFINITION,
+            return new Node(NodeType.FUNCTION_DEFINITION, identifier.actualLine(),
                     new Node(NodeType.IDENTIFIER, identifier),
                     new Node(NodeType.TYPE, Token.of("void")),
                     new Node(NodeType.MODIFIERS, modifiers),
@@ -703,7 +703,7 @@ public class ParserEvaluator {
         parser.scope(ScopeType.FUNCTION);
         parser.currentFuncReturnType = returnType;
 
-        return new Node(NodeType.FUNCTION_DEFINITION,
+        return new Node(NodeType.FUNCTION_DEFINITION, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier),
                 new Node(NodeType.TYPE, Token.of(returnType.getName())),
                 new Node(NodeType.MODIFIERS, modifiers),
@@ -728,7 +728,7 @@ public class ParserEvaluator {
 
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 4));
 
-        final Node result = new Node(NodeType.NATIVE_FUNCTION_DEFINITION,
+        final Node result = new Node(NodeType.NATIVE_FUNCTION_DEFINITION, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier),
                 new Node(NodeType.TYPE, Token.of(returnType.getName())),
                 new Node(NodeType.MODIFIERS, modifiers),
@@ -880,11 +880,11 @@ public class ParserEvaluator {
             return null;
         }
         parser.scope(ScopeType.FOR);
-        return new Node(NodeType.FOR_FAKE_SCOPE,
-                new Node(NodeType.FOR_STATEMENT,
+        return new Node(NodeType.FOR_FAKE_SCOPE, parser.currentToken().actualLine(),
+                new Node(NodeType.FOR_STATEMENT, parser.currentToken().actualLine(),
                         createVariable,
-                        new Node(NodeType.CONDITION, condition.node()),
-                        new Node(NodeType.FOR_INSTRUCT, loopStatement)
+                        new Node(NodeType.CONDITION, -1, condition.node()),
+                        new Node(NodeType.FOR_INSTRUCT, -1, loopStatement)
                 )
         );
     }
@@ -937,9 +937,9 @@ public class ParserEvaluator {
             parser.parserError("Expected boolean condition after '" + condType.getAsString() + "'", "Cast condition to 'bool' or change the expression to be a bool on its own");
             return null;
         }
-        return new Node(NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")),
-                new Node(NodeType.CONDITION,
-                        new Node(NodeType.VALUE, expr.node())
+        return new Node(NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")), first.actualLine(),
+                new Node(NodeType.CONDITION, first.actualLine(),
+                        new Node(NodeType.VALUE, first.actualLine(), expr.node())
                 )
         );
     }
@@ -969,7 +969,7 @@ public class ParserEvaluator {
         if (module.isEmpty()) return null;
 
         functionScope.using(moduleName);
-        return new Node(NodeType.USE_STATEMENT, new Node(NodeType.IDENTIFIER, identifier));
+        return new Node(NodeType.USE_STATEMENT, identifier.actualLine(), new Node(NodeType.IDENTIFIER, identifier));
     }
 
     public Node evalModuleDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -983,7 +983,7 @@ public class ParserEvaluator {
         parser.scope(ScopeType.MODULE);
         if (handleRestrictedName(identifier, IdentifierType.MODULE, false, false)) return null;
 
-        return new Node(NodeType.CREATE_MODULE,
+        return new Node(NodeType.CREATE_MODULE, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier)
         );
     }
@@ -1012,7 +1012,7 @@ public class ParserEvaluator {
         enumScope.module(parser.lastModule());
         warnUnconventional(identifier, IdentifierType.ENUM, false, false);
 
-        return new Node(NodeType.CREATE_ENUM,
+        return new Node(NodeType.CREATE_ENUM, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier)
         );
     }

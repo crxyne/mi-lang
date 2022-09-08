@@ -36,18 +36,20 @@ public class Parser {
     protected Datatype currentFuncReturnType = null;
     protected final int stdlibFinishLine;
     protected boolean stdlib = true;
+    private final String code;
 
     private final List<Scope> currentScope = new ArrayList<>() {{
         add(new Scope(ScopeType.PARENT, 0, 0));
     }};
 
-    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine) {
+    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code) {
         this.output = output;
         this.tokens = tokens;
         if (stdlibFinishLine == -1) {
             output.errorMsg("Cannot find STANDARDLIB_MU_FINISH_CODE anywhere in the code, please contact the developer of your standard library to fix this issue.");
             encounteredError = true;
         }
+        this.code = code;
         this.stdlibFinishLine = stdlibFinishLine;
         evaluator = new ParserEvaluator(this);
     }
@@ -63,7 +65,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTree result = new SyntaxTree(parentModule(), parent, output);
+        final SyntaxTree result = new SyntaxTree(parentModule(), parent, output, code, stdlibFinishLine);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }
@@ -175,7 +177,7 @@ public class Parser {
                             actualIndent++;
                             final Node elseStatement = parseStatement(false);
                             if (elseStatement == null) return null;
-                            result.addChildren(new Node(NodeType.ELSE_STATEMENT, new Node(NodeType.SCOPE, elseStatement)));
+                            result.addChildren(new Node(NodeType.ELSE_STATEMENT, currentToken.actualLine(), new Node(NodeType.SCOPE, currentToken.actualLine(), elseStatement)));
                         }
                     }
                     case DO_STATEMENT -> {

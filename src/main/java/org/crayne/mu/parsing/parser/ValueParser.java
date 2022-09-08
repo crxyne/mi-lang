@@ -66,10 +66,10 @@ public class ValueParser {
             parserParent.parserError("Ternary operator condition should be of type 'bool' but is instead '" + x.type.getName() + "'", x.node.value());
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
-        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR,
-                new Node(NodeType.CONDITION, x.node),
-                new Node(NodeType.TERNARY_OPERATOR_IF, y.node),
-                new Node(NodeType.TERNARY_OPERATOR_ELSE, z.node)
+        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, x.node.value().actualLine(),
+                new Node(NodeType.CONDITION, x.node.value().actualLine(), x.node),
+                new Node(NodeType.TERNARY_OPERATOR_IF, x.node.value().actualLine(), y.node),
+                new Node(NodeType.TERNARY_OPERATOR_ELSE, x.node.value().actualLine(), z.node)
         ));
     }
 
@@ -88,7 +88,7 @@ public class ValueParser {
             parserParent.parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op);
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
-        return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), x.node, y.node));
+        return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), x.node.value().actualLine(), x.node, y.node));
     }
 
     private static final List<List<NodeType>> operatorPrecedence = Arrays.asList(
@@ -150,7 +150,7 @@ public class ValueParser {
                 parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
-            return new TypedNode(fact.type, new Node(NodeType.NEGATE, fact.node));
+            return new TypedNode(fact.type, new Node(NodeType.NEGATE, fact.node.value().actualLine(), fact.node));
         }
         if (eat("!")) {
             final TypedNode fact = parseFactor();
@@ -159,7 +159,7 @@ public class ValueParser {
                 parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
                 return new TypedNode(null, new Node(NodeType.VALUE));
             }
-            return new TypedNode(fact.type, new Node(NodeType.BOOL_NOT, fact.node));
+            return new TypedNode(fact.type, new Node(NodeType.BOOL_NOT, fact.node.value().actualLine(), fact.node));
         }
         if (currentToken != null && NodeType.of(currentToken).isDatatype()) {
             final String datatype = currentToken.token();
@@ -205,7 +205,7 @@ public class ValueParser {
                 nextPart();
                 final Datatype datatype = new Datatype(parserParent, enumName);
 
-                return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER,
+                return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
                         new Node(NodeType.IDENTIFIER, foundEnum.asIdentifierToken(enumName)),
                         new Node(NodeType.MEMBER, enumMember)
                 ));
@@ -261,7 +261,7 @@ public class ValueParser {
                     return new TypedNode(null, new Node(NodeType.VALUE));
                 }
 
-                return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL,
+                return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
                         new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifier)),
                         new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())
                 ));
@@ -333,7 +333,7 @@ public class ValueParser {
     }
 
     private TypedNode castValue(final TypedNode value, final Token castType) {
-        return new TypedNode(Datatype.of(parserParent, castType), new Node(NodeType.CAST_VALUE, castType, value.node));
+        return new TypedNode(Datatype.of(parserParent, castType), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
     }
 
 }

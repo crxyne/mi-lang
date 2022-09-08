@@ -4,7 +4,7 @@ import org.crayne.mu.lang.Enum;
 import org.crayne.mu.lang.FunctionConcept;
 import org.crayne.mu.lang.Module;
 import org.crayne.mu.lang.Variable;
-import org.crayne.mu.runtime.MuUtil;
+import org.crayne.mu.runtime.util.MuUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

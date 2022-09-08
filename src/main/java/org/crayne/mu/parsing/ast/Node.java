@@ -12,6 +12,7 @@ public class Node {
     private final List<Node> children;
     private final NodeType type;
     private final Token value;
+    private final int lineDebugging;
 
     public static Node of(@NotNull final NodeType type) {
         return new Node(type);
@@ -23,24 +24,28 @@ public class Node {
     public Node(@NotNull final NodeType type, final Token value) {
         this.type = type;
         this.value = value;
+        this.lineDebugging = -1;
         children = new ArrayList<>();
     }
 
     public Node(@NotNull final NodeType type) {
         this.type = type;
         this.value = null;
+        this.lineDebugging = -1;
         children = new ArrayList<>();
     }
 
     public Node(@NotNull final Token token) {
         this.type = NodeType.of(token);
         this.value = token;
+        this.lineDebugging = -1;
         children = new ArrayList<>();
     }
 
     public Node(@NotNull final NodeType type, final Token value, @NotNull final Collection<Node> children) {
         this.type = type;
         this.value = value;
+        this.lineDebugging = -1;
         this.children = new ArrayList<>();
         this.children.addAll(children);
     }
@@ -48,22 +53,29 @@ public class Node {
     public Node(@NotNull final NodeType type, @NotNull final Collection<Node> children) {
         this.type = type;
         this.value = null;
+        this.lineDebugging = -1;
         this.children = new ArrayList<>();
         this.children.addAll(children);
     }
 
-    public Node(@NotNull final NodeType type, final Token value, @NotNull final Node... children) {
+    public Node(@NotNull final NodeType type, final Token value, final int lineDebugging, @NotNull final Node... children) {
         this.type = type;
         this.value = value;
+        this.lineDebugging = lineDebugging;
         this.children = new ArrayList<>();
         this.children.addAll(List.of(children));
     }
 
-    public Node(@NotNull final NodeType type, @NotNull final Node... children) {
+    public Node(@NotNull final NodeType type, final int lineDebugging, @NotNull final Node... children) {
         this.type = type;
         this.value = null;
+        this.lineDebugging = lineDebugging;
         this.children = new ArrayList<>();
         this.children.addAll(List.of(children));
+    }
+
+    public int lineDebugging() {
+        return lineDebugging;
     }
 
     public void addChildren(@NotNull final Collection<Node> children) {

@@ -31,7 +31,7 @@ public class Runtime {
         final List<Token> tokenList = tokenizer.tokenize(code);
         if (tokenizer.encounteredError()) return Optional.empty();
 
-        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine());
+        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), code);
         return Optional.ofNullable(parser.parse());
     }
 

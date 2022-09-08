@@ -1,4 +1,4 @@
-package org.crayne.mu.runtime;
+package org.crayne.mu.runtime.util;
 
 import org.jetbrains.annotations.NotNull;
 

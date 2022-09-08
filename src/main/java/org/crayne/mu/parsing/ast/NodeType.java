@@ -59,6 +59,9 @@ public enum NodeType {
     LITERAL_IMPL("impl"),
     LITERAL_ASSERT("assert"),
     LITERAL_TYPEDEF("typedef"),
+    LITERAL_ABSTRACT("abstr"),
+    LITERAL_VIRTUAL("virtual"),
+
 
     //statements simplified
     FUNCTION_CALL(null),

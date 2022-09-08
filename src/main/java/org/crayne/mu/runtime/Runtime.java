@@ -25,18 +25,22 @@ public class Runtime {
     }
 
     public Optional<SyntaxTreeExecution> parse(@NotNull final String code) {
+        return parse(code, true);
+    }
+
+    public Optional<SyntaxTreeExecution> parse(@NotNull final String code, final boolean printStackTraces) {
         this.out.setProgram(code);
 
         final Tokenizer tokenizer = new Tokenizer(out, multiTokens);
         final List<Token> tokenList = tokenizer.tokenize(code);
         if (tokenizer.encounteredError()) return Optional.empty();
 
-        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), code);
+        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), code, printStackTraces);
         return Optional.ofNullable(parser.parse());
     }
 
-    public void execute(@NotNull final String code, @NotNull final String mainFunc, @NotNull final Object... args) throws Throwable {
-        final Optional<SyntaxTreeExecution> tree = parse(code);
+    public void execute(@NotNull final String code, final boolean printStackTraces, @NotNull final String mainFunc, @NotNull final Object... args) throws Throwable {
+        final Optional<SyntaxTreeExecution> tree = parse(code, printStackTraces);
         if (tree.isPresent()) tree.get().execute(mainFunc, List.of(args));
     }
 

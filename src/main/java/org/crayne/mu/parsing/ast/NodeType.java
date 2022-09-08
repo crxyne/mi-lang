@@ -61,6 +61,7 @@ public enum NodeType {
     LITERAL_TYPEDEF("typedef"),
     LITERAL_ABSTRACT("abstr"),
     LITERAL_VIRTUAL("virtual"),
+    LITERAL_THIS("this"),
 
 
     //statements simplified

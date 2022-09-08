@@ -28,6 +28,7 @@ public class SyntaxTreeExecution {
     private final REvaluator evaluator;
     private final List<String> code;
     private final Traceback traceback;
+    private final boolean printStackTraces;
     private final int stdlibFinishLine;
     private boolean error;
 
@@ -35,7 +36,7 @@ public class SyntaxTreeExecution {
     private RFunctionScope currentFunctionScope;
     private RFunction mainFunction;
 
-    public SyntaxTreeExecution(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
+    public SyntaxTreeExecution(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine, final boolean printStackTraces) {
         this.parentModule = RModule.of(parentModule);
         this.currentModule = this.parentModule;
         this.parentNode = parentNode;
@@ -44,6 +45,7 @@ public class SyntaxTreeExecution {
         this.traceback = new Traceback();
         this.stdlibFinishLine = stdlibFinishLine;
         this.evaluator = new REvaluator(this);
+        this.printStackTraces = printStackTraces;
     }
 
     public TracebackElement newTracebackElement(final int line) {
@@ -90,7 +92,7 @@ public class SyntaxTreeExecution {
 
         this.mainFunction = MuUtil
                 .findFunction(this, mainFunction, args)
-                .orElseThrow((Supplier<Throwable>) () -> new IllegalArgumentException("Could not find main function " + mainFunction + "' for input arguments " + args));
+                .orElseThrow((Supplier<Throwable>) () -> new IllegalArgumentException("Could not find main function '" + mainFunction + "' for input arguments " + args));
         if (this.mainFunction instanceof RNativeFunction) throw new IllegalArgumentException("May not use a native function as mu main function");
 
         for (final Node statement : parentNode.children()) {
@@ -118,7 +120,7 @@ public class SyntaxTreeExecution {
             }
         } catch (final Exception e) {
             runtimeError("Caught unhandled error while executing mu program: " + e.getClass().getSimpleName() + " " + e.getMessage());
-            e.printStackTrace(out.outStream());
+            if (printStackTraces) e.printStackTrace(out.outStream());
         }
     }
 

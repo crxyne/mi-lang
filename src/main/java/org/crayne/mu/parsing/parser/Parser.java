@@ -38,6 +38,7 @@ public class Parser {
     protected boolean stdlib = true;
     private final String code;
     protected Module currentParsingModule;
+    private final boolean printStackTraces;
 
     public Module currentParsingModule() {
         return currentParsingModule;
@@ -47,7 +48,7 @@ public class Parser {
         add(new Scope(ScopeType.PARENT, 0, 0));
     }};
 
-    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code) {
+    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code, final boolean printStackTraces) {
         this.output = output;
         this.tokens = tokens;
         if (stdlibFinishLine == -1) {
@@ -57,6 +58,7 @@ public class Parser {
         this.code = code;
         this.stdlibFinishLine = stdlibFinishLine;
         evaluator = new ParserEvaluator(this);
+        this.printStackTraces = printStackTraces;
     }
 
     public SyntaxTreeExecution parse() {
@@ -71,7 +73,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTreeExecution result = new SyntaxTreeExecution(parentModule(), parent, output, code, stdlibFinishLine);
+        final SyntaxTreeExecution result = new SyntaxTreeExecution(parentModule(), parent, output, code, stdlibFinishLine, printStackTraces);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }

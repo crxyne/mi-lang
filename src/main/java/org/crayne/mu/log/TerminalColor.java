@@ -70,7 +70,11 @@ public class TerminalColor {
     }
 
     public static Color ofHex(@NotNull final String hex) {
-        return Color.decode(hex);
+        try {
+            return Color.decode(hex);
+        } catch (final Exception e) {
+            return Color.WHITE;
+        }
     }
 
     public static String foreground(@NotNull final String hex) {

@@ -5,6 +5,46 @@ import org.jetbrains.annotations.NotNull;
 
 public class StandardLib {
 
+    public static String standardLib() {
+        return """
+pub? true = 1b;
+pub? false = 0b;
+
+module std {
+
+	pub nat fn println~ (string s) -> "$stdclass";
+    pub nat fn print~ (string s) -> "$stdclass";
+    pub nat fn println~ (int i) -> "$stdclass";
+    pub nat fn print~ (int i) -> "$stdclass";
+    pub nat fn println~ (double d) -> "$stdclass";
+    pub nat fn print~ (double d) -> "$stdclass";
+    pub nat fn println~ (float f) -> "$stdclass";
+    pub nat fn print~ (float f) -> "$stdclass";
+    pub nat fn println~ (long l) -> "$stdclass";
+    pub nat fn print~ (long l) -> "$stdclass";
+    pub nat fn println~ (bool b) -> "$stdclass";
+    pub nat fn print~ (bool b) -> "$stdclass";
+    pub nat fn println~ (char c) -> "$stdclass";
+    pub nat fn print~ (char c) -> "$stdclass";
+
+}
+
+module termion {
+
+	pub nat fn color_fg :: string (int r, int g, int b) -> "$stdtermion";
+	pub nat fn color_bg :: string (int r, int g, int b) -> "$stdtermion";
+	
+	pub nat fn color_fg :: string (string hex) -> "$stdtermion";
+	pub nat fn color_bg :: string (string hex) -> "$stdtermion";
+	
+}
+
+STANDARDLIB_MU_FINISH_CODE;
+"""
+                .replace("$stdclass", StandardLib.class.getName())
+                .replace("$stdtermion", StdTermion.class.getName());
+    }
+
     @MuCallable
     public static void println(@NotNull final String str) {
         System.out.println(str);

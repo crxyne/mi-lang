@@ -1,5 +1,6 @@
 package org.crayne.mu.runtime;
 
+import org.crayne.mu.lang.EqualOperation;
 import org.crayne.mu.lang.Module;
 import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.log.LogHandler;
@@ -105,20 +106,12 @@ public class SyntaxTreeExecution {
                 case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> variableDefinition(node);
                 case FUNCTION_DEFINITION -> functionDefinition(node);
                 case FUNCTION_CALL -> functionCall(node);
-                case IF_STATEMENT -> {
-                    final RValue condition = evaluator.evaluateExpression(node.child(0).child(0));
-                    final Object conditionValue = condition.getValue();
-                    if (!condition.getType().primitive() || condition.getType().getPrimitive() != PrimitiveDatatype.BOOL || !(conditionValue instanceof Boolean)) {
-                        runtimeError("Non-Boolean condition at if statement");
-                        return;
-                    }
-                    final boolean executeIf = (boolean) conditionValue;
-                    if (executeIf) {
-                        createLocalScope(node.child(1));
-                        return;
-                    }
-                    createLocalScope(node.child(2).child(0));
-                }
+                case DO_STATEMENT -> doWhileStatement(node);
+                case IF_STATEMENT -> ifStatement(node);
+                case WHILE_STATEMENT -> whileStatement(node);
+                case VAR_SET_VALUE -> variableSetValue(node);
+                case FOR_FAKE_SCOPE -> forStatement(node);
+                case SCOPE -> scope(node);
                 case NOOP -> createLocalScope(node.child(0));
                 case CREATE_MODULE -> createModule(node);
                 //default -> System.out.println("UNHANDLED: " + node.type());
@@ -141,6 +134,121 @@ public class SyntaxTreeExecution {
         return currentFunctionScope;
     }
 
+    private void forStatement(@NotNull final Node node) {
+        final Node forStatement = node.child(0);
+        if (currentFunctionScope == null) {
+            runtimeError("Local scope outside of function scope");
+            return;
+        }
+        final RFunctionScope current = currentFunctionScope;
+        currentFunctionScope = new RFunctionScope(currentFunctionScope.getFunction(), current);
+        statement(forStatement.child(0));
+        final Node condition = forStatement.child(1).child(0);
+        final Node forInstruct = forStatement.child(2).child(0);
+
+        Boolean executeFor = condition(condition);
+        if (executeFor == null) return;
+
+        while (executeFor) {
+            createLocalScope(node.child(1));
+            statement(forInstruct);
+            executeFor = condition(condition);
+            if (executeFor == null) return;
+            if (!executeFor) break;
+        }
+
+        currentFunctionScope.deleteLocalVars();
+        currentFunctionScope = current;
+    }
+
+    private void whileStatement(@NotNull final Node node) {
+        if (currentFunctionScope == null) {
+            runtimeError("Local scope outside of function scope");
+            return;
+        }
+        final Node condition = node.child(0).child(0);
+
+        Boolean executeWhile = condition(condition);
+        if (executeWhile == null) return;
+
+        while (executeWhile) {
+            createLocalScope(node.child(1));
+            executeWhile = condition(condition);
+            if (executeWhile == null) return;
+            if (!executeWhile) break;
+        }
+    }
+
+    private void doWhileStatement(@NotNull final Node node) {
+        if (currentFunctionScope == null) {
+            runtimeError("Local scope outside of function scope");
+            return;
+        }
+        final Node condition = node.child(1).child(0);
+
+        Boolean executeWhile = condition(condition);
+        if (executeWhile == null) return;
+
+        do {
+            createLocalScope(node.child(0));
+            executeWhile = condition(condition);
+            if (executeWhile == null) return;
+        } while (executeWhile);
+    }
+
+    public RValue variableSetValue(@NotNull final Node node) {
+        final String identifier = node.child(0).value().token();
+        final Optional<RVariable> ovar = MuUtil.findVariable(this, identifier);
+        if (ovar.isEmpty()) {
+            runtimeError("Cannot find variable '" + identifier + "'");
+            return null;
+        }
+        final RVariable var = ovar.get();
+        final String operatorStr = node.child(1).value().token();
+        final EqualOperation operator = EqualOperation.of(operatorStr);
+        if (operator == null) {
+            runtimeError("Unknown equal operator '" + operatorStr + "'");
+            return null;
+        }
+        final RValue value = evaluator.evaluateExpression(node.child(2));
+        if (value == null) return null;
+
+        return switch (operator) {
+            case ADD -> var.setValue(var.getValue().add(evaluator, value));
+            case SUB -> var.setValue(var.getValue().subtract(evaluator, value));
+            case MULT -> var.setValue(var.getValue().multiply(evaluator, value));
+            case XOR -> var.setValue(var.getValue().bitXor(evaluator, value));
+            case SHIFTR -> var.setValue(var.getValue().bitShiftRight(evaluator, value));
+            case SHIFTL -> var.setValue(var.getValue().bitShiftLeft(evaluator, value));
+            case MOD -> var.setValue(var.getValue().modulus(evaluator, value));
+            case DIV -> var.setValue(var.getValue().divide(evaluator, value));
+            case AND -> var.setValue(var.getValue().bitAnd(evaluator, value));
+            case OR -> var.setValue(var.getValue().bitOr(evaluator, value));
+            case EQUAL -> var.setValue(value);
+        };
+    }
+
+    private void ifStatement(@NotNull final Node node) {
+        final Boolean executeIf = condition(node.child(0).child(0));
+        if (executeIf == null) return;
+        if (executeIf) {
+            createLocalScope(node.child(1));
+            return;
+        }
+        createLocalScope(node.child(2).child(0));
+    }
+
+    private Boolean condition(@NotNull final Node node) {
+        final RValue condition = evaluator.evaluateExpression(node);
+        if (condition == null) return null;
+        final Object conditionValue = condition.getValue();
+        if (!condition.getType().primitive() || condition.getType().getPrimitive() != PrimitiveDatatype.BOOL || !(conditionValue instanceof Boolean)) {
+            runtimeError("Non-Boolean condition at if statement");
+            return null;
+        }
+        return (Boolean) conditionValue;
+    }
+
     private void functionCall(@NotNull final Node node) throws InstantiationException, IllegalAccessException, InvocationTargetException {
         if (currentFunctionScope == null) {
             runtimeError("Function call outside of function scope");
@@ -154,7 +262,7 @@ public class SyntaxTreeExecution {
             return;
         }
         final RFunctionScope current = currentFunctionScope;
-        currentFunctionScope = new RFunctionScope(func.get());
+        currentFunctionScope = new RFunctionScope(func.get(), current);
         final Node scope = currentFunctionScope.getFunction().getScope();
         if (scope != null) scope(scope);
         else if (currentFunctionScope.getFunction() instanceof final RNativeFunction nativeFunction) {
@@ -189,7 +297,7 @@ public class SyntaxTreeExecution {
             return;
         }
         final RFunctionScope current = currentFunctionScope;
-        currentFunctionScope = new RFunctionScope(currentFunctionScope.getFunction());
+        currentFunctionScope = new RFunctionScope(currentFunctionScope.getFunction(), current);
         scope(node);
         currentFunctionScope.deleteLocalVars();
         currentFunctionScope = current;
@@ -218,7 +326,7 @@ public class SyntaxTreeExecution {
             return;
         }
         if (func.get() == mainFunction) {
-            currentFunctionScope = new RFunctionScope(func.get());
+            currentFunctionScope = new RFunctionScope(func.get(), null);
             scope(node.child(4));
         }
         currentFunctionScope.deleteLocalVars();

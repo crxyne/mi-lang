@@ -8,11 +8,13 @@ import java.util.List;
 public class RFunctionScope {
 
     private final List<RVariable> localVars;
+    private final RFunctionScope parent;
     private final RFunction function;
 
-    public RFunctionScope(@NotNull final RFunction function) {
+    public RFunctionScope(@NotNull final RFunction function, final RFunctionScope parent) {
         localVars = new ArrayList<>();
         this.function = function;
+        this.parent = parent;
     }
 
     public List<RVariable> getLocalVars() {
@@ -21,6 +23,10 @@ public class RFunctionScope {
 
     public RFunction getFunction() {
         return function;
+    }
+
+    public RFunctionScope getParent() {
+        return parent;
     }
 
     public void deleteLocalVars() {

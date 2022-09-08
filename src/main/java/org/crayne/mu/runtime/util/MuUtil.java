@@ -35,7 +35,15 @@ public class MuUtil {
     public static Optional<RVariable> findLocalVariable(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {
         final RFunctionScope currentFunc = tree.getCurrentFunction();
         if (currentFunc == null) return Optional.empty();
-        return currentFunc.getLocalVars().stream().filter(v -> v.getName().equals(identifier)).findFirst();
+        return Optional.ofNullable(currentFunc.getLocalVars().stream().filter(v -> v.getName().equals(identifier)).findFirst().orElseGet(() -> {
+            RFunctionScope searchParent = currentFunc.getParent();
+            while (searchParent != null) {
+                final Optional<RVariable> find = searchParent.getLocalVars().stream().filter(v -> v.getName().equals(identifier)).findFirst();
+                if (find.isPresent()) return find.get();
+                searchParent = searchParent.getParent();
+            }
+            return null;
+        }));
     }
 
     public static Optional<RVariable> findVariable(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {

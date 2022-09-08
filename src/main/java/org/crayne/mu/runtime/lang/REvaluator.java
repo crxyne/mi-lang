@@ -78,6 +78,7 @@ public class REvaluator {
                 final Object cast = safecast(type, evaluateExpression(x));
                 yield new RValue(type, cast);
             }
+            case VAR_SET_VALUE -> tree.variableSetValue(new Node(op, values));
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value());
             default -> null;
         };

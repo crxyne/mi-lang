@@ -39,8 +39,9 @@ public class RVariable {
         return value;
     }
 
-    public void setValue(final RValue value) {
+    public RValue setValue(final RValue value) {
         this.value = value;
+        return this.value;
     }
 
     public static RVariable of(@NotNull final Variable v) {

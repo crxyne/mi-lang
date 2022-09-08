@@ -35,6 +35,7 @@ public enum EqualOperation {
             if (!op.equals("=")) return null;
             return EQUAL;
         }
+        if (op.length() > 1 && op.charAt(1) != '=') return null;
         final EqualOperation result = op.isEmpty() ? null : Arrays.stream(values()).filter(v -> v.op.equals(op.substring(0, op.length() - 1))).findFirst().orElse(null);
         if (result == EQUAL) return null;
         return result;

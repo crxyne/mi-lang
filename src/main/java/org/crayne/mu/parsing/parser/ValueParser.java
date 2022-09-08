@@ -233,6 +233,7 @@ public class ValueParser {
                 }
             }
 
+
             if (!findVar.get().initialized()) {
                 parserParent.parserError("Variable '" + identifier.token() + "' might not have been initialized yet", identifier, "Set the value of the variable upon declaration");
                 return new TypedNode(null, new Node(NodeType.VALUE));

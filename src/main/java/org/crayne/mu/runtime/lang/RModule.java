@@ -65,20 +65,20 @@ public class RModule {
         );
     }
 
-    public static Set<RVariable> globalVarsOf(@NotNull final List<Variable> globalVars) {
-        return MuUtil.unmodifiableSet(
+    public static List<RVariable> globalVarsOf(@NotNull final List<Variable> globalVars) {
+        return
                 globalVars
                         .stream()
                         .map(RVariable::of)
-        );
+                        .toList();
     }
 
-    public static Set<RModule> submodulesOf(@NotNull final List<Module> submodules) {
-        return MuUtil.unmodifiableSet(
+    public static List<RModule> submodulesOf(@NotNull final List<Module> submodules) {
+        return
                 submodules
                         .stream()
                         .map(RModule::of)
-        );
+                        .toList();
     }
 
     public static Set<REnum> enumsOf(@NotNull final HashSet<Enum> enums) {

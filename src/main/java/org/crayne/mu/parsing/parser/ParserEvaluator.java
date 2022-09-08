@@ -34,6 +34,7 @@ public class ParserEvaluator {
         return true;
     }
 
+
     protected void addGlobalVarFromResult(@NotNull final Node result) {
         final Module module = parser.lastModule();
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();

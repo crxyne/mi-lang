@@ -78,9 +78,13 @@ public class REvaluator {
                 final Object cast = safecast(type, evaluateExpression(x));
                 yield new RValue(type, cast);
             }
+            case FUNCTION_CALL -> tree.functionCall(new Node(op, values));
             case VAR_SET_VALUE -> tree.variableSetValue(new Node(op, values));
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value());
-            default -> null;
+            default -> {
+                tree.runtimeError("Could not parse expression (failed at " + op + ")");
+                yield null;
+            }
         };
     }
 
@@ -205,8 +209,7 @@ public class REvaluator {
         return new RValue(RDatatype.of(literal), valueOfLiteral(literal));
     }
 
-    public Object safecast(@NotNull final RDatatype type, @NotNull final String value, @NotNull final RDatatype newType) {
-        final Object oldValue = valueOfLiteral(type, value);
+    public Object safecast(@NotNull final RDatatype type, @NotNull final Object oldValue, @NotNull final RDatatype newType) {
         if (type.primitive()) {
             return switch (newType.getPrimitive()) {
                 case NULL, VOID -> oldValue;
@@ -243,7 +246,7 @@ public class REvaluator {
     }
 
     public Object safecast(@NotNull final RDatatype type, @NotNull final RValue value) {
-        return safecast(value.getType(), String.valueOf(value.getValue()), type);
+        return safecast(value.getType(), value.getValue(), type);
     }
 
     public static Object castToInt(@NotNull final RDatatype type, @NotNull final Object value) {

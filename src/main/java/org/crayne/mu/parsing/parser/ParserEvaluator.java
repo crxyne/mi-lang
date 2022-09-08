@@ -776,7 +776,8 @@ public class ParserEvaluator {
             final Method invokeMethod = jcallClass.getMethod(functionName, paramTypes.toArray(new Class<?>[0]));
             final Class<?> methodType = invokeMethod.getReturnType();
             if (methodType != primitiveToJavaType(returnType.getPrimitive())) {
-                parser.parserWarning("Return type of native function does not match return type of native java method", at);
+                parser.parserError("Return type of native function does not match return type of native java method", at);
+                return null;
             }
             final MuCallable annotationTest = invokeMethod.getAnnotation(MuCallable.class);
             if (annotationTest == null) {

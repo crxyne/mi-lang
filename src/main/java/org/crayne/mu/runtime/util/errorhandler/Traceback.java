@@ -3,10 +3,7 @@ package org.crayne.mu.runtime.util.errorhandler;
 import org.crayne.mu.runtime.util.LimitedSizeQueue;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Traceback {
 
@@ -36,7 +33,7 @@ public class Traceback {
         Collections.reverse(asStringList);
 
         return "Mu-Lang Traceback helper\n" + (
-                String.join("\n", asStringList)
+                String.join("\n", new LinkedHashSet<>(asStringList))
         ).indent(4);
     }
 

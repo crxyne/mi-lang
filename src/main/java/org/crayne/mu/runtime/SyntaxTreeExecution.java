@@ -6,13 +6,13 @@ import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.log.LogHandler;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
+import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.runtime.lang.*;
 import org.crayne.mu.runtime.util.MuUtil;
 import org.crayne.mu.runtime.util.errorhandler.Traceback;
 import org.crayne.mu.runtime.util.errorhandler.TracebackElement;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
@@ -118,6 +118,7 @@ public class SyntaxTreeExecution {
             }
         } catch (final Exception e) {
             runtimeError("Caught unhandled error while executing mu program: " + e.getClass().getSimpleName() + " " + e.getMessage());
+            e.printStackTrace(out.outStream());
         }
     }
 
@@ -249,34 +250,54 @@ public class SyntaxTreeExecution {
         return (Boolean) conditionValue;
     }
 
-    private void functionCall(@NotNull final Node node) throws InstantiationException, IllegalAccessException, InvocationTargetException {
+    public RValue functionCall(@NotNull final Node node) {
         if (currentFunctionScope == null) {
             runtimeError("Function call outside of function scope");
-            return;
+            return null;
         }
         final String identifier = node.child(0).value().token();
         final List<RValue> params = node.child(1).children().stream().map(evaluator::evaluateExpression).toList();
         final Optional<RFunction> func = MuUtil.findFunction(this, identifier, params);
         if (func.isEmpty()) {
             runtimeError("Could not find function '" + identifier + "' with parameters " + params.stream().map(RValue::getType).toList());
-            return;
+            return null;
         }
         final RFunctionScope current = currentFunctionScope;
         currentFunctionScope = new RFunctionScope(func.get(), current);
         final Node scope = currentFunctionScope.getFunction().getScope();
-        if (scope != null) scope(scope);
-        else if (currentFunctionScope.getFunction() instanceof final RNativeFunction nativeFunction) {
+
+        RValue retVal = null;
+        final RDatatype retType = RDatatype.of(func.get().getReturnType());
+
+        if (scope != null) {
+            for (final Node statement : scope.children()) {
+                if (statement.type() == NodeType.RETURN_VALUE) {
+                    if (statement.children().isEmpty()) break;
+                    retVal = evaluator.evaluateExpression(statement.child(0));
+                    break;
+                }
+                statement(statement);
+            }
+        } else if (currentFunctionScope.getFunction() instanceof final RNativeFunction nativeFunction) {
             final Method nativeMethod = nativeFunction.getNativeMethod();
             final Class<?> callClass = nativeFunction.getNativeCallClass();
             final Object[] args = params.stream().map(v -> evaluator.safecast(v.getType(), v)).toArray(Object[]::new);
 
-            nativeMethod.invoke(callClass.newInstance(), args);
+            try {
+                final Object ret = nativeMethod.invoke(callClass.newInstance(), args);
+
+                retVal = ret == null ? null : new RValue(retType, ret);
+            } catch (final Exception e) {
+                runtimeError("Could not call native method " + nativeMethod.getName());
+            }
         } else {
             runtimeError("Cannot execute null function");
-            return;
+            return null;
         }
         currentFunctionScope.deleteLocalVars();
         currentFunctionScope = current;
+        if (retVal == null) return null;
+        return new RValue(retType, evaluator.safecast(retType, retVal));
     }
 
     private void createModule(@NotNull final Node node) {
@@ -319,7 +340,6 @@ public class SyntaxTreeExecution {
                 .toList();
 
 
-        final RFunctionScope current = currentFunctionScope;
         final Optional<RFunction> func = MuUtil.findFunctionByTypes(this, currentModule, identifier, params);
         if (func.isEmpty()) {
             runtimeError("Could not find function '" + identifier + "' in module '" + currentModule.getName() + "'");
@@ -329,8 +349,7 @@ public class SyntaxTreeExecution {
             currentFunctionScope = new RFunctionScope(func.get(), null);
             scope(node.child(4));
         }
-        currentFunctionScope.deleteLocalVars();
-        currentFunctionScope = current;
+        currentFunctionScope = null;
     }
 
     private void variableDefinition(@NotNull final Node node) {

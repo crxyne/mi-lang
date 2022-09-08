@@ -16,7 +16,8 @@ public class Tests {
                         pub? Pi = 3.14159265358979;
                     }
                     
-                    pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
+                    pub nat fn println~ (string s) -> "org.crayne.mu.stdlib.StandardLib";
+                    pub nat fn cos :: double (double d) -> "org.crayne.mu.stdlib.StandardLib";
                 }
                 
                 STANDARDLIB_MU_FINISH_CODE;
@@ -25,7 +26,8 @@ public class Tests {
                 
                     pub fn main {
                         use std;
-                        
+                        use std.math;
+                        println(string cos(0.5));
                     }
                     
                 }

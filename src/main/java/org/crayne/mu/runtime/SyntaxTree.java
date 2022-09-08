@@ -48,8 +48,12 @@ public class SyntaxTree {
     }
 
     private void evalStatement(@NotNull final Node node) {
-        switch (node.type()) {
-            case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> addVariable(RVariable.of(this, node));
+        try {
+            switch (node.type()) {
+                case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> addVariable(RVariable.of(this, node));
+            }
+        } catch (final Exception e) {
+            System.out.println("CAUGHT");
         }
     }
 

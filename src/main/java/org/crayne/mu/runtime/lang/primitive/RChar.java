@@ -38,14 +38,9 @@ public class RChar implements ROperand {
     }
 
     public RValue divide(final RValue x, final RValue y) {
-        try {
-            return new RValue(RDatatype.of(Datatype.CHAR),
-                    (Character) x.getValue() / (Character) y.getValue()
-            );
-        } catch (final ArithmeticException e) {
-            runtime.runtimeError("Unexpected arithmetic error while evaluating division: " + e.getMessage());
-            return null;
-        }
+        return new RValue(RDatatype.of(Datatype.CHAR),
+                (Character) x.getValue() / (Character) y.getValue()
+        );
     }
 
     public RValue modulus(final RValue x, final RValue y) {

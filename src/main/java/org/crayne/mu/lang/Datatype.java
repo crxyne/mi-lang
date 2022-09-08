@@ -160,7 +160,7 @@ public class Datatype {
     }
 
     public boolean operatorDefined(final NodeType op, final Datatype y) {
-        return (enumDatatype.equals(y.enumDatatype) && (op == NodeType.EQUALS || op == NodeType.NOTEQUALS)) ||
+        return (enumDatatype != null && enumDatatype.equals(y.enumDatatype) && (op == NodeType.EQUALS || op == NodeType.NOTEQUALS)) ||
                 (primitive && primitiveDatatype != null && primitiveDatatype.operatorDefined(op, y.primitive && y.primitiveDatatype != null ? y.primitiveDatatype : null));
     }
 

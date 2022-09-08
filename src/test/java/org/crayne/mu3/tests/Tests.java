@@ -24,7 +24,7 @@ public class Tests {
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
                 }
                 
-                pub? test = std.TestEnum::TEST != std.TestEnum::OTHER;
+                pub? test = 1 / 0;
                 
                 STANDARDLIB_MU_FINISH_CODE;
                 

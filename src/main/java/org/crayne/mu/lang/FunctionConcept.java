@@ -12,11 +12,13 @@ public class FunctionConcept {
     private final String name;
     private final Datatype returnType;
     private final HashSet<FunctionDefinition> definitions;
+    private final double code;
 
     public FunctionConcept(@NotNull final String name, @NotNull final Datatype returnType) {
         this.name = name;
         this.returnType = returnType;
         this.definitions = new HashSet<>();
+        code = Math.random();
     }
 
     public final void addDefinition(@NotNull final FunctionDefinition def) {
@@ -64,7 +66,7 @@ public class FunctionConcept {
     }
 
     public boolean equals(@NotNull final FunctionConcept other) {
-        return other.name.equals(name) && Datatype.equal(other.returnType, returnType);
+        return other.name.equals(name) && returnType.equals(other.returnType);
     }
 
     @Override

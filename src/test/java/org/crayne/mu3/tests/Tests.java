@@ -40,7 +40,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        std.print("12L");
+                        std.print(12L);
                     }
                     
                 }

@@ -367,8 +367,10 @@ public class ParserEvaluator {
                 if (findUsing != null) globalVar = Optional.of(findUsing);
             }
 
-        if (globalVar.isEmpty()) globalVar = Optional.ofNullable(parser.parentModule().findVariableByName(identifier)
-                .orElse(parser.currentParsingModule().findVariableByName(identifier).orElse(null)));
+        if (globalVar.isEmpty()) globalVar = parser.parentModule().findVariableByName(identifier);
+        if (globalVar.isEmpty() && parser.currentParsingModule != null) {
+            globalVar = parser.currentParsingModule().findVariableByName(identifier);
+        }
 
         if (globalVar.isEmpty()) {
             if (panic)
@@ -415,18 +417,23 @@ public class ParserEvaluator {
 
         final Module functionModule = ofunctionModule.get();
         final String function = identOf(identifier);
-        final Optional<FunctionConcept> funcConcept = functionModule.findFunctionConceptByName(function);
+        Optional<FunctionConcept> funcConcept = functionModule.findFunctionConceptByName(function);
 
         if (funcConcept.isEmpty()) {
             if (checkUsing) {
                 for (final String using : functionScope.using()) {
-                    final FunctionDefinition findUsing = checkValidFunctionCall(
-                            new Token(using + "." + identifier, identifierTok.actualLine(), identifierTok.line(), identifierTok.column()),
-                            params, false, false
-                    );
-                    if (findUsing != null) return findUsing;
+                    final Optional<Module> mod = parser.parentModule().subModules().stream().filter(m -> m.name().equals(using)).findFirst();
+                    if (mod.isEmpty()) continue;
+                    final Optional<FunctionConcept> findUsing = mod.get().findFunctionConceptByName(identifier);
+                    if (findUsing.isPresent()) {
+                        funcConcept = findUsing;
+                        break;
+                    }
                 }
             }
+        }
+        if (funcConcept.isEmpty()) funcConcept = parser.currentParsingModule != null ? parser.currentParsingModule.findFunctionConceptByName(identifier) : Optional.empty();
+        if (funcConcept.isEmpty()) {
             if (panic) parser.parserError("Cannot find any function called '" + function + "' in module '" +
                     (moduleAsString.isEmpty() ? parser.lastModule().name() : moduleAsString) + "'", identifierTok.line(), identifierTok.column() + moduleAsString.length());
             return null;
@@ -976,15 +983,21 @@ public class ParserEvaluator {
                     firstMutabilityModif.get().value());
             return null;
         }
+        final Optional<Scope> oldScope = parser.scope();
+        if (oldScope.isEmpty()) {
+            parser.parserError("Unexpected parsing error, null scope before adding an enum", identifier);
+            return null;
+        }
+        if (parser.skimming && !parser.stdlib && (oldScope.get().type() != ScopeType.MODULE)) {
+            parser.parserError("Cannot define enums at root level", identifier,
+                    "Move your enum into a module or create a new module for it");
+            return null;
+        }
+
         parser.scope(ScopeType.ENUM);
         final Optional<Scope> newScope = parser.scope();
         if (newScope.isEmpty()) {
             parser.parserError("Unexpected parsing error, null scope after adding an enum", identifier);
-            return null;
-        }
-        if (!parser.stdlib && (newScope.get().type() != ScopeType.MODULE)) {
-            parser.parserError("Cannot define enums at root level", identifier,
-                    "Move your enum into a module or create a new module for it");
             return null;
         }
         final EnumScope enumScope = (EnumScope) newScope.get();

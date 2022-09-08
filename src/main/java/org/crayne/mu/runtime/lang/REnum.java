@@ -9,12 +9,10 @@ public class REnum {
 
     private final List<String> members;
     private final String name;
-    private final RModule module;
 
-    public REnum(@NotNull final String name, @NotNull final List<String> members, @NotNull final RModule module) {
+    public REnum(@NotNull final String name, @NotNull final List<String> members) {
         this.name = name;
         this.members = members;
-        this.module = module;
     }
 
     public String getName() {
@@ -25,12 +23,8 @@ public class REnum {
         return members;
     }
 
-    public RModule getModule() {
-        return module;
-    }
-
     public static REnum of(@NotNull final Enum e) {
-        return new REnum(e.name(), e.members(), RModule.of(e.module()));
+        return new REnum(e.name(), e.members());
     }
 
     @Override
@@ -38,7 +32,6 @@ public class REnum {
         return "REnum{" +
                 "members=" + members +
                 ", name='" + name + '\'' +
-                ", module=" + module +
                 '}';
     }
 

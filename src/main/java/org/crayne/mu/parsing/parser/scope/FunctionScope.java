@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public class FunctionScope extends Scope {
 
     private final List<LocalVariable> localVariables;

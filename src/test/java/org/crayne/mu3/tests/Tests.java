@@ -25,10 +25,19 @@ public class Tests {
                 module helloworld {
                 
                     mut int test;
+                    
+                    pub fn test {
+                    
+                    }
+                    
+                    pub enum Help {
+                        WHAT
+                    }
                 
                     pub fn main {
                         use std;
-                        println(test);
+                        println(Help::WHAT);
+                        test();
                     }
                     
                 }

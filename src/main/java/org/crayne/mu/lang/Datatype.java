@@ -60,7 +60,9 @@ public class Datatype {
         final String enumIdent = ParserEvaluator.identOf(enumNameStr);
 
         Enum foundEnum = module.get().findEnumByName(enumIdent)
-                .orElse(parser.parentModule().findEnumByName(enumIdent).orElse(parser.currentParsingModule().findEnumByName(enumIdent).orElse(null)));
+                .orElse(parser.parentModule().findEnumByName(enumIdent).orElse(null));
+
+        if (foundEnum == null && parser.currentParsingModule() != null) foundEnum = parser.currentParsingModule().findEnumByName(enumIdent).orElse(null);
 
         if (foundEnum == null) {
             if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);

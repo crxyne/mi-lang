@@ -18,8 +18,8 @@ public class TracebackElement {
 
     public String toString() {
         if (lineStr == null) return null;
-        if (lineNoStandardLib <= 0) return lineStr + "  :   " + line;
-        return lineStr + "  :   " + lineNoStandardLib;
+        if (lineNoStandardLib <= 0) return lineStr + "  :   @ line " + line;
+        return lineStr + "  :   @ line " + lineNoStandardLib;
     }
 
 }

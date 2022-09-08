@@ -65,12 +65,12 @@ public class RModule {
         return globalModuleVariables;
     }
 
-    public static RModule of(@NotNull final Module m) {
+    public static RModule of(@NotNull final Module m, final boolean includeChildren) {
         return new RModule(
                 m.name(),
-                m.parent() != null ? RModule.of(m.parent()) : null,
+                m.parent() != null ? RModule.of(m.parent(), false) : null,
                 globalVarsOf(m.moduleVariables()),
-                submodulesOf(m.subModules()),
+                includeChildren ? submodulesOf(m.subModules()) : Collections.emptyList(),
                 enumsOf(m.enums()),
                 functionsOf(m.functionConcepts())
         );
@@ -88,7 +88,7 @@ public class RModule {
         return MuUtil.unmodifiableSet(
                 submodules
                         .stream()
-                        .map(RModule::of)
+                        .map(m -> RModule.of(m, true))
         );
     }
 

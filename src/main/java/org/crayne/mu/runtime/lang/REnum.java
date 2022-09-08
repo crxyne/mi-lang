@@ -30,7 +30,7 @@ public class REnum {
     }
 
     public static REnum of(@NotNull final Enum e) {
-        return new REnum(e.name(), e.members(), RModule.of(e.module()));
+        return new REnum(e.name(), e.members(), RModule.of(e.module(), true));
     }
 
     @Override

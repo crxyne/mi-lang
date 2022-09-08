@@ -46,18 +46,19 @@ public class RVariable {
 
     public static RVariable of(@NotNull final SyntaxTreeExecution tree, @NotNull final Node varDefinition) {
         final List<Node> values = varDefinition.children();
-        if (values.size() == 3) {
-            return new RVariable(
-                    values.get(1).value().token(),
-                    new RDatatype(values.get(2).value().token())
-            );
-        }
+        tree.traceback(values.get(1).lineDebugging(), values.get(2).lineDebugging());
+
+        final String name = values.get(1).value().token();
+        final RDatatype type = new RDatatype(values.get(2).value().token());
+
+        if (values.size() == 3) return new RVariable(name, type); // no value specified
+
         final RValue value = tree.getEvaluator().evaluateExpression(values.get(3));
-        return new RVariable(
-                values.get(1).value().token(),
-                new RDatatype(values.get(2).value().token()),
-                value
-        );
+        return new RVariable(name, type, value);
     }
 
+    @Override
+    public String toString() {
+        return type.getName() + " " + name + " = " + value;
+    }
 }

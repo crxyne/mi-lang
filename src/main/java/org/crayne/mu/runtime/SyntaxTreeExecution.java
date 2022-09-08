@@ -5,6 +5,7 @@ import org.crayne.mu.log.LogHandler;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.runtime.lang.REvaluator;
+import org.crayne.mu.runtime.lang.RModule;
 import org.crayne.mu.runtime.lang.RVariable;
 import org.crayne.mu.runtime.util.errorhandler.Traceback;
 import org.crayne.mu.runtime.util.errorhandler.TracebackElement;
@@ -15,7 +16,7 @@ import java.util.List;
 
 public class SyntaxTreeExecution {
 
-    private final Module parentModule;
+    private final RModule parentModule;
     private final Node parentNode;
     private final MessageHandler out;
     private final REvaluator evaluator;
@@ -25,7 +26,7 @@ public class SyntaxTreeExecution {
     private boolean error;
 
     public SyntaxTreeExecution(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
-        this.parentModule = parentModule;
+        this.parentModule = RModule.of(parentModule, true);
         this.parentNode = parentNode;
         this.out = out;
         this.code = Arrays.stream(code.split("\n")).toList();
@@ -38,8 +39,8 @@ public class SyntaxTreeExecution {
         return new TracebackElement(this, line);
     }
 
-    public void traceback(final int line) {
-        traceback.add(newTracebackElement(line));
+    public void traceback(final int... lines) {
+        for (final int line : lines) traceback.add(newTracebackElement(line));
     }
 
     public int getStdlibFinishLine() {
@@ -58,7 +59,7 @@ public class SyntaxTreeExecution {
         return evaluator;
     }
 
-    public Module getParentModule() {
+    public RModule getParentModule() {
         return parentModule;
     }
 
@@ -93,7 +94,7 @@ public class SyntaxTreeExecution {
     }
 
     private void addVariable(@NotNull final RVariable var) {
-
+        System.out.println("CREATE VAR " + var);
     }
 
 }

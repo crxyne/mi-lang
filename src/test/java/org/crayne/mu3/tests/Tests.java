@@ -7,28 +7,19 @@ public class Tests {
 
     public static void main(@NotNull final String... args) {
         final String code = """
-                
-                
                 pub? true = 1b;
                 pub? false = 0b;
                 
-                
                 module std {
                 
-                    pub enum TestEnum {
-                        TEST, OTHER
+                    module math {
+                        pub mut? PI = 3.14159265358979;
                     }
                     
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
                 }
                 
-                pub? test = 1.0 / 0.0;
-                
                 STANDARDLIB_MU_FINISH_CODE;
-                
-                pub enum TestEnum {
-                    TEST
-                }
                 
                 module helloworld {
                 

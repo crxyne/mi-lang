@@ -594,8 +594,23 @@ public class ParserEvaluator {
         if (!addedNode) {
             currentNode.addChildren(new Node(NodeType.MODIFIERS, currentNodeModifiers.stream().map(Node::of).toList()));
             result.add(currentNode);
+
+            final Set<String> duplicates = findFirstDuplicate(result.stream().map(n -> n.child(1).value().token()).toList());
+            if (!duplicates.isEmpty()) {
+                final String duplicate = duplicates.stream().toList().get(0);
+                parser.parserError("Redefinition of function argument '" + duplicate + "'", tokens.get(0));
+                return new ArrayList<>();
+            }
         }
         return result;
+    }
+
+    public static <T> Set<T> findFirstDuplicate(@NotNull final List<T> list) {
+        final Set<T> items = new HashSet<>();
+        return list.stream()
+                .filter(n -> !items.add(n))
+                .collect(Collectors.toSet());
+
     }
 
     public Node evalFunctionDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -684,6 +699,20 @@ public class ParserEvaluator {
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 2));
 
         parser.scope(ScopeType.FUNCTION);
+        final Optional<Scope> current = parser.scope();
+        if (current.isPresent() && current.get() instanceof final FunctionScope functionScope) {
+            for (final Node param : params) {
+                final Datatype pType = Datatype.of(parser, param.child(0).value());
+                if (pType == null) return null;
+                final String ident = param.child(1).value().token();
+                final List<Modifier> modifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
+                functionScope.addLocalVariable(parser, new LocalVariable(
+                        new Variable(
+                                ident, pType, modifs, null, true, null
+                        ), functionScope
+                ), param.child(0).value());
+            }
+        }
         parser.currentFuncReturnType = returnType;
 
         return new Node(NodeType.FUNCTION_DEFINITION, identifier.actualLine(),

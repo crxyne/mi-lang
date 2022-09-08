@@ -1,8 +1,7 @@
 package org.crayne.mu.runtime;
 
-import org.crayne.mu.lang.EqualOperation;
+import org.crayne.mu.lang.*;
 import org.crayne.mu.lang.Module;
-import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.log.LogHandler;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
@@ -238,7 +237,7 @@ public class SyntaxTreeExecution {
             createLocalScope(node.child(1));
             return;
         }
-        createLocalScope(node.child(2).child(0));
+        if (node.children().size() > 2) createLocalScope(node.child(2).child(0));
     }
 
     private Boolean condition(@NotNull final Node node) {
@@ -272,6 +271,14 @@ public class SyntaxTreeExecution {
         final RDatatype retType = RDatatype.of(func.get().getReturnType());
 
         if (scope != null) {
+            for (int i = 0; i < params.size(); i++) {
+                final RValue value = params.get(i);
+                final FunctionParameter defParam = func.get().getDefinedParams().get(i);
+                final String identParam = defParam.name();
+                final Datatype typeParam = defParam.type();
+                final RVariable var = new RVariable(identParam, RDatatype.of(typeParam), value, null);
+                currentFunctionScope.addLocalVar(var);
+            }
             for (final Node statement : scope.children()) {
                 if (statement.type() == NodeType.RETURN_VALUE) {
                     if (statement.children().isEmpty()) break;

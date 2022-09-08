@@ -55,7 +55,7 @@ public class MuLang {
         }
 
         try {
-            runtime.execute(StandardLib.standardLib() + code + "\n", false, mainFunc);
+            runtime.execute(StandardLib.standardLib() + code + "\n", true, mainFunc);
         } catch (Throwable e) {
             runtime.messageHandler().errorMsg(e.getMessage());
         }

@@ -54,6 +54,10 @@ public class Token {
         return column;
     }
 
+    public boolean equals(@NotNull final Token other) {
+        return token.equals(other.token);
+    }
+
     @Override
     public String toString() {
         return "Token{" +

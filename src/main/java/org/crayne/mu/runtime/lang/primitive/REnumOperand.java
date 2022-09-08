@@ -19,7 +19,7 @@ public class REnumOperand implements ROperand {
     }
 
     public RValue notEquals(final RValue x, final RValue y) {
-        return !x.getType().equals(y.getType()) && x.getValue().equals(y.getValue()) ? RValue.TRUE : RValue.FALSE;
+        return !(x.getType().equals(y.getType()) && x.getValue().equals(y.getValue())) ? RValue.TRUE : RValue.FALSE;
     }
 
 }

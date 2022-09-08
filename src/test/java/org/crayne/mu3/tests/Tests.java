@@ -22,10 +22,9 @@ public class Tests {
                     }
                     
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
-                    
                 }
                 
-                pub? test = TestEnum::TEST == TestEnum::TEST;
+                pub? test = std.TestEnum::TEST != std.TestEnum::OTHER;
                 
                 STANDARDLIB_MU_FINISH_CODE;
                 

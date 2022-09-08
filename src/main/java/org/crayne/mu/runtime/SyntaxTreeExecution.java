@@ -10,6 +10,7 @@ import org.crayne.mu.runtime.util.errorhandler.Traceback;
 import org.crayne.mu.runtime.util.errorhandler.TracebackElement;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
@@ -91,8 +92,24 @@ public class SyntaxTreeExecution {
         if (this.mainFunction instanceof RNativeFunction) throw new IllegalArgumentException("May not use a native function as mu main function");
 
         for (final Node statement : parentNode.children()) {
-            evalStatement(statement);
+            statement(statement);
             if (error) return;
+        }
+    }
+
+    private void statement(@NotNull final Node node) {
+        traceback(node.lineDebugging());
+        try {
+            switch (node.type()) {
+                case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> variableDefinition(node);
+                case FUNCTION_DEFINITION -> functionDefinition(node);
+                case FUNCTION_CALL -> functionCall(node);
+                case NOOP -> createLocalScope(node);
+                case CREATE_MODULE -> createModule(node);
+                //default -> System.out.println("UNHANDLED: " + node.type());
+            }
+        } catch (final Exception e) {
+            runtimeError("Caught unhandled error while executing mu program: " + e.getClass().getSimpleName() + " " + e.getMessage());
         }
     }
 
@@ -109,101 +126,91 @@ public class SyntaxTreeExecution {
         return currentFunctionScope;
     }
 
-    @SuppressWarnings("deprecation")
-    private void evalStatement(@NotNull final Node node) {
-        try {
-            switch (node.type()) {
-                case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> addVariable(node);
-                case FUNCTION_DEFINITION -> {
-                    traceback(node.lineDebugging());
-                    final String identifier = node.child(0).value().token();
-                    final List<RDatatype> params = node
-                            .child(3)
-                            .children()
-                            .stream()
-                            .map(t -> RDatatype.of(t.child(0).value().token()))
-                            .toList();
-
-
-                    final RFunctionScope current = currentFunctionScope;
-                    final Optional<RFunction> func = MuUtil.findFunctionByTypes(this, currentModule, identifier, params);
-                    if (func.isEmpty()) {
-                        runtimeError("Could not find function '" + identifier + "' in module '" + currentModule.getName() + "'");
-                        return;
-                    }
-                    if (func.get() == mainFunction) {
-                        currentFunctionScope = new RFunctionScope(func.get());
-                        evalScope(node.child(4));
-                    }
-                    currentFunctionScope.deleteLocalVars();
-                    currentFunctionScope = current;
-                }
-                case FUNCTION_CALL -> {
-                    if (currentFunctionScope == null) {
-                        runtimeError("Function call outside of function scope");
-                        return;
-                    }
-                    traceback(node.lineDebugging());
-                    final String identifier = node.child(0).value().token();
-                    final List<RValue> params = node.child(1).children().stream().map(evaluator::evaluateExpression).toList();
-                    final Optional<RFunction> func = MuUtil.findFunction(this, identifier, params);
-                    if (func.isEmpty()) {
-                        runtimeError("Could not find function '" + identifier + "' with parameters " + params.stream().map(RValue::getType).toList());
-                        return;
-                    }
-                    final RFunctionScope current = currentFunctionScope;
-                    currentFunctionScope = new RFunctionScope(func.get());
-                    final Node scope = currentFunctionScope.getFunction().getScope();
-                    if (scope != null) evalScope(scope);
-                    else if (currentFunctionScope.getFunction() instanceof final RNativeFunction nativeFunction) {
-                        final Method nativeMethod = nativeFunction.getNativeMethod();
-                        final Class<?> callClass = nativeFunction.getNativeCallClass();
-                        final Object[] args = params.stream().map(v -> evaluator.safecast(v.getType(), v)).toArray(Object[]::new);
-
-                        nativeMethod.invoke(callClass.newInstance(), args);
-                    } else {
-                        runtimeError("Cannot execute null function");
-                        return;
-                    }
-                    currentFunctionScope.deleteLocalVars();
-                    currentFunctionScope = current;
-                }
-                case NOOP -> {
-                    if (currentFunctionScope == null) {
-                        runtimeError("Local scope outside of function scope");
-                        return;
-                    }
-                    final RFunctionScope current = currentFunctionScope;
-                    currentFunctionScope = new RFunctionScope(currentFunctionScope.getFunction());
-                    evalScope(node.child(0));
-                    currentFunctionScope.deleteLocalVars();
-                    currentFunctionScope = current;
-                }
-                case CREATE_MODULE -> {
-                    final String identifier = node.child(0).value().token();
-                    final RModule current = currentModule;
-                    currentModule = currentModule.getSubModules().stream().filter(m -> m.getName().equals(identifier)).findFirst().orElse(null);
-                    if (currentModule == null) {
-                        runtimeError("Could not find submodule '" + identifier + "' in module '" + current.getName() + "'");
-                        return;
-                    }
-                    evalScope(node.child(1));
-                    currentModule = current;
-                }
-                //default -> System.out.println("UNHANDLED: " + node.type());
-            }
-        } catch (final Exception e) {
-            runtimeError("Caught unhandled error while executing mu program: " + e.getClass().getSimpleName() + " " + e.getMessage());
+    private void functionCall(@NotNull final Node node) throws InstantiationException, IllegalAccessException, InvocationTargetException {
+        if (currentFunctionScope == null) {
+            runtimeError("Function call outside of function scope");
+            return;
         }
+        final String identifier = node.child(0).value().token();
+        final List<RValue> params = node.child(1).children().stream().map(evaluator::evaluateExpression).toList();
+        final Optional<RFunction> func = MuUtil.findFunction(this, identifier, params);
+        if (func.isEmpty()) {
+            runtimeError("Could not find function '" + identifier + "' with parameters " + params.stream().map(RValue::getType).toList());
+            return;
+        }
+        final RFunctionScope current = currentFunctionScope;
+        currentFunctionScope = new RFunctionScope(func.get());
+        final Node scope = currentFunctionScope.getFunction().getScope();
+        if (scope != null) scope(scope);
+        else if (currentFunctionScope.getFunction() instanceof final RNativeFunction nativeFunction) {
+            final Method nativeMethod = nativeFunction.getNativeMethod();
+            final Class<?> callClass = nativeFunction.getNativeCallClass();
+            final Object[] args = params.stream().map(v -> evaluator.safecast(v.getType(), v)).toArray(Object[]::new);
+
+            nativeMethod.invoke(callClass.newInstance(), args);
+        } else {
+            runtimeError("Cannot execute null function");
+            return;
+        }
+        currentFunctionScope.deleteLocalVars();
+        currentFunctionScope = current;
     }
 
-    private void evalScope(@NotNull final Node node) {
+    private void createModule(@NotNull final Node node) {
+        final String identifier = node.child(0).value().token();
+        final RModule current = currentModule;
+        currentModule = currentModule.getSubModules().stream().filter(m -> m.getName().equals(identifier)).findFirst().orElse(null);
+        if (currentModule == null) {
+            runtimeError("Could not find submodule '" + identifier + "' in module '" + current.getName() + "'");
+            return;
+        }
+        scope(node.child(1));
+        currentModule = current;
+    }
+
+    private void createLocalScope(@NotNull final Node node) {
+        if (currentFunctionScope == null) {
+            runtimeError("Local scope outside of function scope");
+            return;
+        }
+        final RFunctionScope current = currentFunctionScope;
+        currentFunctionScope = new RFunctionScope(currentFunctionScope.getFunction());
+        scope(node.child(0));
+        currentFunctionScope.deleteLocalVars();
+        currentFunctionScope = current;
+    }
+
+    private void scope(@NotNull final Node node) {
         for (final Node statement : node.children()) {
-            evalStatement(statement);
+            statement(statement);
         }
     }
 
-    private void addVariable(@NotNull final Node node) {
+    private void functionDefinition(@NotNull final Node node) {
+        final String identifier = node.child(0).value().token();
+        final List<RDatatype> params = node
+                .child(3)
+                .children()
+                .stream()
+                .map(t -> RDatatype.of(t.child(0).value().token()))
+                .toList();
+
+
+        final RFunctionScope current = currentFunctionScope;
+        final Optional<RFunction> func = MuUtil.findFunctionByTypes(this, currentModule, identifier, params);
+        if (func.isEmpty()) {
+            runtimeError("Could not find function '" + identifier + "' in module '" + currentModule.getName() + "'");
+            return;
+        }
+        if (func.get() == mainFunction) {
+            currentFunctionScope = new RFunctionScope(func.get());
+            scope(node.child(4));
+        }
+        currentFunctionScope.deleteLocalVars();
+        currentFunctionScope = current;
+    }
+
+    private void variableDefinition(@NotNull final Node node) {
         traceback(node.lineDebugging());
         if (currentFunctionScope != null) {
             final RVariable var = RVariable.of(this, node);

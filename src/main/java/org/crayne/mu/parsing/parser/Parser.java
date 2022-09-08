@@ -245,6 +245,11 @@ public class Parser {
 
     public Node evalScoped(@NotNull final List<Token> tokens, @NotNull final NodeType first, @NotNull final List<Node> modifiers) {
         if (tokens.size() == 1) {
+            final Optional<Scope> current = scope();
+            if (current.isEmpty() || !(current.get() instanceof final FunctionScope functionScope)) {
+                parserError("Unexpected local scope outside of function scope");
+                return null;
+            }
             scope(ScopeType.NORMAL);
             return new Node(NodeType.NOOP);
         }
@@ -419,7 +424,7 @@ public class Parser {
 
         if (type == ScopeType.FUNCTION) functionRootScope();
         else if (type == ScopeType.ENUM) enumScope();
-        else if (type == ScopeType.FOR || type == ScopeType.WHILE) loopScope(type);
+        else if (type == ScopeType.FOR || type == ScopeType.WHILE || type == ScopeType.DO) loopScope(type);
         else if (current.isPresent() && current.get() instanceof FunctionScope) functionScope(type);
         else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
     }
@@ -430,7 +435,11 @@ public class Parser {
 
     private void loopScope(@NotNull final ScopeType type) {
         final Optional<Scope> current = scope();
-        current.ifPresent(scope -> currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope)));
+
+        current.ifPresent(scope -> {
+            final FunctionScope functionScope = (FunctionScope) scope;
+            currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope, functionScope.using()));
+        });
     }
 
     private void enumScope() {
@@ -441,8 +450,10 @@ public class Parser {
         final Optional<Scope> current = scope();
 
         current.ifPresent(scope -> {
-            if (scope instanceof final LoopScope loopScope) currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, loopScope));
-            else currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope));
+            final FunctionScope functionScope = (FunctionScope) scope;
+
+            if (scope instanceof final LoopScope loopScope) currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, loopScope, functionScope.using()));
+            else currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope, functionScope.using()));
         });
     }
 

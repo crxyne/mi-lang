@@ -2,12 +2,18 @@ package org.crayne.mu.parsing.parser.scope;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+
 public class LoopScope extends FunctionScope {
 
     private boolean reachedBreakOrContinue;
 
     public LoopScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent) {
         super(type, scopeIndent, actualIndent, parent);
+    }
+
+    public LoopScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final List<String> using) {
+        super(type, scopeIndent, actualIndent, parent, using);
     }
 
     public void reachedLoopStepBreak() {

@@ -922,8 +922,9 @@ public class ParserEvaluator {
 
         final ValueParser.TypedNode expr = parseExpression(tokens.subList(1, tokens.size() - 1));
         if (expr == null) return null;
-        if (expr.type() != Datatype.BOOL) {
-            parser.parserError("Expected boolean condition after '" + condType.getAsString() + "'", "Cast condition to 'bool' or change the expression to be a bool on its own");
+
+        if (!Datatype.equal(expr.type(), Datatype.BOOL)) {
+            parser.parserError("Expected boolean condition after '" + condType.getAsString() + "', but got " + expr.type() + " instead", "Cast condition to 'bool' or change the expression to be a bool on its own");
             return null;
         }
         return new Node(NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")), first.actualLine(),

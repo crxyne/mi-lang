@@ -25,7 +25,12 @@ public class Tests {
                 
                     pub fn main {
                         use std;
-                        println("hello world!");
+                        ?hi = true;
+                        if hi {
+                            println("hello world!");
+                        } else {
+                            println("goodbye world.");
+                        }
                     }
                     
                 }

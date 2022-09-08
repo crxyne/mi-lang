@@ -30,10 +30,24 @@ public class FunctionScope extends Scope {
         this.parent = parent;
     }
 
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final List<String> using) {
+        super(type, scopeIndent, actualIndent);
+        this.localVariables = new ArrayList<>();
+        this.parent = parent;
+        for (final String use : using) using(use);
+    }
+
     public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent) {
         super(type, scopeIndent, actualIndent);
         this.localVariables = localVariables;
         this.parent = parent;
+    }
+
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent, @NotNull final List<String> using) {
+        super(type, scopeIndent, actualIndent);
+        this.localVariables = localVariables;
+        this.parent = parent;
+        for (final String use : using) using(use);
     }
 
     public ScopeType type() {

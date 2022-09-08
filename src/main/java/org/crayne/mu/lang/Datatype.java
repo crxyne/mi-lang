@@ -104,17 +104,20 @@ public class Datatype {
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
         this.put(PrimitiveDatatype.NULL.name(), 0);
-        this.put(PrimitiveDatatype.BOOL.name(), 1);
-        this.put(PrimitiveDatatype.STRING.name(), 2);
         this.put(PrimitiveDatatype.DOUBLE.name(), 3);
         this.put(PrimitiveDatatype.FLOAT.name(), 4);
         this.put(PrimitiveDatatype.LONG.name(), 5);
         this.put(PrimitiveDatatype.INT.name(), 6);
         this.put(PrimitiveDatatype.CHAR.name(), 6);
+        this.put(PrimitiveDatatype.BOOL.name(), 7);
+        this.put(PrimitiveDatatype.STRING.name(), 8);
     }};
 
     public static Datatype getHeavierType(@NotNull final Datatype d1, @NotNull final Datatype d2) {
         if ((d1.primitive && !d2.primitive) || (!d1.primitive && d2.primitive)) return null;
+        if (d1.primitiveDatatype == PrimitiveDatatype.STRING) return d1;
+        if (d2.primitiveDatatype == PrimitiveDatatype.STRING) return d2;
+
         if (d1.primitiveDatatype == null || d2.primitiveDatatype == null) return d2;
 
         final Integer r1 = datatypeRanking.get(d1.primitiveDatatype.name());

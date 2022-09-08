@@ -2,10 +2,10 @@ package org.crayne.mu.runtime.util;
 
 import org.apache.commons.lang3.StringUtils;
 import org.crayne.mu.runtime.SyntaxTreeExecution;
-import org.crayne.mu.runtime.lang.RModule;
-import org.crayne.mu.runtime.lang.RVariable;
+import org.crayne.mu.runtime.lang.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,7 +19,7 @@ public class MuUtil {
 
     public static Optional<RModule> findSubmoduleByIdentifier(@NotNull final SyntaxTreeExecution tree, @NotNull final String ident) {
         RModule mod = tree.getParentModule();
-        final String[] splitDot = ident.split("\\.");
+        final String[] splitDot = withoutExplicitParent(ident).split("\\.");
         for (int i = 0; i < splitDot.length - 1; i++) {
             final String sub = splitDot[i];
             mod = mod.getSubModules().stream().filter(m -> m.getName().equals(sub)).findFirst().orElse(null);
@@ -28,13 +28,59 @@ public class MuUtil {
         return Optional.ofNullable(mod);
     }
 
+    public static String withoutExplicitParent(@NotNull final String str) {
+        return str.startsWith("!PARENT.") ? str.substring("!PARENT.".length()) : str;
+    }
+
+    public static Optional<RVariable> findLocalVariable(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {
+        final RFunctionScope currentFunc = tree.getCurrentFunction();
+        if (currentFunc == null) return Optional.empty();
+        return currentFunc.getLocalVars().stream().filter(v -> v.getName().equals(identifier)).findFirst();
+    }
+
     public static Optional<RVariable> findVariable(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {
-        return findGlobalVariable(tree, identifier); // TODO try to find local variables first (only if the identifier does not contain '.')
+        if (!identifier.contains(".")) {
+            Optional<RVariable> local = findLocalVariable(tree, identifier);
+            if (local.isPresent()) return local;
+        }
+        return findGlobalVariable(tree, identifier);
     }
 
     public static Optional<RVariable> findGlobalVariable(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {
         final Optional<RModule> module = findSubmoduleByIdentifier(tree, identifier);
         return module.flatMap(m -> m.getGlobalModuleVariables().stream().filter(v -> foundIdentifier(identifier, v.getName())).findFirst());
+    }
+
+    public static Optional<REnum> findEnum(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {
+        final Optional<RModule> module = findSubmoduleByIdentifier(tree, identifier);
+        return module.flatMap(m -> m.getEnums().stream().filter(v -> foundIdentifier(identifier, v.getName())).findFirst());
+    }
+
+    public static Optional<RFunction> findFunction(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier) {
+        final Optional<RModule> module = findSubmoduleByIdentifier(tree, identifier);
+        return module.flatMap(m -> m.getFunctions().stream().filter(f -> foundIdentifier(identifier, f.getName())).findFirst());
+    }
+
+    public static Optional<RFunction> findFunction(@NotNull final SyntaxTreeExecution tree, @NotNull final RModule module, @NotNull final String identifier) {
+        return module.getFunctions().stream().filter(f -> f.getName().equals(identifier)).findFirst();
+    }
+
+    public static Optional<RFunction> findFunction(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier, @NotNull final List<RValue> params) {
+        final Optional<RModule> module = findSubmoduleByIdentifier(tree, identifier);
+        return module.flatMap(m -> m.getFunctions().stream().filter(f -> foundIdentifier(identifier, f.getName()) && RFunction.paramsMatch(params, f.getDefinedParams())).findFirst());
+    }
+
+    public static Optional<RFunction> findFunction(@NotNull final SyntaxTreeExecution tree, @NotNull final RModule module, @NotNull final String identifier, @NotNull final List<RValue> params) {
+        return module.getFunctions().stream().filter(f -> f.getName().equals(identifier) && RFunction.paramsMatch(params, f.getDefinedParams())).findFirst();
+    }
+
+    public static Optional<RFunction> findFunctionByTypes(@NotNull final SyntaxTreeExecution tree, @NotNull final String identifier, @NotNull final List<RDatatype> types) {
+        final Optional<RModule> module = findSubmoduleByIdentifier(tree, identifier);
+        return module.flatMap(m -> m.getFunctions().stream().filter(f -> foundIdentifier(identifier, f.getName()) && RFunction.paramsMatchDatatypes(types, f.getDefinedParams())).findFirst());
+    }
+
+    public static Optional<RFunction> findFunctionByTypes(@NotNull final SyntaxTreeExecution tree, @NotNull final RModule module, @NotNull final String identifier, @NotNull final List<RDatatype> types) {
+        return module.getFunctions().stream().filter(f -> f.getName().equals(identifier) && RFunction.paramsMatchDatatypes(types, f.getDefinedParams())).findFirst();
     }
 
     public static boolean foundIdentifier(@NotNull final String find, @NotNull final String actual) {

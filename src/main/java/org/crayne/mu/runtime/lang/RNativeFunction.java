@@ -9,14 +9,20 @@ import java.util.List;
 
 public class RNativeFunction extends RFunction {
     private final Method nativeMethod;
+    private final Class<?> nativeCallClass;
 
-    public RNativeFunction(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> definedParams, @NotNull final Method nativeMethod) {
+    public RNativeFunction(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> definedParams, @NotNull final Method nativeMethod, @NotNull final Class<?> nativeCallClass) {
         super(name, returnType, definedParams, null);
         this.nativeMethod = nativeMethod;
+        this.nativeCallClass = nativeCallClass;
     }
 
     public Method getNativeMethod() {
         return nativeMethod;
+    }
+
+    public Class<?> getNativeCallClass() {
+        return nativeCallClass;
     }
 
     @Override

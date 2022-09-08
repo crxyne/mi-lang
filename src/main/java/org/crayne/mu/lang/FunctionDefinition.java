@@ -15,6 +15,7 @@ public class FunctionDefinition {
     private final List<Modifier> modifiers;
     private Node scope;
     private Method nativeMethod;
+    private Class<?> nativeCallClass;
     private final Module module;
 
     public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
@@ -27,13 +28,14 @@ public class FunctionDefinition {
     }
 
     public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
-                              @NotNull final List<Modifier> modifiers, @NotNull final Module module, @NotNull final Method nativeMethod) {
+                              @NotNull final List<Modifier> modifiers, @NotNull final Module module, @NotNull final Method nativeMethod, @NotNull final Class<?> nativeCallClass) {
         this.name = name;
         this.returnType = returnType;
         this.parameters = parameters;
         this.modifiers = modifiers;
         this.module = module;
         this.nativeMethod = nativeMethod;
+        this.nativeCallClass = nativeCallClass;
     }
 
 
@@ -53,6 +55,10 @@ public class FunctionDefinition {
 
     public Method nativeMethod() {
         return nativeMethod;
+    }
+
+    public Class<?> nativeCallClass() {
+        return nativeCallClass;
     }
 
     public String name() {

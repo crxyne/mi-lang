@@ -133,7 +133,7 @@ public class ParserEvaluator {
         }
     }
 
-    protected void addNativeFunctionFromResult(@NotNull final Node result, final Method nativeMethod) {
+    protected void addNativeFunctionFromResult(@NotNull final Node result, final Method nativeMethod, final Class<?> nativeCallClass) {
         if (!parser.skimming) return;
         final Module module = parser.lastModule();
         try {
@@ -165,7 +165,8 @@ public class ParserEvaluator {
                             params,
                             modifiers,
                             module,
-                            nativeMethod
+                            nativeMethod,
+                            nativeCallClass
                     ));
                     return;
                 }
@@ -402,7 +403,7 @@ public class ParserEvaluator {
 
         return new Node(NodeType.FUNCTION_CALL, identifierTok.actualLine(),
                 new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifierTok)),
-                new Node(NodeType.PARAMETERS, params.stream().map(n -> new Node(NodeType.VALUE, n.node().value().actualLine(), n.node())).toList())
+                new Node(NodeType.PARAMETERS, params.stream().map(n -> new Node(NodeType.VALUE, -1, n.node())).toList())
         );
     }
 
@@ -728,9 +729,15 @@ public class ParserEvaluator {
             );
         }).toList();
 
-        final Method nativeMethod = checkNativeFunctionValidity(last, stringLiteral.token().substring(1, stringLiteral.token().length() - 1), identifier.token(), parameters, returnType);
+        final String c = stringLiteral.token().substring(1, stringLiteral.token().length() - 1);
+        final Method nativeMethod = checkNativeFunctionValidity(last, c, identifier.token(), parameters, returnType);
         if (nativeMethod == null) return null;
-        addNativeFunctionFromResult(result, nativeMethod);
+        try {
+            addNativeFunctionFromResult(result, nativeMethod, Class.forName(c));
+        } catch (final ClassNotFoundException e) {
+            parser.parserError("Cannot find native class '" + c + "' for native function", identifier);
+            return null;
+        }
         return result;
     }
 

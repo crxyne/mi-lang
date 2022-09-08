@@ -1,6 +1,7 @@
 package org.crayne.mu.runtime.lang;
 
 import org.crayne.mu.lang.Datatype;
+import org.crayne.mu.lang.PrimitiveDatatype;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
@@ -20,7 +21,7 @@ public class REvaluator {
     }
 
     public RValue evaluateExpression(final Node node) {
-        if (node == null) return null;
+        if (node == null || tree.error()) return null;
         tree.traceback(node.lineDebugging());
         if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
             return ofLiteral(node.child(0));
@@ -56,7 +57,7 @@ public class REvaluator {
             case GET_ENUM_MEMBER -> {
                 final String identifier = values.get(0).value().token();
                 final String member = values.get(1).value().token();
-                yield new RValue(RDatatype.of(identifier + "_enum!"), member);
+                yield new RValue(RDatatype.of(identifier), member);
             }
             case TERNARY_OPERATOR -> {
                 final boolean ternaryCondition = isTrue(evaluateExpression(values.get(0).child(0)).getValue());
@@ -65,7 +66,11 @@ public class REvaluator {
             }
             case IDENTIFIER -> {
                 final Optional<RVariable> find = MuUtil.findVariable(tree, nodeVal.token());
-                yield find.isEmpty() ? null : find.get().getValue();
+                if (find.isEmpty()) {
+                    tree.runtimeError("Cannot find variable '" + nodeVal.token() + "'");
+                    yield null;
+                }
+                yield find.get().getValue();
             }
             case CAST_VALUE -> {
                 if (x == null) yield null;
@@ -187,7 +192,7 @@ public class REvaluator {
     }
 
     public static RValue concat(@NotNull final RValue x, @NotNull final RValue y) {
-        return new RValue(RDatatype.of(Datatype.STRING), "\"" + withoutQuotes(x.getValue()) + withoutQuotes(y.getValue()) + "\"");
+        return new RValue(RDatatype.of(Datatype.STRING), "" + x.getValue() + y.getValue());
     }
 
     public static String withoutQuotes(@NotNull final Object obj) {
@@ -199,7 +204,7 @@ public class REvaluator {
         return new RValue(RDatatype.of(literal), valueOfLiteral(literal));
     }
 
-    public static Object safecast(@NotNull final RDatatype type, @NotNull final String value, @NotNull final RDatatype newType) {
+    public Object safecast(@NotNull final RDatatype type, @NotNull final String value, @NotNull final RDatatype newType) {
         final Object oldValue = valueOfLiteral(type, value);
         if (type.primitive()) {
             return switch (newType.getPrimitive()) {
@@ -209,19 +214,39 @@ public class REvaluator {
                 case LONG -> castToLong(type, oldValue);
                 case FLOAT -> castToFloat(type, oldValue);
                 case DOUBLE -> castToDouble(type, oldValue);
-                case STRING -> String.valueOf(oldValue);
+                case STRING -> castToString(type, oldValue);
                 case BOOL -> castToBool(type, oldValue);
             };
         }
-        return "" + oldValue;
+        final Optional<REnum> findEnum = MuUtil.findEnum(tree, type.getName());
+        if (findEnum.isEmpty()) {
+            tree.runtimeError("Cannot find enum '" + MuUtil.identOf(type.getName()) + "'");
+            return null;
+        }
+        final REnum found = findEnum.get();
+        final String member = String.valueOf(oldValue);
+        if (!found.getMembers().contains(member)) {
+            tree.runtimeError("Cannot find member '" + member + "' inside of enum '" + MuUtil.identOf(type.getName()) + "'");
+            return null;
+        }
+        final int index = found.getMembers().indexOf(member);
+        return switch (newType.getPrimitive()) {
+            case INT -> index;
+            case DOUBLE -> (double) index;
+            case VOID, NULL, STRING -> castToString(type, oldValue);
+            case FLOAT -> (float) index;
+            case LONG -> (long) index;
+            case CHAR -> (char) index;
+            case BOOL -> false;
+        };
     }
 
-    public static Object safecast(@NotNull final RDatatype type, @NotNull final RValue value) {
+    public Object safecast(@NotNull final RDatatype type, @NotNull final RValue value) {
         return safecast(value.getType(), String.valueOf(value.getValue()), type);
     }
 
     public static Object castToInt(@NotNull final RDatatype type, @NotNull final Object value) {
-        return switch (type.getPrimitive()) {
+        if (type.primitive()) return switch (type.getPrimitive()) {
             case BOOL -> isTrue(value) ? 1 : 0;
             case DOUBLE -> (int) Double.parseDouble(String.valueOf(value));
             case STRING -> nullToZero(Tokenizer.isInt(String.valueOf(value)));
@@ -230,10 +255,15 @@ public class REvaluator {
             case CHAR -> (int) valueOfLiteral(type, String.valueOf(value));
             default -> value;
         };
+        return 0;
+    }
+
+    public static Object castToString(@NotNull final RDatatype type, @NotNull final Object value) {
+        return type.getPrimitive() == PrimitiveDatatype.STRING ? withoutQuotes(value) : value;
     }
 
     public static Object castToBool(@NotNull final RDatatype type, @NotNull final Object value) {
-        return switch (type.getPrimitive()) {
+        if (type.primitive()) return switch (type.getPrimitive()) {
             case INT -> Integer.parseInt(String.valueOf(value)) == 1;
             case DOUBLE -> Double.parseDouble(String.valueOf(value)) == 1;
             case STRING -> isTrue(String.valueOf(value));
@@ -242,6 +272,7 @@ public class REvaluator {
             case CHAR -> (char) valueOfLiteral(type, String.valueOf(value)) == 1;
             default -> value;
         };
+        return false;
     }
 
     public static boolean isTrue(@NotNull final Object obj) {
@@ -250,7 +281,7 @@ public class REvaluator {
     }
 
     public static Object castToLong(@NotNull final RDatatype type, @NotNull final Object value) {
-        return switch (type.getPrimitive()) {
+        if (type.primitive()) return switch (type.getPrimitive()) {
             case BOOL -> isTrue(value) ? 1L : 0L;
             case DOUBLE -> (long) Double.parseDouble(String.valueOf(value));
             case STRING -> nullToZero(Tokenizer.isLong(String.valueOf(value)));
@@ -259,10 +290,11 @@ public class REvaluator {
             case CHAR -> (long) valueOfLiteral(type, String.valueOf(value));
             default -> value;
         };
+        return 0L;
     }
 
     public static Object castToDouble(@NotNull final RDatatype type, @NotNull final Object value) {
-        return switch (type.getPrimitive()) {
+        if (type.primitive()) return switch (type.getPrimitive()) {
             case BOOL -> isTrue(value) ? 1d : 0d;
             case INT -> (double) Integer.parseInt(String.valueOf(value));
             case STRING -> nullToZero(Tokenizer.isDouble(String.valueOf(value)));
@@ -271,10 +303,11 @@ public class REvaluator {
             case CHAR -> (double) valueOfLiteral(type, String.valueOf(value));
             default -> value;
         };
+        return 0.0;
     }
 
     public static Object castToFloat(@NotNull final RDatatype type, @NotNull final Object value) {
-        return switch (type.getPrimitive()) {
+        if (type.primitive()) return switch (type.getPrimitive()) {
             case BOOL -> isTrue(value) ? 1f : 0f;
             case DOUBLE -> (float) Double.parseDouble(String.valueOf(value));
             case STRING -> nullToZero(Tokenizer.isFloat(String.valueOf(value)));
@@ -283,10 +316,11 @@ public class REvaluator {
             case CHAR -> (float) valueOfLiteral(type, String.valueOf(value));
             default -> value;
         };
+        return 0.0f;
     }
 
     public static Object castToChar(@NotNull final RDatatype type, @NotNull final Object value) {
-        return switch (type.getPrimitive()) {
+        if (type.primitive()) return switch (type.getPrimitive()) {
             case BOOL -> isTrue(value) ? (char) 1 : (char) 0;
             case DOUBLE -> (char) Double.parseDouble(String.valueOf(value));
             case STRING -> nullToZero(Tokenizer.isChar(String.valueOf(value)));
@@ -295,6 +329,7 @@ public class REvaluator {
             case INT -> (char) Integer.parseInt(String.valueOf(value));
             default -> value;
         };
+        return (char) 0;
     }
 
     public static Integer nullToZero(final Integer i) {
@@ -317,7 +352,8 @@ public class REvaluator {
         if (type.primitive()) {
             return switch (type.getPrimitive()) {
                 case BOOL -> isTrue(value);
-                case STRING, NULL, VOID -> value;
+                case NULL, VOID -> value;
+                case STRING -> withoutQuotes(value);
                 case DOUBLE -> Tokenizer.isDouble(value);
                 case FLOAT -> Tokenizer.isFloat(value);
                 case LONG -> Tokenizer.isLong(value);

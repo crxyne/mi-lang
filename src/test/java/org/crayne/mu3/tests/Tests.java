@@ -9,7 +9,6 @@ public class Tests {
         final String code = """
                 pub? true = 1b;
                 pub? false = 0b;
-                pub? isStupid = true;
                 
                 module std {
                 
@@ -24,27 +23,20 @@ public class Tests {
                 
                 module helloworld {
                 
-                    mut int test;
-                    
-                    pub fn test {
-                    
-                    }
-                    
-                    pub enum Help {
-                        WHAT
-                    }
-                
                     pub fn main {
                         use std;
-                        println(Help::WHAT);
-                        test();
+                        println("hello world!");
                     }
                     
                 }
                 """;
 
         final Runtime runtime = new Runtime(System.out, true);
-        runtime.execute(code);
+        try {
+            runtime.execute(code, "helloworld.main");
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
 }

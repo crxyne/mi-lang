@@ -88,7 +88,7 @@ public class ValueParser {
             parserParent.parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op);
             return new TypedNode(null, new Node(NodeType.VALUE));
         }
-        return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), x.node.value().actualLine(), x.node, y.node));
+        return new TypedNode(PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type), new Node(NodeType.of(op.token()), -1, x.node, y.node));
     }
 
     private static final List<List<NodeType>> operatorPrecedence = Arrays.asList(
@@ -244,7 +244,7 @@ public class ValueParser {
         }
         if (eat("(")) {
             final TypedNode result = parseExpression();
-            if (!eat(")")) parserParent.parserError("Expected ')' after expression in parenthesis", currentToken);
+            if (!eat(")")) parserParent.parserError("Expected ')' after expression in parenthesis", expr.get(expr.size() - 1));
             return result;
         }
         if (nextPart != null && nextPart.token().equals("(")) {

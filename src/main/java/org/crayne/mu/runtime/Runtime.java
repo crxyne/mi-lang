@@ -35,8 +35,9 @@ public class Runtime {
         return Optional.ofNullable(parser.parse());
     }
 
-    public void execute(@NotNull final String code) {
-        parse(code).ifPresent(SyntaxTreeExecution::execute);
+    public void execute(@NotNull final String code, @NotNull final String mainFunc, @NotNull final Object... args) throws Throwable {
+        final Optional<SyntaxTreeExecution> tree = parse(code);
+        if (tree.isPresent()) tree.get().execute(mainFunc, List.of(args));
     }
 
 }

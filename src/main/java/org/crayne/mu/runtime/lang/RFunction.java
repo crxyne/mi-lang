@@ -38,8 +38,40 @@ public class RFunction {
         return definedParams;
     }
 
+    public static boolean paramsMatch(@NotNull final List<RValue> input, @NotNull final List<FunctionParameter> definedParams) {
+        if (definedParams.size() != input.size()) return false;
+
+        boolean equalParams = true;
+        for (int i = 0; i < definedParams.size(); i++) {
+            final FunctionParameter defParam = definedParams.get(i);
+            final RValue otherParam = input.get(i);
+
+            if (!otherParam.getType().equals(defParam.type())) {
+                equalParams = false;
+                break;
+            }
+        }
+        return equalParams;
+    }
+
+    public static boolean paramsMatchDatatypes(@NotNull final List<RDatatype> input, @NotNull final List<FunctionParameter> definedParams) {
+        if (definedParams.size() != input.size()) return false;
+
+        boolean equalParams = true;
+        for (int i = 0; i < definedParams.size(); i++) {
+            final FunctionParameter defParam = definedParams.get(i);
+            final RDatatype otherParam = input.get(i);
+
+            if (!otherParam.equals(defParam.type())) {
+                equalParams = false;
+                break;
+            }
+        }
+        return equalParams;
+    }
+
     public static RFunction of(@NotNull final FunctionDefinition f) {
-        if (f.scope() == null) return new RNativeFunction(f.name(), f.returnType(), f.parameters(), f.nativeMethod());
+        if (f.scope() == null) return new RNativeFunction(f.name(), f.returnType(), f.parameters(), f.nativeMethod(), f.nativeCallClass());
         return new RFunction(f.name(), f.returnType(), f.parameters(), f.scope());
     }
 

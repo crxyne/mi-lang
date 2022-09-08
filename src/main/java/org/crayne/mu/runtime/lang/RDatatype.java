@@ -37,6 +37,21 @@ public class RDatatype {
         return new RDatatype(type.getName());
     }
 
+    public static RDatatype of(@NotNull final Class<?> c) {
+        final RDatatype type = switch (c.getName()) {
+            case "java.lang.Integer", "java.lang.Short" -> INT;
+            case "java.lang.String" -> STRING;
+            case "java.lang.Double" -> DOUBLE;
+            case "java.lang.Long" -> LONG;
+            case "java.lang.Float" -> FLOAT;
+            case "java.lang.Boolean" -> BOOL;
+            case "java.lang.Character" -> CHAR;
+            default -> null;
+        };
+        if (type == null) throw new IllegalArgumentException("Unknown mu datatype for java object class " + c.getName());
+        return type;
+    }
+
     public static RDatatype of(@NotNull final String s) {
         return new RDatatype(s);
     }
@@ -47,13 +62,13 @@ public class RDatatype {
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
         this.put(PrimitiveDatatype.NULL.name(), 0);
-        this.put(PrimitiveDatatype.BOOL.name(), 1);
-        this.put(PrimitiveDatatype.STRING.name(), 2);
         this.put(PrimitiveDatatype.DOUBLE.name(), 3);
         this.put(PrimitiveDatatype.FLOAT.name(), 4);
         this.put(PrimitiveDatatype.LONG.name(), 5);
         this.put(PrimitiveDatatype.INT.name(), 6);
         this.put(PrimitiveDatatype.CHAR.name(), 6);
+        this.put(PrimitiveDatatype.BOOL.name(), 7);
+        this.put(PrimitiveDatatype.STRING.name(), 8);
     }};
 
     public static final RDatatype BOOL = RDatatype.of(Datatype.BOOL);
@@ -63,10 +78,12 @@ public class RDatatype {
     public static final RDatatype LONG = RDatatype.of(Datatype.LONG);
     public static final RDatatype INT = RDatatype.of(Datatype.INT);
     public static final RDatatype CHAR = RDatatype.of(Datatype.CHAR);
-    public static final RDatatype NULL = RDatatype.of(Datatype.NULL);
 
     public static Optional<RDatatype> getHeavierType(@NotNull final RDatatype d1, @NotNull final RDatatype d2) {
         if ((d1.primitive() && !d2.primitive()) || (!d1.primitive() && d2.primitive())) return Optional.empty();
+        if (d1.getPrimitive() == PrimitiveDatatype.STRING) return Optional.of(d1);
+        if (d2.getPrimitive() == PrimitiveDatatype.STRING) return Optional.of(d2);
+
         if (d1.getPrimitive() == null || d2.getPrimitive() == null) return Optional.of(d1);
 
         final Integer r1 = datatypeRanking.get(d1.getName().toUpperCase());
@@ -79,11 +96,12 @@ public class RDatatype {
         return name.equals(other.name);
     }
 
-    @Override
+    public boolean equals(final Datatype other) {
+        return name.equals(other.getName());
+    }
+
     public String toString() {
-        return "RDatatype{" +
-                "name='" + name + '\'' +
-                '}';
+        return name;
     }
 
 }

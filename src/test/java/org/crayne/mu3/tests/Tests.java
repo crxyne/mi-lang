@@ -11,13 +11,9 @@ public class Tests {
                 pub? false = 0b;
                 
                 module std {
-                
-                    module math {
-                        pub? Pi = 3.14159265358979;
-                    }
                     
                     pub nat fn println~ (string s) -> "org.crayne.mu.stdlib.StandardLib";
-                    pub nat fn cos :: double (double d) -> "org.crayne.mu.stdlib.StandardLib";
+                    
                 }
                 
                 STANDARDLIB_MU_FINISH_CODE;
@@ -25,9 +21,7 @@ public class Tests {
                 module helloworld {
                 
                     pub fn main {
-                        use std;
-                        use std.math;
-                        println(string cos(0.5));
+                        std.println("Hello, world!");
                     }
                     
                 }

@@ -101,13 +101,18 @@ public class RModule {
 
     @Override
     public String toString() {
-        return "RModule{" +
-                "name='" + name + '\'' +
-                ", globalModuleVariables=" + globalModuleVariables +
-                ", subModules=" + subModules +
-                ", enums=" + enums +
-                ", functions=" + functions +
-                '}';
+        return "RModule{\n" +
+                ("name='" + name + '\'' +
+                ",\nglobalModuleVariables=" + globalModuleVariables +
+                ",\nsubModules=" + toString(subModules) +
+                ",\nenums=" + enums +
+                ",\nfunctions=" + functions).indent(4) +
+                "}";
+    }
+
+    public static String toString(@NotNull final List<RModule> submodules) {
+        final String normal = submodules.toString();
+        return "[\n" + normal.substring(1, normal.length() - 1).indent(4) + "]";
     }
 
 }

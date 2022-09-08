@@ -222,6 +222,9 @@ public class FunctionScope extends Scope {
             }
             final Optional<Variable> foundGlobal = parser.parentModule().findVariableByName(ParserEvaluator.identOf(identifier));
             if (foundGlobal.isPresent()) return;
+
+            final Module current = parser.currentParsingModule();
+            if (current != null && current.findVariableByName(ParserEvaluator.identOf(identifier)).isPresent()) return;
         }
 
         final Optional<String> closestMatch = localVariables

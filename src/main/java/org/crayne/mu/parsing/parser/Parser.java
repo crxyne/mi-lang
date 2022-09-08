@@ -37,6 +37,11 @@ public class Parser {
     protected final int stdlibFinishLine;
     protected boolean stdlib = true;
     private final String code;
+    protected Module currentParsingModule;
+
+    public Module currentParsingModule() {
+        return currentParsingModule;
+    }
 
     private final List<Scope> currentScope = new ArrayList<>() {{
         add(new Scope(ScopeType.PARENT, 0, 0));
@@ -59,6 +64,7 @@ public class Parser {
         evaluator = new ParserEvaluator(this);
         skim();
         final Node parent = new Node(NodeType.PARENT);
+        currentParsingModule = parentModule;
         while (currentTokenIndex < tokens.size() && !encounteredError) {
             final Node statement = parseStatement(false);
             if (statement == null) break;
@@ -164,11 +170,7 @@ public class Parser {
                 parseScope(result);
 
                 switch (result.type()) {
-                    case FUNCTION_DEFINITION -> {
-                        if (skimming) {
-                            evaluator.addFunctionFromResult(result);
-                        }
-                    }
+                    case FUNCTION_DEFINITION -> evaluator.addFunctionFromResult(result);
                     case IF_STATEMENT -> {
                         if (NodeType.of(currentToken) == NodeType.LITERAL_ELSE) {
                             skipToken();
@@ -216,7 +218,7 @@ public class Parser {
                                         case VAR_DEFINITION -> {
                                             final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
                                             if (Variable.isConstant(modifiers))
-                                                parserError("Expected value, global constant might not have been initialized yet");
+                                                parserError("Expected value, global constant might not have been initialized yet", lastToken);
                                             evaluator.addGlobalVarFromResult(result);
                                         }
                                         case VAR_DEF_AND_SET_VALUE -> evaluator.addGlobalVarFromResult(result);
@@ -552,6 +554,7 @@ public class Parser {
         if (removeFakeScope) closeScope(); // for loops have a hidden scope wrapped around them, which doesnt actually exist in the code. similarly for else statements, which always have a hidden scope next to them
 
         if (type != ScopeType.MODULE) return;
+        if (!skimming) currentParsingModule = currentParsingModule.parent();
         closeModule();
     }
 

@@ -57,17 +57,18 @@ public class Datatype {
             if (findUsing != null) return findUsing;
         }
         if (module.isEmpty()) return null;
-        Optional<Enum> foundEnum = module.get().findEnumByName(ParserEvaluator.identOf(enumNameStr));
-        if (foundEnum.isEmpty()) {
-            foundEnum = parser.parentModule().findEnumByName(ParserEvaluator.identOf(enumNameStr));
+        final String enumIdent = ParserEvaluator.identOf(enumNameStr);
 
-            if (foundEnum.isEmpty()) {
-                if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);
-                return null;
-            }
+        Enum foundEnum = module.get().findEnumByName(enumIdent)
+                .orElse(parser.parentModule().findEnumByName(enumIdent).orElse(parser.currentParsingModule().findEnumByName(enumIdent).orElse(null)));
+
+        if (foundEnum == null) {
+            if (panic) parser.parserError("Cannot find enum '" + enumNameStr + "'", identifier);
+            return null;
         }
-        parser.checkAccessValidity(module.get(), IdentifierType.ENUM, identifier, foundEnum.get().modifiers());
-        return foundEnum.get();
+
+        parser.checkAccessValidity(module.get(), IdentifierType.ENUM, identifier, foundEnum.modifiers());
+        return foundEnum;
     }
 
     public Datatype(@NotNull final Parser parser, @NotNull final Token enumDatatype) {

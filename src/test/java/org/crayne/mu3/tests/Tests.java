@@ -24,9 +24,11 @@ public class Tests {
                 
                 module helloworld {
                 
+                    mut int test;
+                
                     pub fn main {
                         use std;
-                        println("hi");
+                        println(test);
                     }
                     
                 }

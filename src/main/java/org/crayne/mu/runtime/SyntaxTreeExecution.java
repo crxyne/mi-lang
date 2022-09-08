@@ -5,6 +5,7 @@ import org.crayne.mu.log.LogHandler;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.runtime.lang.REvaluator;
+import org.crayne.mu.runtime.lang.RFunction;
 import org.crayne.mu.runtime.lang.RModule;
 import org.crayne.mu.runtime.lang.RVariable;
 import org.crayne.mu.runtime.util.MuUtil;
@@ -26,8 +27,13 @@ public class SyntaxTreeExecution {
     private final int stdlibFinishLine;
     private boolean error;
 
+    private RModule currentModule;
+    private RFunction currentFunction;
+
     public SyntaxTreeExecution(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
         this.parentModule = RModule.of(parentModule);
+        System.out.println(this.parentModule);
+        this.currentModule = this.parentModule;
         this.parentNode = parentNode;
         this.out = out;
         this.code = Arrays.stream(code.split("\n")).toList();

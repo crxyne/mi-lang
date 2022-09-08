@@ -45,12 +45,12 @@ public class RFunction {
 
     @Override
     public String toString() {
-        return "RFunction{" +
-                "name='" + name + '\'' +
-                ", returnType=" + returnType +
-                ", definedParams=" + definedParams +
-                ", scope=" + scope +
-                '}';
+        return "RFunction{\n" +
+                ("name='" + name + '\'' +
+                ",\nreturnType=" + returnType +
+                ",\ndefinedParams=" + definedParams +
+                ",\nscope=\n" + scope.toString().indent(4)).indent(4) +
+                "}";
     }
 
 }

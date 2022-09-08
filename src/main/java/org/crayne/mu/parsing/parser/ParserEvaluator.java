@@ -54,7 +54,7 @@ public class ParserEvaluator {
                 datatype,
                 modifiers,
                 module,
-                init,
+                true,
                 init ? result.child(3) : null
         );
 
@@ -86,6 +86,7 @@ public class ParserEvaluator {
     }
 
     protected void addFunctionFromResult(@NotNull final Node result) {
+        if (!parser.skimming) return;
         final Module module = parser.lastModule();
         try {
             final List<Modifier> modifiers = result.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
@@ -133,6 +134,7 @@ public class ParserEvaluator {
     }
 
     protected void addNativeFunctionFromResult(@NotNull final Node result, final Method nativeMethod) {
+        if (!parser.skimming) return;
         final Module module = parser.lastModule();
         try {
             final List<Modifier> modifiers = result.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
@@ -350,7 +352,8 @@ public class ParserEvaluator {
         final String identifier = identifierTok.token();
         final Optional<Module> oglobalMod = parser.findModuleFromIdentifier(identifier, identifierTok, panic);
         if (oglobalMod.isEmpty()) {
-            if (panic) parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error", identifierTok);
+            if (panic)
+                parser.parserError("Unexpected parsing error, module of global variable is null without any previous parsing error", identifierTok);
             return null;
         }
         final Module globalMod = oglobalMod.get();
@@ -364,13 +367,15 @@ public class ParserEvaluator {
                 if (findUsing != null) globalVar = Optional.of(findUsing);
             }
 
+        if (globalVar.isEmpty()) globalVar = Optional.ofNullable(parser.parentModule().findVariableByName(identifier)
+                .orElse(parser.currentParsingModule().findVariableByName(identifier).orElse(null)));
+
         if (globalVar.isEmpty()) {
-            globalVar = parser.parentModule().findVariableByName(identifier);
-            if (globalVar.isEmpty()) {
-                if (panic) parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
-                return null;
-            }
+            if (panic)
+                parser.parserError("Unexpected parsing error, global variable is null without any previous parsing error", identifierTok);
+            return null;
         }
+
         parser.checkAccessValidity(globalMod, IdentifierType.VARIABLE, identifierTok, globalVar.get().modifiers());
         return globalVar.get();
     }
@@ -952,6 +957,7 @@ public class ParserEvaluator {
         if (expectModuleOrRoot(IdentifierType.MODULE)) return null;
         parser.scope(ScopeType.MODULE);
         if (handleRestrictedName(identifier)) return null;
+        if (!parser.skimming) parser.currentParsingModule = parser.currentParsingModule.subModules().stream().filter(m -> m.name().equals(identifier.token())).findFirst().orElse(null);
 
         return new Node(NodeType.CREATE_MODULE, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier)

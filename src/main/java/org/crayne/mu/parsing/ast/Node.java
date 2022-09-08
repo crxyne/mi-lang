@@ -103,7 +103,6 @@ public class Node {
     }
 
     public String toString() {
-        int indent = 0;
         final StringBuilder result = new StringBuilder(type.name());
         if (value != null) {
             result
@@ -115,7 +114,7 @@ public class Node {
         if (!children.isEmpty()) {
             result.append(" [ \n");
             for (final Node child : children) {
-                result.append(child.toString().indent(indent + 4));
+                result.append(child.toString().indent(4));
             }
             result.append("]");
         } else if (value == null && !type.name().startsWith("LITERAL_")) {

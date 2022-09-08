@@ -21,12 +21,12 @@ public class RNativeFunction extends RFunction {
 
     @Override
     public String toString() {
-        return "RNativeFunction{" +
-                "name='" + getName() + '\'' +
-                ", returnType=" + getReturnType() +
-                ", definedParams=" + getDefinedParams() +
-                ", nativeMethod=" + nativeMethod +
-                '}';
+        return "RNativeFunction{\n" +
+                ("name='" + getName() + '\'' +
+                ",\nreturnType=" + getReturnType() +
+                ",\ndefinedParams=" + getDefinedParams() +
+                ",\nnativeMethod=" + nativeMethod).indent(4) +
+                "}";
     }
 
 }

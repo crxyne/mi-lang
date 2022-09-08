@@ -53,6 +53,12 @@ public enum NodeType {
     LITERAL_USE("use"),
     LITERAL_NAT("nat"),
     LITERAL_INTERN("intern"),
+    LITERAL_CLASS("class"),
+    LITERAL_TRY("try"),
+    LITERAL_CATCH("catch"),
+    LITERAL_IMPL("impl"),
+    LITERAL_ASSERT("assert"),
+    LITERAL_TYPEDEF("typedef"),
 
     //statements simplified
     FUNCTION_CALL(null),

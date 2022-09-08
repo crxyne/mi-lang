@@ -1006,6 +1006,11 @@ public class ParserEvaluator {
             parser.parserError("Unexpected parsing error, null scope after adding an enum", identifier);
             return null;
         }
+        if (!parser.stdlib && (newScope.get().type() != ScopeType.MODULE)) {
+            parser.parserError("Cannot define enums at root level", identifier,
+                    "Move your enum into a module or create a new module for it");
+            return null;
+        }
         final EnumScope enumScope = (EnumScope) newScope.get();
         enumScope.modifiers(modifiers.stream().map(n -> Modifier.of(n.type())).collect(Collectors.toList()));
         enumScope.name(identifier.token());

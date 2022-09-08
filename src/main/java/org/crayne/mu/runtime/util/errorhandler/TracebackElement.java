@@ -1,6 +1,6 @@
 package org.crayne.mu.runtime.util.errorhandler;
 
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.jetbrains.annotations.NotNull;
 
 public class TracebackElement {
@@ -9,7 +9,7 @@ public class TracebackElement {
     final int line;
     final int lineNoStandardLib;
 
-    public TracebackElement(@NotNull final SyntaxTree tree, final int line) {
+    public TracebackElement(@NotNull final SyntaxTreeExecution tree, final int line) {
         this.line = line;
         this.lineNoStandardLib = line - tree.getStdlibFinishLine();
         final String getline = tree.getLine(line);

@@ -1,21 +1,21 @@
 package org.crayne.mu.runtime.lang.primitive;
 
 import org.crayne.mu.lang.Datatype;
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.runtime.lang.RDatatype;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
 public class RFloat implements ROperand {
 
-    private final SyntaxTree runtime;
+    private final SyntaxTreeExecution runtime;
 
 
-    public SyntaxTree runtime() {
+    public SyntaxTreeExecution runtime() {
         return runtime;
     }
 
-    public RFloat(@NotNull final SyntaxTree runtime) {
+    public RFloat(@NotNull final SyntaxTreeExecution runtime) {
         this.runtime = runtime;
     }
 

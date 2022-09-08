@@ -24,7 +24,7 @@ public class Runtime {
         return out;
     }
 
-    public Optional<SyntaxTree> parse(@NotNull final String code) {
+    public Optional<SyntaxTreeExecution> parse(@NotNull final String code) {
         this.out.setProgram(code);
 
         final Tokenizer tokenizer = new Tokenizer(out, multiTokens);
@@ -36,7 +36,7 @@ public class Runtime {
     }
 
     public void execute(@NotNull final String code) {
-        parse(code).ifPresent(SyntaxTree::execute);
+        parse(code).ifPresent(SyntaxTreeExecution::execute);
     }
 
 }

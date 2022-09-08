@@ -1,19 +1,19 @@
 package org.crayne.mu.runtime.lang.primitive;
 
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
 public class RNull implements ROperand {
 
-    private final SyntaxTree runtime;
+    private final SyntaxTreeExecution runtime;
 
 
-    public SyntaxTree runtime() {
+    public SyntaxTreeExecution runtime() {
         return runtime;
     }
 
-    public RNull(@NotNull final SyntaxTree runtime) {
+    public RNull(@NotNull final SyntaxTreeExecution runtime) {
         this.runtime = runtime;
     }
 

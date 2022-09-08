@@ -2,7 +2,7 @@ package org.crayne.mu.runtime.lang;
 
 import org.crayne.mu.lang.Variable;
 import org.crayne.mu.parsing.ast.Node;
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -44,7 +44,7 @@ public class RVariable {
         return new RVariable(v.name(), new RDatatype(v.type().getName()));
     }
 
-    public static RVariable of(@NotNull final SyntaxTree tree, @NotNull final Node varDefinition) {
+    public static RVariable of(@NotNull final SyntaxTreeExecution tree, @NotNull final Node varDefinition) {
         final List<Node> values = varDefinition.children();
         if (values.size() == 3) {
             return new RVariable(

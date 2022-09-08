@@ -8,7 +8,7 @@ import org.crayne.mu.lang.Variable;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
@@ -54,7 +54,7 @@ public class Parser {
         evaluator = new ParserEvaluator(this);
     }
 
-    public SyntaxTree parse() {
+    public SyntaxTreeExecution parse() {
         encounteredError = false;
         evaluator = new ParserEvaluator(this);
         skim();
@@ -65,7 +65,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTree result = new SyntaxTree(parentModule(), parent, output, code, stdlibFinishLine);
+        final SyntaxTreeExecution result = new SyntaxTreeExecution(parentModule(), parent, output, code, stdlibFinishLine);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }

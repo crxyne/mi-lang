@@ -1,18 +1,18 @@
 package org.crayne.mu.runtime.lang.primitive;
 
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.jetbrains.annotations.NotNull;
 
 public class RVoid implements ROperand {
 
-    private final SyntaxTree runtime;
+    private final SyntaxTreeExecution runtime;
 
 
-    public SyntaxTree runtime() {
+    public SyntaxTreeExecution runtime() {
         return runtime;
     }
 
-    public RVoid(@NotNull final SyntaxTree runtime) {
+    public RVoid(@NotNull final SyntaxTreeExecution runtime) {
         this.runtime = runtime;
     }
 

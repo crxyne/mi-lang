@@ -1,13 +1,13 @@
 package org.crayne.mu.runtime.lang.primitive;
 
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.runtime.lang.RDatatype;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
 public interface ROperand {
 
-    SyntaxTree runtime();
+    SyntaxTreeExecution runtime();
 
     default RValue unexpectedOperator(final String op) {
         runtime().runtimeError("Unexpected operator '" + op + "'");
@@ -86,7 +86,7 @@ public interface ROperand {
         return unexpectedOperator(">=");
     }
 
-    static ROperand of(@NotNull final RDatatype type, @NotNull final SyntaxTree tree) {
+    static ROperand of(@NotNull final RDatatype type, @NotNull final SyntaxTreeExecution tree) {
         if (!type.primitive()) return new REnumOperand(tree); // because we currently only have enums as non primitive types
 
         return switch (type.getPrimitive()) {

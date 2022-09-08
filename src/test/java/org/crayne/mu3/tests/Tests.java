@@ -7,9 +7,7 @@ public class Tests {
 
     public static void main(@NotNull final String... args) {
         final String code = """
-                pub enum TestEnum {
-                    TEST
-                }
+                
                 
                 pub? true = 1b;
                 pub? false = 0b;
@@ -24,11 +22,13 @@ public class Tests {
                     pub nat fn println~ (string s) -> "org.crayne.mu.lang.stdlib.StandardLib";
                 }
                 
-                pub? test = 1 / 0;
+                pub? test = 1.0 / 0.0;
                 
                 STANDARDLIB_MU_FINISH_CODE;
                 
-                
+                pub enum TestEnum {
+                    TEST
+                }
                 
                 module helloworld {
                 

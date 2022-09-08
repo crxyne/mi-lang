@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Arrays;
 import java.util.List;
 
-public class SyntaxTree {
+public class SyntaxTreeExecution {
 
     private final Module parentModule;
     private final Node parentNode;
@@ -24,7 +24,7 @@ public class SyntaxTree {
     private final int stdlibFinishLine;
     private boolean error;
 
-    public SyntaxTree(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
+    public SyntaxTreeExecution(@NotNull final Module parentModule, @NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
         this.parentModule = parentModule;
         this.parentNode = parentNode;
         this.out = out;

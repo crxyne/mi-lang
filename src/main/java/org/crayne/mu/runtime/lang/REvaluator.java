@@ -5,15 +5,15 @@ import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.lexer.Tokenizer;
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
 public class REvaluator {
 
-    protected final SyntaxTree tree;
-    public REvaluator(@NotNull final SyntaxTree tree) {
+    protected final SyntaxTreeExecution tree;
+    public REvaluator(@NotNull final SyntaxTreeExecution tree) {
         this.tree = tree;
     }
 

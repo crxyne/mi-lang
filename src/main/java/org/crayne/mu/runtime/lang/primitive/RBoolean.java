@@ -1,17 +1,17 @@
 package org.crayne.mu.runtime.lang.primitive;
 
-import org.crayne.mu.runtime.SyntaxTree;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.runtime.lang.RValue;
 import org.jetbrains.annotations.NotNull;
 
 public class RBoolean implements ROperand {
 
-    private final SyntaxTree runtime;
-    public SyntaxTree runtime() {
+    private final SyntaxTreeExecution runtime;
+    public SyntaxTreeExecution runtime() {
         return runtime;
     }
 
-    public RBoolean(@NotNull final SyntaxTree runtime) {
+    public RBoolean(@NotNull final SyntaxTreeExecution runtime) {
         this.runtime = runtime;
     }
 

@@ -3,6 +3,8 @@ package org.crayne.mu.stdlib;
 import org.crayne.mu.lang.MuCallable;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.UUID;
+
 public class StandardLib {
 
     public static String standardLib() {
@@ -26,6 +28,8 @@ module std {
     pub nat fn print~ (bool b) -> "$stdclass";
     pub nat fn println~ (char c) -> "$stdclass";
     pub nat fn print~ (char c) -> "$stdclass";
+    pub nat fn sleep~ (long millis) -> "$stdclass";
+    pub nat fn random_uuid_long :: long () -> "$stdclass";
 
 }
 
@@ -52,7 +56,7 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(@NotNull final String str) {
-        System.out.println(str);
+        System.out.print(str);
     }
 
     @MuCallable
@@ -62,7 +66,7 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(final int i) {
-        System.out.println(i);
+        System.out.print(i);
     }
 
     @MuCallable
@@ -72,7 +76,7 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(final double d) {
-        System.out.println(d);
+        System.out.print(d);
     }
 
     @MuCallable
@@ -82,7 +86,7 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(final float f) {
-        System.out.println(f);
+        System.out.print(f);
     }
 
     @MuCallable
@@ -92,7 +96,7 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(final long l) {
-        System.out.println(l);
+        System.out.print(l);
     }
 
     @MuCallable
@@ -102,7 +106,7 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(final boolean b) {
-        System.out.println(b);
+        System.out.print(b);
     }
 
     @MuCallable
@@ -112,7 +116,17 @@ STANDARDLIB_MU_FINISH_CODE;
 
     @MuCallable
     public static void print(final char c) {
-        System.out.println(c);
+        System.out.print(c);
+    }
+
+    @MuCallable
+    public static void sleep(final long millis) throws InterruptedException {
+        Thread.sleep(millis);
+    }
+
+    @MuCallable
+    public static long random_uuid_long() {
+        return UUID.randomUUID().getMostSignificantBits();
     }
 
 }

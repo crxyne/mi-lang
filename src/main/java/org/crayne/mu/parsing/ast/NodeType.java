@@ -54,6 +54,8 @@ public enum NodeType {
     LITERAL_NAT("nat"),
     LITERAL_INTERN("intern"),
     LITERAL_CLASS("class"),
+    LITERAL_THIS("this"),
+    LITERAL_NEW("new"),
     LITERAL_TRY("try"),
     LITERAL_CATCH("catch"),
     LITERAL_IMPL("impl"),
@@ -61,8 +63,6 @@ public enum NodeType {
     LITERAL_TYPEDEF("typedef"),
     LITERAL_ABSTRACT("abstr"),
     LITERAL_VIRTUAL("virtual"),
-    LITERAL_THIS("this"),
-
 
     //statements simplified
     FUNCTION_CALL(null),

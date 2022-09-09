@@ -40,11 +40,7 @@ public class ParserEvaluator {
         final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
         final Token ident = result.child(1).value();
         final Optional<Scope> current = parser.scope();
-        if (!parser.stdlib && (current.isEmpty() || current.get().type() != ScopeType.MODULE)) {
-            parser.parserError("Cannot define global variables at root level", ident,
-                    "Move your variable into a module or create a new module for it");
-            return;
-        }
+
         final Datatype datatype = Datatype.of(parser, Collections.emptyList(), result.child(2).value());
         if (datatype == null) return;
         final boolean init = result.children().size() == 4;
@@ -58,6 +54,16 @@ public class ParserEvaluator {
                 init ? result.child(3) : null
         );
 
+        if (current.isPresent() && current.get() instanceof final ClassScope classScope) {
+            classScope.addVar(parser, var, ident);
+            return;
+        }
+
+        if (!parser.stdlib && (current.isEmpty() || current.get().type() != ScopeType.MODULE)) {
+            parser.parserError("Cannot define global variables at root level", ident,
+                    "Move your variable into a module or create a new module for it");
+            return;
+        }
         if (handleRestrictedName(ident)) return;
         module.addGlobalVariable(parser, var);
     }
@@ -85,6 +91,18 @@ public class ParserEvaluator {
         functionScope.addLocalVariable(parser, var, ident);
     }
 
+    protected void addClassFromResult(@NotNull final Node result) {
+        if (!parser.skimming) return;
+        final Module module = parser.lastModule();
+        final Token nameToken = result.child(0).value();
+        final ClassScope currentClass = parser.currentClass;
+        if (currentClass == null) {
+            parser.parserError("Unexpected parsing error, class without class scope", nameToken);
+            return;
+        }
+        module.addClass(parser, currentClass.createClass(), nameToken);
+    }
+
     protected void addFunctionFromResult(@NotNull final Node result) {
         if (!parser.skimming) return;
         final Module module = parser.lastModule();
@@ -108,6 +126,28 @@ public class ParserEvaluator {
 
             final Datatype datatype = Datatype.of(parser, result.child(1).value());
             if (datatype == null) throw new NullPointerException();
+
+            final Optional<Scope> current = parser.scope();
+            if (current.isPresent() && current.get() instanceof final ClassScope classScope) {
+                if (result.children().size() == 5) {
+                    classScope.addMethod(parser, nameToken, new FunctionDefinition(
+                            nameToken.token(),
+                            datatype,
+                            params,
+                            modifiers,
+                            module,
+                            result.child(4)
+                    ));
+                    return;
+                }
+                classScope.addMethod(parser, nameToken, new FunctionDefinition(
+                        nameToken.token(),
+                        datatype,
+                        params,
+                        modifiers,
+                        module
+                ));
+            }
 
             if (result.children().size() == 5) {
                 module.addFunction(parser, nameToken, new FunctionDefinition(
@@ -594,6 +634,12 @@ public class ParserEvaluator {
         if (!addedNode) {
             currentNode.addChildren(new Node(NodeType.MODIFIERS, currentNodeModifiers.stream().map(Node::of).toList()));
             result.add(currentNode);
+            result.forEach(n -> {
+                if (n.child(1).value() == null) {
+                    parser.parserError("Expected identifier after datatype", n.child(0).value(), true);
+                }
+            });
+            if (parser.encounteredError) return new ArrayList<>();
 
             final Set<String> duplicates = findFirstDuplicate(result.stream().map(n -> n.child(1).value().token()).toList());
             if (!duplicates.isEmpty()) {
@@ -648,7 +694,7 @@ public class ParserEvaluator {
                 return null;
             }
             final ScopeType currentType = current.get().type();
-            if (!parser.stdlib ? currentType != ScopeType.MODULE : currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
+            if (!parser.stdlib ? currentType != ScopeType.MODULE && currentType != ScopeType.CLASS : currentType != ScopeType.PARENT && currentType != ScopeType.MODULE && currentType != ScopeType.CLASS) {
                 if (parser.stdlib) {
                     parser.parserError("Expected function definition to be inside of a module or at root level",
                             "Cannot define functions inside of other functions");
@@ -1044,7 +1090,8 @@ public class ParserEvaluator {
         enumScope.module(parser.lastModule());
 
         return new Node(NodeType.CREATE_ENUM, identifier.actualLine(),
-                new Node(NodeType.IDENTIFIER, identifier)
+                new Node(NodeType.IDENTIFIER, identifier),
+                new Node(NodeType.MODIFIERS, modifiers)
         );
     }
 
@@ -1101,6 +1148,101 @@ public class ParserEvaluator {
             return null;
         }
         return enumScope;
+    }
+
+    public Node evalClassDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
+        final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
+        if (Parser.anyNull(lbrace, identifier)) return null;
+
+        if (expectModuleOrRoot(IdentifierType.CLASS)) return null;
+        final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
+        if (firstMutabilityModif.isPresent()) {
+            parser.parserError("Cannot declare classes as own, const or mut, they are automatically constant because they cannot be redefined",
+                    firstMutabilityModif.get().value());
+            return null;
+        }
+        final Optional<Scope> oldScope = parser.scope();
+        if (oldScope.isEmpty()) {
+            parser.parserError("Unexpected parsing error, null scope before adding a class", identifier);
+            return null;
+        }
+        if (parser.skimming && !parser.stdlib && (oldScope.get().type() != ScopeType.MODULE)) {
+            parser.parserError("Cannot define classes at root level", identifier,
+                    "Move your class into a module or create a new module for it");
+            return null;
+        }
+
+        parser.scope(ScopeType.CLASS);
+        final Optional<Scope> newScope = parser.scope();
+        if (newScope.isEmpty() || !(newScope.get() instanceof final ClassScope classScope)) {
+            parser.parserError("Unexpected parsing error, invalid scope after adding a class", identifier);
+            return null;
+        }
+        classScope.module(parser.lastModule());
+        classScope.name(identifier.token());
+        parser.currentClass = classScope;
+
+        return new Node(NodeType.CREATE_CLASS, identifier.actualLine(),
+                new Node(NodeType.IDENTIFIER, identifier),
+                new Node(NodeType.MODIFIERS, modifiers)
+        );
+    }
+
+    public Node evalNewStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        final Token newToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_NEW);
+        final Token parenOpen = parser.getAndExpect(tokens, 1, NodeType.LPAREN);
+        if (Parser.anyNull(newToken, parenOpen)) return null;
+
+        final Optional<Scope> current = parser.scope();
+        if (current.isEmpty() || !(current.get() instanceof final ClassScope classScope)) {
+            parser.parserError("Expected constructor to be inside of a class", newToken);
+            return null;
+        }
+
+        final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
+        if (firstMutabilityModif.isPresent()) {
+            parser.parserError("Cannot declare classes as own, const or mut, they are automatically constant because they cannot be redefined",
+                    firstMutabilityModif.get().value());
+            return null;
+        }
+        final List<Node> paramNodes = parseParametersDefineFunction(tokens.subList(2, tokens.size() - 2));
+        parser.scope(ScopeType.FUNCTION);
+        final Optional<Scope> funcScope = parser.scope();
+        if (funcScope.isPresent() && funcScope.get() instanceof final FunctionScope functionScope) {
+            for (final Node param : paramNodes) {
+                final Datatype pType = Datatype.of(parser, param.child(0).value());
+                if (pType == null) return null;
+                final String ident = param.child(1).value().token();
+                final List<Modifier> modifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
+                functionScope.addLocalVariable(parser, new LocalVariable(
+                        new Variable(
+                                ident, pType, modifs, null, true, null
+                        ), functionScope
+                ), param.child(0).value());
+            }
+            parser.currentFuncReturnType = Datatype.VOID;
+        }
+        if (!parser.skimming) {
+            final List<Modifier> modifiersNew = modifiers.stream().map(n -> Modifier.of(n.type())).toList();
+
+            final List<FunctionParameter> params = paramNodes.stream().map(n -> {
+                final Datatype datatype = Datatype.of(parser, n.child(0).value());
+                if (datatype == null) throw new NullPointerException();
+                return new FunctionParameter(
+                        datatype,
+                        n.child(1).value().token(),
+                        n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                );
+            }).toList();
+
+            final FunctionDefinition def = new FunctionDefinition("new", Datatype.VOID, params, modifiersNew, parser.currentParsingModule);
+            classScope.constructor(parser, def, newToken);
+        }
+        return new Node(NodeType.CREATE_CONSTRUCTOR, newToken.actualLine(),
+                new Node(NodeType.MODIFIERS, modifiers),
+                new Node(NodeType.PARAMETERS, paramNodes)
+        );
     }
 
 }

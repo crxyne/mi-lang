@@ -43,8 +43,7 @@ module termion {
 	
 }
 
-STANDARDLIB_MU_FINISH_CODE;
-"""
+STANDARDLIB_MU_FINISH_CODE;"""
                 .replace("$stdclass", StandardLib.class.getName())
                 .replace("$stdtermion", StdTermion.class.getName());
     }

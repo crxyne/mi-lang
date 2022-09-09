@@ -137,6 +137,7 @@ public class Parser {
     }
 
     private int scopeEndCheck = 0;
+    protected ClassScope currentClass;
 
     public Node evalStatement(@NotNull final List<Token> tokens, final boolean expectedUnscopedWhile) {
         if (tokens.isEmpty()) return null;
@@ -174,6 +175,7 @@ public class Parser {
 
                 switch (result.type()) {
                     case FUNCTION_DEFINITION -> evaluator.addFunctionFromResult(result);
+                    case CREATE_CLASS -> evaluator.addClassFromResult(result);
                     case IF_STATEMENT -> {
                         if (NodeType.of(currentToken) == NodeType.LITERAL_ELSE) {
                             skipToken();
@@ -216,12 +218,12 @@ public class Parser {
                                 case VAR_DEFINITION, VAR_DEF_AND_SET_VALUE -> evaluator.addLocalVarFromResult(result);
                             }
                         } else switch (current.get().type()) {
-                            case MODULE, PARENT -> {
+                            case MODULE, PARENT, CLASS -> {
                                 if (skimming) {
                                     switch (result.type()) {
                                         case VAR_DEFINITION -> {
                                             final List<Modifier> modifiers = result.child(0).children().stream().map(n -> Modifier.of(n.type())).toList();
-                                            if (Variable.isConstant(modifiers))
+                                            if (Variable.isConstant(modifiers) && current.get().type() != ScopeType.CLASS)
                                                 parserError("Expected value, global constant might not have been initialized yet", lastToken);
                                             evaluator.addGlobalVarFromResult(result);
                                         }
@@ -263,6 +265,8 @@ public class Parser {
             case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);
             case LITERAL_IF -> evaluator.evalIfStatement(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, false);
+            case LITERAL_CLASS -> evaluator.evalClassDefinition(tokens, modifiers);
+            case LITERAL_NEW -> evaluator.evalNewStatement(tokens, modifiers);
             case LITERAL_FOR -> evaluator.evalForStatement(tokens, modifiers);
             case LITERAL_DO -> evaluator.evalDoStatement(tokens, modifiers);
             case LITERAL_ENUM -> evaluator.evalEnumDefinition(tokens, modifiers);
@@ -428,6 +432,7 @@ public class Parser {
 
         if (type == ScopeType.FUNCTION) functionRootScope();
         else if (type == ScopeType.ENUM) enumScope();
+        else if (type == ScopeType.CLASS) classScope();
         else if (type == ScopeType.FOR || type == ScopeType.WHILE || type == ScopeType.DO) loopScope(type);
         else if (current.isPresent() && current.get() instanceof FunctionScope) functionScope(type);
         else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
@@ -448,6 +453,10 @@ public class Parser {
 
     private void enumScope() {
         currentScope.add(new EnumScope(ScopeType.ENUM, scopeIndent + 1, actualIndent + 1));
+    }
+
+    private void classScope() {
+        currentScope.add(new ClassScope(ScopeType.CLASS, scopeIndent + 1, actualIndent + 1));
     }
 
     private void functionScope(@NotNull final ScopeType type) {

@@ -11,6 +11,7 @@ public class Module {
     private final String name;
     private final int scopeIndent;
     private final List<Variable> globalModuleVariables;
+    private final List<MClass> classes;
     private final List<Module> subModules; // these HAVE TO be Lists, or else there could be runtime errors with illegal forward referencing
     private final HashSet<Enum> enums;
     private final HashSet<FunctionConcept> functionConcepts; // here the order would not matter
@@ -24,6 +25,7 @@ public class Module {
         this.subModules = new ArrayList<>();
         this.functionConcepts = new HashSet<>();
         this.enums = new HashSet<>();
+        this.classes = new ArrayList<>();
     }
 
     public int scopeIndent() {
@@ -41,6 +43,15 @@ public class Module {
             current = current.parent;
         }
         return result.toString();
+    }
+
+    public void addClass(@NotNull final Parser parser, @NotNull final MClass mClass, @NotNull final Token at) {
+        final Optional<MClass> alreadyExisting = classes.stream().filter(c -> c.name().equals(mClass.name())).findFirst();
+        if (alreadyExisting.isPresent()) {
+            parser.parserError("Class '" + mClass.name() + "' already exists in this module", "Rename your class or move either of the two to another module");
+            return;
+        }
+        classes.add(mClass);
     }
 
     public Module parent() {
@@ -124,11 +135,15 @@ public class Module {
 
     @Override
     public String toString() {
-        return "Module {" +
+        return "Module{" +
                 "name='" + name + '\'' +
+                ", scopeIndent=" + scopeIndent +
                 ", globalModuleVariables=" + globalModuleVariables +
-                ", functionConcepts=" + functionConcepts +
+                ", classes=" + classes +
                 ", subModules=" + subModules +
+                ", enums=" + enums +
+                ", functionConcepts=" + functionConcepts +
                 '}';
     }
+
 }

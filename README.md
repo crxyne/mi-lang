@@ -31,3 +31,24 @@ module helloworld {
 - assert, typedef and their combination for fast easy types
 - operator overloading as an option for already defined functions
 - calling mu functions from java, to allow for eventhandlers, etc
+
+## Java usage for application developers
+```java
+final Runtime runtime = new Runtime(
+                                System.out, // PrintStream, where to log errors, warnings, etc
+                                true // boolean, whether to use ansi escape codes for color (will only be useful if the output stream is a terminal environment)
+                        );
+
+try {
+    runtime.execute(
+              MuStandardLib.standardLib(), // String, standardlib to use for the mu script
+              code, // String, code to use, obviously
+              true, // boolean, whether to print java stacktraces during runtime, useful for debugging
+              mainFunc, // String, main function to run (for example "module.othermodule.main")
+              passInParams // Object[], passed in parameters for the main function (can only be primitive types)
+    );
+} catch (Throwable e) {
+    e.printStackTrace();
+}
+```
+

@@ -21,7 +21,7 @@ module helloworld {
 #### FEATURES:
 
 - basic strongly typed programming language features (types, functions, namespaces / modules / packages whatever you call them, etc)
-- communication with java for easy scripting in any java project
+- (currently one sided) communication with java for easy scripting in any java project
 
 #### TODOS:
 - bytecode generator & parser, for faster startup times (especially needed since this is designed for plugin systems or similar)

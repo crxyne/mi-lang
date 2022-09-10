@@ -52,7 +52,8 @@ try {
 }
 ```
 
-## Usage for Mu users (barebones mu execution with no plugin system), example with the rainbow.mu program found in /examples
+## Usage for Mu users 
+#### (barebones mu execution with no plugin system), example with the rainbow.mu program found in /examples
 ```sh
 java -Xmx2G -Xms2G -jar mu.jar file='examples/rainbow.mu' main=testing.main pass=10 pass='hello, world!'
 ```

@@ -24,6 +24,7 @@ module helloworld {
 - communication with java for easy scripting in any java project
 
 #### TODOS:
+- bytecode generator & parser, for faster execution times (especially needed since this is designed for plugin systems or similar)
 - classes, inheritance, polymorphism
 - generics, for stuff like Option<T>, List<T>, Map<K, V>, Result<T>, etc
 - macros / impls, something to insert code in front of a function

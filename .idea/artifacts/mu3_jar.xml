@@ -1,7 +1,7 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="mu3:jar">
-    <output-path>$PROJECT_DIR$</output-path>
-    <root id="archive" name="mu3.jar">
+    <output-path>$PROJECT_DIR$/release</output-path>
+    <root id="archive" name="mu.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/src/main/resources/META-INF/MANIFEST.MF" />
       </element>

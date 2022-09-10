@@ -1,6 +1,6 @@
 module testing {
 	
-	pub fn main {
+	pub fn main :: void () {
 		std.println("hello, world!");
 	}
 	

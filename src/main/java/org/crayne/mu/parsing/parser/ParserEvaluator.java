@@ -727,7 +727,7 @@ public class ParserEvaluator {
         else {
             final Token returnToken = parser.getAndExpect(tokens, 3,
                     Arrays.stream(NodeType.values())
-                            .filter(NodeType::isDatatype)
+                            .filter(t -> t.isDatatype() || t == NodeType.LITERAL_VOID)
                             .toList()
                             .toArray(new NodeType[0]));
             if (returnToken == null) return null;

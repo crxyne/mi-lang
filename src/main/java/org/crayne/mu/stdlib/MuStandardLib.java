@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public class StandardLib {
+public class MuStandardLib {
 
     public static String standardLib() {
         return """
@@ -44,7 +44,7 @@ module termion {
 }
 
 STANDARDLIB_MU_FINISH_CODE;"""
-                .replace("$stdclass", StandardLib.class.getName())
+                .replace("$stdclass", MuStandardLib.class.getName())
                 .replace("$stdtermion", StdTermion.class.getName());
     }
 

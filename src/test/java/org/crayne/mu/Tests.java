@@ -2,7 +2,7 @@ package org.crayne.mu;
 
 import org.crayne.mu.runtime.Runtime;
 import org.crayne.mu.runtime.SyntaxTreeExecution;
-import org.crayne.mu.stdlib.StandardLib;
+import org.crayne.mu.stdlib.MuStandardLib;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -30,7 +30,7 @@ public class Tests {
                 
                 }
                 """;
-        final Optional<SyntaxTreeExecution> tree = runtime.parse(StandardLib.standardLib() + code + "\n");
+        final Optional<SyntaxTreeExecution> tree = runtime.parse(MuStandardLib.standardLib(), code);
         tree.ifPresent(ast -> {
            // System.out.println(ast.getAST());
            // System.out.println(ast.getParentModule());

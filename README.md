@@ -43,12 +43,17 @@ try {
     runtime.execute(
               MuStandardLib.standardLib(), // String, standardlib to use for the mu script
               code, // String, code to use, obviously
-              true, // boolean, whether to print java stacktraces during runtime, useful for debugging
+              true, // boolean, whether to print java stacktraces during runtime, useful for debugging (optional, can be left out)
               mainFunc, // String, main function to run (for example "module.othermodule.main")
-              passInParams // Object[], passed in parameters for the main function (can only be primitive types)
+              passInParams // Object... , passed in parameters for the main function (can only be primitive types) (optional, can be left out)
     );
 } catch (Throwable e) {
     e.printStackTrace();
 }
 ```
 
+## Usage for Mu users (barebones mu execution with no plugin system), example with the rainbow.mu program found in /examples
+```sh
+java -Xmx2G -Xms2G -jar mu3.jar file='rainbow.mu' main=testing.main pass=10 pass='hello, world!'
+```
+With `file='somefile.mu'` you declare the file input. Using the `main=module.main` argument, you can define which function is executed, along with `pass`, which will be the passed in arguments for the main function, in their order. This example would call the main fn of rainbow.mu like so: `main("10", "hello, world!");`. Note that every passed in argument is a string here.

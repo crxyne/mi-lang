@@ -1,4 +1,5 @@
 # mu-lang
+![mu-360x](https://user-images.githubusercontent.com/78901876/189482171-7b1edb93-02b4-47b0-a711-37238a9ff871.png)
 
 Scripting language designed to communicate with java, to allow for easy plugins, addons, etc in any project, all without having to create an entire programming language for it. Plugin / Addon developers don't need to create an entire java project for small things either, making life easier for both sides. Syntactically inspired by rust (pretty much only the keywords) but structure-wise it feels like simply writing java code with less code for same output.
 
@@ -16,5 +17,17 @@ module helloworld {
 
 }
 
-```![mu]((https://github.com/crxyne/mu-lang/blob/master/mu.png)
+```
 
+#### FEATURES:
+
+- basic strongly typed programming language features (types, functions, namespaces / modules / packages whatever you call them, etc)
+- communication with java for easy scripting in any java project
+
+#### TODOS:
+- classes, inheritance, polymorphism
+- generics, for stuff like Option<T>, List<T>, Map<K, V>, Result<T>, etc
+- macros / impls, something to insert code in front of a function
+- assert, typedef and their combination for fast easy types
+- operator overloading as an option for already defined functions
+- calling mu functions from java, to allow for eventhandlers, etc

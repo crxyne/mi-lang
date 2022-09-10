@@ -16,5 +16,5 @@ module helloworld {
 
 }
 
-```![mu](https://user-images.githubusercontent.com/78901876/189481459-e25c4c11-5191-4d86-b08d-208b32f55661.png)
+```![mu]((https://github.com/crxyne/mu-lang/blob/master/mu.png)
 

@@ -1,5 +1,5 @@
 # mu-lang
-![mu-360x](https://user-images.githubusercontent.com/78901876/189482171-7b1edb93-02b4-47b0-a711-37238a9ff871.png)
+![mu-360x](https://user-images.githubusercontent.com/78901876/189482231-48296aa8-5125-459b-8831-10d483025579.png)
 
 Scripting language designed to communicate with java, to allow for easy plugins, addons, etc in any project, all without having to create an entire programming language for it. Plugin / Addon developers don't need to create an entire java project for small things either, making life easier for both sides. Syntactically inspired by rust (pretty much only the keywords) but structure-wise it feels like simply writing java code with less code for same output.
 

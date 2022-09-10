@@ -13,7 +13,7 @@ public class TracebackElement {
         this.line = line;
         this.lineNoStandardLib = line - tree.getStdlibFinishLine();
         final String getline = tree.getLine(line);
-        this.lineStr = getline == null ? null : "\"" + getline + "\"";
+        this.lineStr = getline == null ? null : "\"" + getline.trim() + "\"";
     }
 
     public String toString() {

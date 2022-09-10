@@ -38,7 +38,7 @@ public class Tokenizer {
     private boolean encounteredError = false;
     private boolean unfinishedTextLiteral = false;
 
-    private Tokenizer(@NotNull final MessageHandler output) {
+    public Tokenizer(@NotNull final MessageHandler output) {
         this.output = output;
         this.multiSpecial = new ArrayList<>();
     }

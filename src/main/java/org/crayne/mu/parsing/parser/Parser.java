@@ -175,7 +175,7 @@ public class Parser {
 
                 switch (result.type()) {
                     case FUNCTION_DEFINITION -> evaluator.addFunctionFromResult(result);
-                    case CREATE_CLASS -> evaluator.addClassFromResult(result);
+                    //case CREATE_CLASS -> evaluator.addClassFromResult(result);
                     case IF_STATEMENT -> {
                         if (NodeType.of(currentToken) == NodeType.LITERAL_ELSE) {
                             skipToken();
@@ -265,7 +265,7 @@ public class Parser {
             case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);
             case LITERAL_IF -> evaluator.evalIfStatement(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, false);
-            case LITERAL_CLASS -> evaluator.evalClassDefinition(tokens, modifiers);
+            //case LITERAL_CLASS -> evaluator.evalClassDefinition(tokens, modifiers);
             case LITERAL_NEW -> evaluator.evalNewStatement(tokens, modifiers);
             case LITERAL_FOR -> evaluator.evalForStatement(tokens, modifiers);
             case LITERAL_DO -> evaluator.evalDoStatement(tokens, modifiers);

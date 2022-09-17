@@ -526,12 +526,17 @@ public class ParserEvaluator {
         }
         final ValueParser.TypedNode value = parseExpression(tokens.subList(3, tokens.size() - 1));
         if (value.type() == null || value.node() == null) return null;
+        if (NodeType.of(datatype) == NodeType.QUESTION_MARK && value.type() == Datatype.NULL) {
+            parser.parserError("Unexpected token '?', expected a definite datatype", datatype,
+                    "The '?' cannot be used as a datatype when there is a direct literal null specified, so change the datatype to a definite.");
+            return null;
+        }
 
         final Node finalType = indefinite
                 ? new Node(NodeType.TYPE, Token.of(value.type().getName()))
                 : new Node(NodeType.TYPE, datatype);
 
-        if (!indefinite && !value.type().equals(Objects.requireNonNull(Datatype.of(parser, finalType.value())))) {
+        if (!indefinite && !Datatype.equal(value.type(), Objects.requireNonNull(Datatype.of(parser, finalType.value())))) {
             parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type().getName() + " to a " + datatype.token() + " variable.", datatype,
                     "Change the datatype to the correct one, try casting values inside the expression to the needed datatype or set the variable type to '?'.");
             return null;

@@ -128,10 +128,10 @@ public class Datatype {
 
     public static boolean equal(@NotNull final Datatype newType, @NotNull final Datatype oldType) {
         if (newType == oldType) return true;
+        if (newType.primitiveDatatype == PrimitiveDatatype.NULL) return true;
         if ((newType.primitive && !oldType.primitive) || (!newType.primitive && oldType.primitive)) return false;
         if (newType.primitiveDatatype == null) return newType.enumDatatype.equals(oldType.enumDatatype);
         if (oldType.primitiveDatatype == null) return false;
-        if (newType.primitiveDatatype == PrimitiveDatatype.NULL) return true;
 
         final Integer newRank = datatypeRanking.get(newType.primitiveDatatype.name());
         final Integer oldRank = datatypeRanking.get(oldType.primitiveDatatype.name());

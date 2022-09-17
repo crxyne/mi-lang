@@ -20,20 +20,23 @@ import java.util.stream.Collectors;
 public class FunctionScope extends Scope {
 
     private final List<LocalVariable> localVariables;
+    private final FunctionDefinition definition;
     protected final FunctionScope parent;
     private final Map<Integer, List<String>> using = new ConcurrentHashMap<>();
     private boolean reachedEnd;
 
-    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent) {
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final FunctionDefinition definition) {
         super(type, scopeIndent, actualIndent);
         this.localVariables = new ArrayList<>();
         this.parent = parent;
+        this.definition = definition;
     }
 
-    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final List<String> using) {
+    public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final List<String> using, @NotNull final FunctionDefinition definition) {
         super(type, scopeIndent, actualIndent);
         this.localVariables = new ArrayList<>();
         this.parent = parent;
+        this.definition = definition;
         for (final String use : using) using(use);
     }
 
@@ -41,12 +44,14 @@ public class FunctionScope extends Scope {
         super(type, scopeIndent, actualIndent);
         this.localVariables = localVariables;
         this.parent = parent;
+        this.definition = parent.definition;
     }
 
     public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent, @NotNull final List<String> using) {
         super(type, scopeIndent, actualIndent);
         this.localVariables = localVariables;
         this.parent = parent;
+        this.definition = parent.definition;
         for (final String use : using) using(use);
     }
 
@@ -64,6 +69,10 @@ public class FunctionScope extends Scope {
 
     private static boolean isConditionalScope(@NotNull final ScopeType type) {
         return type == ScopeType.IF || type == ScopeType.FOR || type == ScopeType.WHILE || type == ScopeType.DO;
+    }
+
+    public FunctionDefinition definition() {
+        return definition;
     }
 
     public void reachedEnd() {
@@ -266,7 +275,8 @@ public class FunctionScope extends Scope {
     @Override
     public String toString() {
         return "FunctionScope{" +
-                "localVariables=" + localVariables +
+                "name=" + definition.name() +
+                ", localVariables=" + localVariables +
                 ", parent=" + parent +
                 ", actualIndent=" + actualIndent +
                 ", type=" + type +

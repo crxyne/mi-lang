@@ -1,10 +1,8 @@
 package org.crayne.mu.parsing.parser;
 
 import org.apache.commons.lang3.StringUtils;
-import org.crayne.mu.lang.Datatype;
-import org.crayne.mu.lang.Modifier;
+import org.crayne.mu.lang.*;
 import org.crayne.mu.lang.Module;
-import org.crayne.mu.lang.Variable;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
@@ -430,16 +428,15 @@ public class Parser {
     protected void scope(@NotNull final ScopeType type) {
         final Optional<Scope> current = scope();
 
-        if (type == ScopeType.FUNCTION) functionRootScope();
-        else if (type == ScopeType.ENUM) enumScope();
+        if (type == ScopeType.ENUM) enumScope();
         else if (type == ScopeType.CLASS) classScope();
         else if (type == ScopeType.FOR || type == ScopeType.WHILE || type == ScopeType.DO) loopScope(type);
         else if (current.isPresent() && current.get() instanceof FunctionScope) functionScope(type);
         else currentScope.add(new Scope(type, scopeIndent + 1, actualIndent + 1));
     }
 
-    private void functionRootScope() {
-        currentScope.add(new FunctionScope(ScopeType.FUNCTION, scopeIndent + 1, actualIndent + 1, null));
+    protected void functionRootScope(@NotNull final FunctionDefinition definition) {
+        currentScope.add(new FunctionScope(ScopeType.FUNCTION, scopeIndent + 1, actualIndent + 1, null, definition));
     }
 
     private void loopScope(@NotNull final ScopeType type) {
@@ -466,7 +463,7 @@ public class Parser {
             final FunctionScope functionScope = (FunctionScope) scope;
 
             if (scope instanceof final LoopScope loopScope) currentScope.add(new LoopScope(type, scopeIndent + 1, actualIndent + 1, loopScope, functionScope.using()));
-            else currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, (FunctionScope) scope, functionScope.using()));
+            else currentScope.add(new FunctionScope(type, scopeIndent + 1, actualIndent + 1, Collections.emptyList(), (FunctionScope) scope, functionScope.using()));
         });
     }
 

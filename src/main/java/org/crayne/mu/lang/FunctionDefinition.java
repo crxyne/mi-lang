@@ -17,14 +17,16 @@ public class FunctionDefinition {
     private Method nativeMethod;
     private Class<?> nativeCallClass;
     private final Module module;
+    private final boolean simulated;
 
     public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
-                              @NotNull final List<Modifier> modifiers, @NotNull final Module module) {
+                              @NotNull final List<Modifier> modifiers, @NotNull final Module module, final boolean simulated) {
         this.name = name;
         this.returnType = returnType;
         this.parameters = parameters;
         this.modifiers = modifiers;
         this.module = module;
+        this.simulated = simulated;
     }
 
     public FunctionDefinition(@NotNull final String name, @NotNull final Datatype returnType, @NotNull final List<FunctionParameter> parameters,
@@ -36,6 +38,7 @@ public class FunctionDefinition {
         this.module = module;
         this.nativeMethod = nativeMethod;
         this.nativeCallClass = nativeCallClass;
+        this.simulated = false;
     }
 
 
@@ -47,10 +50,15 @@ public class FunctionDefinition {
         this.modifiers = modifiers;
         this.module = module;
         this.scope = scope;
+        this.simulated = false;
     }
 
     public void scope(@NotNull final Node scope) {
         this.scope = scope;
+    }
+
+    public boolean simulated() {
+        return simulated;
     }
 
     public Method nativeMethod() {
@@ -93,6 +101,15 @@ public class FunctionDefinition {
         );
     }
 
+    public static Token asIdentifierToken(@NotNull final Module module, @NotNull final Token identifierTok) {
+        return new Token(
+                module.fullName() + "." + identifierTok.token(),
+                identifierTok.actualLine(),
+                identifierTok.line(),
+                identifierTok.column()
+        );
+    }
+
     @Override
     public String toString() {
         return "FunctionDefinition{" +
@@ -101,6 +118,7 @@ public class FunctionDefinition {
                 ", parameters=" + parameters +
                 ", modifiers=" + modifiers +
                 ", scope=" + scope +
+                ", module=" + module.fullName() +
                 ", nativeMethod=" + (nativeMethod != null ? (nativeMethod.getDeclaringClass().getName() + "." + nativeMethod.getName()) : null) +
                 '}';
     }

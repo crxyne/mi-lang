@@ -96,6 +96,7 @@ public class RModule {
                         .map(FunctionConcept::definitions)
                         .flatMap(HashSet::stream)
                         .map(RFunction::of)
+                        .filter(Objects::nonNull)
         );
     }
 

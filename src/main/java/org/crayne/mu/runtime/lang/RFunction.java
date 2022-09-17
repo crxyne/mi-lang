@@ -71,7 +71,10 @@ public class RFunction {
     }
 
     public static RFunction of(@NotNull final FunctionDefinition f) {
-        if (f.scope() == null) return new RNativeFunction(f.name(), f.returnType(), f.parameters(), f.nativeMethod(), f.nativeCallClass());
+        if (f.scope() == null) {
+            if (f.nativeMethod() == null) return null;
+            return new RNativeFunction(f.name(), f.returnType(), f.parameters(), f.nativeMethod(), f.nativeCallClass());
+        }
         return new RFunction(f.name(), f.returnType(), f.parameters(), f.scope());
     }
 

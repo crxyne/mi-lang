@@ -40,9 +40,15 @@ public class Runtime {
         return Optional.ofNullable(parser.parse());
     }
 
-    public void execute(@NotNull final String stdlib, @NotNull final String code, final boolean printStackTraces, @NotNull final String mainFunc, @NotNull final Object... args) throws Throwable {
+    public void execute(@NotNull final String stdlib, @NotNull final String code, final boolean printStackTraces, @NotNull final String mainFunc, @NotNull final Object... args) {
         final Optional<SyntaxTreeExecution> tree = parse(stdlib, code, printStackTraces);
-        if (tree.isPresent()) tree.get().execute(mainFunc, List.of(args));
+        if (tree.isPresent()) {
+            try {
+                tree.get().execute(mainFunc, List.of(args));
+            } catch (Throwable e) {
+                tree.get().runtimeError("Fatal Mu error encountered: " + e.getClass().getSimpleName() + " " + e.getMessage());
+            }
+        }
     }
 
 }

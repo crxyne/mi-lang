@@ -107,11 +107,7 @@ public class MuLang {
         final Optional<String> code = readCode(inputFile.get(), messageHandler);
         if (code.isEmpty()) return;
 
-        try {
-            runtime.execute(MuStandardLib.standardLib(), code.get(), true, mainFunc.get(), passInParams);
-        } catch (Throwable e) {
-            messageHandler.errorMsg(e.getMessage());
-        }
+        runtime.execute(MuStandardLib.standardLib(), code.get(), true, mainFunc.get(), passInParams);
     }
 
 }

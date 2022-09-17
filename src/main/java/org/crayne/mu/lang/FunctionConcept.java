@@ -31,6 +31,10 @@ public class FunctionConcept {
         return name;
     }
 
+    public void removeDefinition(@NotNull final FunctionDefinition def) {
+        definitions.remove(def);
+    }
+
     public Optional<FunctionDefinition> definitionByParameters(@NotNull final List<FunctionParameter> parameters) {
         for (@NotNull final FunctionDefinition def : definitions) {
             if (FunctionParameter.equalParams(def.parameters(), parameters)) return Optional.of(def);

@@ -145,7 +145,8 @@ public class ParserEvaluator {
                         datatype,
                         params,
                         modifiers,
-                        module
+                        module,
+                        false
                 ));
             }
 
@@ -165,7 +166,8 @@ public class ParserEvaluator {
                     datatype,
                     params,
                     modifiers,
-                    module
+                    module,
+                    false
             ));
         } catch (final NullPointerException e) {
             e.printStackTrace();
@@ -458,14 +460,14 @@ public class ParserEvaluator {
 
         final Module functionModule = ofunctionModule.get();
         final String function = identOf(identifier);
-        Optional<FunctionConcept> funcConcept = functionModule.findFunctionConceptByName(function);
+        Optional<FunctionConcept> funcConcept = functionModule.findFunctionConceptByName(parser, identifierTok);
 
         if (funcConcept.isEmpty()) {
             if (checkUsing) {
                 for (final String using : functionScope.using()) {
                     final Optional<Module> mod = parser.parentModule().subModules().stream().filter(m -> m.name().equals(using)).findFirst();
                     if (mod.isEmpty()) continue;
-                    final Optional<FunctionConcept> findUsing = mod.get().findFunctionConceptByName(identifier);
+                    final Optional<FunctionConcept> findUsing = mod.get().findFunctionConceptByName(parser, identifierTok);
                     if (findUsing.isPresent()) {
                         funcConcept = findUsing;
                         break;
@@ -473,7 +475,7 @@ public class ParserEvaluator {
                 }
             }
         }
-        if (funcConcept.isEmpty()) funcConcept = parser.currentParsingModule != null ? parser.currentParsingModule.findFunctionConceptByName(identifier) : Optional.empty();
+        if (funcConcept.isEmpty()) funcConcept = parser.currentParsingModule != null ? parser.currentParsingModule.findFunctionConceptByName(parser, identifierTok) : Optional.empty();
         if (funcConcept.isEmpty()) {
             if (panic) parser.parserError("Cannot find any function called '" + function + "' in module '" +
                     (moduleAsString.isEmpty() ? parser.lastModule().name() : moduleAsString) + "'", identifierTok.line(), identifierTok.column() + moduleAsString.length());
@@ -711,13 +713,13 @@ public class ParserEvaluator {
                 return null;
             }
         }
-
+        final List<Modifier> modifs = modifiers.stream().map(n -> Modifier.of(n.type())).toList();
         if (ret == NodeType.LBRACE) {
             if (nativeFunc) {
                 parser.parserError("Expected ';' after native function definition", last);
                 return null;
             }
-            parser.scope(ScopeType.FUNCTION);
+            parser.functionRootScope(new FunctionDefinition(identifier.token(), Datatype.VOID, Collections.emptyList(), modifs, parser.skimming ? parser.lastModule() : parser.currentParsingModule, true));
             parser.currentFuncReturnType = Datatype.VOID;
             return new Node(NodeType.FUNCTION_DEFINITION, identifier.actualLine(),
                     new Node(NodeType.IDENTIFIER, identifier),
@@ -749,17 +751,28 @@ public class ParserEvaluator {
 
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 2));
 
-        parser.scope(ScopeType.FUNCTION);
+        final List<FunctionParameter> parameters = params.stream().map(n -> {
+            final Datatype datatype = Datatype.of(parser, n.child(0).value());
+            if (datatype == null) throw new NullPointerException();
+            return new FunctionParameter(
+                    datatype,
+                    n.child(1).value().token(),
+                    n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+            );
+        }).toList();
+
+        parser.functionRootScope(new FunctionDefinition(identifier.token(), returnType, parameters, modifs, parser.skimming ? parser.lastModule() : parser.currentParsingModule, true));
+
         final Optional<Scope> current = parser.scope();
         if (current.isPresent() && current.get() instanceof final FunctionScope functionScope) {
             for (final Node param : params) {
                 final Datatype pType = Datatype.of(parser, param.child(0).value());
                 if (pType == null) return null;
                 final String ident = param.child(1).value().token();
-                final List<Modifier> modifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
+                final List<Modifier> paramModifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
                 functionScope.addLocalVariable(parser, new LocalVariable(
                         new Variable(
-                                ident, pType, modifs, null, true, null
+                                ident, pType, paramModifs, null, true, null
                         ), functionScope
                 ), param.child(0).value());
             }
@@ -1243,7 +1256,7 @@ public class ParserEvaluator {
                 );
             }).toList();
 
-            final FunctionDefinition def = new FunctionDefinition("new", Datatype.VOID, params, modifiersNew, parser.currentParsingModule);
+            final FunctionDefinition def = new FunctionDefinition("new", Datatype.VOID, params, modifiersNew, parser.currentParsingModule, false);
             classScope.constructor(parser, def, newToken);
         }
         return new Node(NodeType.CREATE_CONSTRUCTOR, newToken.actualLine(),

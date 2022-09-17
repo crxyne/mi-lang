@@ -33,7 +33,7 @@ public class Traceback {
         Collections.reverse(asStringList);
 
         return "Mu-Lang Traceback helper\n" + (
-                String.join("\n", new LinkedHashSet<>(asStringList))
+                String.join("\n", asStringList)
         ).indent(4);
     }
 

@@ -2,6 +2,7 @@ package org.crayne.mu.parsing.parser.scope;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collections;
 import java.util.List;
 
 public class LoopScope extends FunctionScope {
@@ -9,11 +10,11 @@ public class LoopScope extends FunctionScope {
     private boolean reachedBreakOrContinue;
 
     public LoopScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent) {
-        super(type, scopeIndent, actualIndent, parent);
+        super(type, scopeIndent, actualIndent, Collections.emptyList(), parent);
     }
 
     public LoopScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, final FunctionScope parent, @NotNull final List<String> using) {
-        super(type, scopeIndent, actualIndent, parent, using);
+        super(type, scopeIndent, actualIndent, Collections.emptyList(), parent, using);
     }
 
     public void reachedLoopStepBreak() {

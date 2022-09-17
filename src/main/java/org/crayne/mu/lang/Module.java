@@ -2,6 +2,9 @@ package org.crayne.mu.lang;
 
 import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.Parser;
+import org.crayne.mu.parsing.parser.ParserEvaluator;
+import org.crayne.mu.parsing.parser.scope.FunctionScope;
+import org.crayne.mu.parsing.parser.scope.Scope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -64,8 +67,12 @@ public class Module {
             if (functionConcept.equals(concept)) {
                 final Optional<FunctionDefinition> alreadyExistingDef = functionConcept.definitionByParameters(def.parameters());
                 if (alreadyExistingDef.isPresent()) {
-                    parser.parserError("A function with the same parameters already exists", at, "Change either of the function names");
-                    return;
+                    if (alreadyExistingDef.get().simulated()) {
+                        functionConcept.removeDefinition(alreadyExistingDef.get());
+                    } else {
+                        parser.parserError("A function with the same parameters already exists", at, "Change either of the function names");
+                        return;
+                    }
                 }
                 functionConcept.addDefinition(def);
                 return;
@@ -117,8 +124,22 @@ public class Module {
         return modules.stream().filter(m -> m.name.equals(mod)).findFirst().orElse(null);
     }
 
-    public Optional<FunctionConcept> findFunctionConceptByName(@NotNull final String name) {
+    public Optional<FunctionConcept> findRawFunctionConcept(@NotNull final String name) {
         return functionConcepts.stream().filter(f -> f.name().equals(name)).findFirst();
+    }
+
+    public Optional<FunctionConcept> findFunctionConceptByName(@NotNull final Parser parser, @NotNull final Token name) {
+        final String nameStr = ParserEvaluator.identOf(name.token());
+        final Optional<FunctionConcept> found = functionConcepts.stream().filter(f -> f.name().equals(nameStr)).findFirst();
+        if (found.isEmpty()) {
+            final Optional<Scope> currentScope = parser.scope();
+            if (currentScope.isPresent() && currentScope.get() instanceof final FunctionScope functionScope
+                    && functionScope.definition().name().equals(name.token()) && findRawFunctionConcept(name.token()).isEmpty()) {
+                addFunction(parser, name, functionScope.definition());
+                return functionConcepts.stream().filter(f -> f.name().equals(nameStr)).findFirst();
+            }
+        }
+        return found;
     }
 
     public List<Module> subModules() {

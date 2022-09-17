@@ -242,102 +242,6 @@ public class ValueParser {
         });
     }
 
-    private TypedNode parseParenthesis() {
-        final TypedNode parenthesisExpr = parseExpression();
-        if (currentToken == null || NodeType.of(currentToken) != NodeType.RPAREN) {
-            parserParent.parserError("Expected ')' after expression in parenthesis", expr.get(parsingPosition - 1));
-            return TypedNode.empty();
-        }
-        nextPart();
-        return parenthesisExpr;
-    }
-
-    private TypedNode parseFunctionCall(@NotNull final Token prev) {
-        final List<TypedNode> parsedArgs = parseArgs();
-        if (parsedArgs == null || parserParent.encounteredError) return TypedNode.empty();
-
-        final FunctionDefinition def = parserParent.evaluator().checkValidFunctionCall(prev, parsedArgs, true, true);
-        if (def == null) return new TypedNode(null, new Node(NodeType.VALUE));
-
-        final Datatype retType = def.returnType();
-        if (retType == Datatype.VOID) {
-            parserParent.parserError("Usage of void function as a value in expression", prev);
-            return TypedNode.empty();
-        }
-        return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL, prev.actualLine(),
-                new Node(NodeType.IDENTIFIER, prev),
-                new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())
-        ));
-    }
-
-    private TypedNode parseEnumMember(@NotNull final Token prev) {
-        nextPart();
-        if (currentToken == null) {
-            parserParent.parserError("Expected identifier after '::'");
-            return TypedNode.empty();
-        }
-        final Optional<Scope> scope = parserParent.scope();
-        final FunctionScope functionScope = scope.isPresent() && scope.get() instanceof FunctionScope ? (FunctionScope) scope.get() : null;
-
-        final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope != null ? functionScope.using() : Collections.emptyList(), prev, true);
-        if (foundEnum == null) return new TypedNode(null, new Node(NodeType.VALUE));
-
-        if (!foundEnum.members().contains(currentToken.token())) {
-            parserParent.parserError("Enum '" + prev.token() + "' does not have member '" + currentToken.token() + "'", currentToken);
-            return TypedNode.empty();
-        }
-        final Datatype datatype = new Datatype(parserParent, prev);
-
-        return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER, prev.actualLine(),
-                new Node(NodeType.IDENTIFIER, prev),
-                new Node(NodeType.MEMBER, currentToken)
-        ));
-    }
-
-    private TypedNode parseVariableSet(@NotNull final Token prev) {
-        final NodeType currentTokenType = NodeType.of(currentToken);
-        nextPart();
-
-        final Optional<Variable> findVar = parserParent.evaluator().findVariable(prev, true);
-        if (findVar.isEmpty()) return new TypedNode(null, new Node(NodeType.VALUE));
-
-        final TypedNode val = currentTokenType == NodeType.INCREMENT_LITERAL || currentTokenType == NodeType.DECREMENT_LITERAL
-                ? new TypedNode(Datatype.INT, new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1")))
-                : parseExpression();
-
-        return new TypedNode(findVar.get().type(), parserParent.evaluator().evalVariableChange(prev, val, currentToken, findVar.get()));
-    }
-
-    private Optional<TypedNode> parseIdentifierSuffix(@NotNull final Token prev) {
-        if (currentToken == null) return Optional.empty();
-        final NodeType currentTokenType = NodeType.of(currentToken);
-
-        return Optional.ofNullable(switch (currentTokenType) {
-            case LPAREN -> parseFunctionCall(prev);
-            case DOUBLE_COLON -> parseEnumMember(prev);
-            case SET, SET_ADD, SET_AND,
-                    SET_DIV, SET_LSHIFT, SET_OR,
-                    SET_MOD, SET_MULT, SET_RSHIFT,
-                    SET_SUB, SET_XOR, INCREMENT_LITERAL,
-                    DECREMENT_LITERAL -> parseVariableSet(prev);
-            default -> null;
-        });
-    }
-
-    private TypedNode parseIdentifier(@NotNull final Token prev) {
-        final Optional<TypedNode> withSuffix = parseIdentifierSuffix(prev);
-        if (withSuffix.isPresent()) return withSuffix.get();
-
-        final Optional<Variable> findVar = parserParent.evaluator().findVariable(prev, true);
-        if (findVar.isEmpty()) return TypedNode.empty();
-
-        if (!findVar.get().initialized()) {
-            parserParent.parserError("Variable '" + prev.token() + "' might not have been initialized yet", prev, "Set the value of the variable upon declaration");
-            return TypedNode.empty();
-        }
-        return new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, prev)); // there was no ::, ( or x= after the variable, so just get the variable value here
-    }
-
     private TypedNode evalEnumMember(@NotNull final Token nextPart) {
         final Token enumMember = expr.get(parsingPosition + 2);
         if (NodeType.of(enumMember) == NodeType.IDENTIFIER) {
@@ -448,7 +352,8 @@ public class ValueParser {
             case LPAREN -> {
                 nextPart();
                 final TypedNode result = parseExpression();
-                if (!currentToken.token().equals(")")) parserParent.parserError("Expected ')' after expression in parenthesis", expr.get(expr.size() - 1));
+                if (!currentToken.token().equals(")"))
+                    parserParent.parserError("Expected ')' after expression in parenthesis", expr.get(expr.size() - 1));
                 nextPart();
                 return result;
             }
@@ -466,13 +371,6 @@ public class ValueParser {
                 return new TypedNode(datatype, new Node(nodeType, result));
             }
         }
-    }
-
-    private TypedNode parseLiteralFactor(final Token prev) {
-        final NodeType nodeType = prev == null ? null : NodeType.of(prev.token());
-        final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(parserParent, new Node(nodeType, prev));
-        if (datatype == null) return TypedNode.empty();
-        return new TypedNode(datatype, new Node(nodeType, prev));
     }
 
     private List<TypedNode> parseArgs() {

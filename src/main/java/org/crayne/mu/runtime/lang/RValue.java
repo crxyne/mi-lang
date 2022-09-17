@@ -13,7 +13,7 @@ public class RValue {
     public static final RValue TRUE = new RValue(RDatatype.of(Datatype.BOOL), true);
     public static final RValue FALSE = new RValue(RDatatype.of(Datatype.BOOL), false);
 
-    public RValue(@NotNull final RDatatype type, @NotNull final Object value) {
+    public RValue(@NotNull final RDatatype type, final Object value) {
         this.type = type;
         this.value = value;
     }

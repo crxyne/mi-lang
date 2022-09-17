@@ -1,7 +1,7 @@
 package org.crayne.mu.runtime;
 
-import org.crayne.mu.lang.*;
 import org.crayne.mu.lang.Module;
+import org.crayne.mu.lang.*;
 import org.crayne.mu.log.LogHandler;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;

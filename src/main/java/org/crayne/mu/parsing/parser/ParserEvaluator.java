@@ -823,13 +823,13 @@ public class ParserEvaluator {
 
     public static Class<?> primitiveToJavaType(@NotNull final PrimitiveDatatype primitiveDatatype) {
         return switch (primitiveDatatype) {
-            case INT -> int.class;
-            case LONG -> long.class;
-            case DOUBLE -> double.class;
-            case FLOAT -> float.class;
-            case BOOL -> boolean.class;
+            case INT -> Integer.class;
+            case LONG -> Long.class;
+            case DOUBLE -> Double.class;
+            case FLOAT -> Float.class;
+            case BOOL -> Boolean.class;
             case STRING -> String.class;
-            case CHAR -> char.class;
+            case CHAR -> Character.class;
             case VOID -> void.class;
             case NULL -> Object.class;
         };
@@ -856,7 +856,8 @@ public class ParserEvaluator {
             final Method invokeMethod = jcallClass.getMethod(functionName, paramTypes.toArray(new Class<?>[0]));
             final Class<?> methodType = invokeMethod.getReturnType();
             if (methodType != primitiveToJavaType(returnType.getPrimitive())) {
-                parser.parserError("Return type of native function does not match return type of native java method", at);
+                parser.parserError("Return type of native function does not match return type of native java method", at,
+                        "Native functions cannot use primitive types like 'int'. Use the class java.lang.Integer instead of 'int' for example, to allow for nullable types");
                 return null;
             }
             final MuCallable annotationTest = invokeMethod.getAnnotation(MuCallable.class);
@@ -866,7 +867,8 @@ public class ParserEvaluator {
             }
             return invokeMethod;
         } catch (final Exception e) {
-            parser.parserError("Unknown error when evaluating native java function: " + e.getClass().getName(), at);
+            parser.parserError("Unknown error when evaluating native java function: " + e.getClass().getName(), at,
+                    "Native functions cannot use primitive types like 'int'. Use the class java.lang.Integer instead of 'int' for example, to allow for nullable types");
             return null;
         }
     }

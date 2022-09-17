@@ -59,72 +59,72 @@ STANDARDLIB_MU_FINISH_CODE;"""
     }
 
     @MuCallable
-    public static void println(final int i) {
+    public static void println(final Integer i) {
         System.out.println(i);
     }
 
     @MuCallable
-    public static void print(final int i) {
+    public static void print(final Integer i) {
         System.out.print(i);
     }
 
     @MuCallable
-    public static void println(final double d) {
+    public static void println(final Double d) {
         System.out.println(d);
     }
 
     @MuCallable
-    public static void print(final double d) {
+    public static void print(final Double d) {
         System.out.print(d);
     }
 
     @MuCallable
-    public static void println(final float f) {
+    public static void println(final Float f) {
         System.out.println(f);
     }
 
     @MuCallable
-    public static void print(final float f) {
+    public static void print(final Float f) {
         System.out.print(f);
     }
 
     @MuCallable
-    public static void println(final long l) {
+    public static void println(final Long l) {
         System.out.println(l);
     }
 
     @MuCallable
-    public static void print(final long l) {
+    public static void print(final Long l) {
         System.out.print(l);
     }
 
     @MuCallable
-    public static void println(final boolean b) {
+    public static void println(final Boolean b) {
         System.out.println(b);
     }
 
     @MuCallable
-    public static void print(final boolean b) {
+    public static void print(final Boolean b) {
         System.out.print(b);
     }
 
     @MuCallable
-    public static void println(final char c) {
+    public static void println(final Character c) {
         System.out.println(c);
     }
 
     @MuCallable
-    public static void print(final char c) {
+    public static void print(final Character c) {
         System.out.print(c);
     }
 
     @MuCallable
-    public static void sleep(final long millis) throws InterruptedException {
+    public static void sleep(final Long millis) throws InterruptedException {
         Thread.sleep(millis);
     }
 
     @MuCallable
-    public static long random_uuid_long() {
+    public static Long random_uuid_long() {
         return UUID.randomUUID().getMostSignificantBits();
     }
 

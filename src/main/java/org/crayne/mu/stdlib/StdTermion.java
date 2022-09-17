@@ -7,12 +7,12 @@ import org.jetbrains.annotations.NotNull;
 public class StdTermion {
 
     @MuCallable
-    public static String color_fg(final int r, final int g, final int b) {
+    public static String color_fg(final Integer r, final Integer g, final Integer b) {
         return TerminalColor.foreground(r, g, b);
     }
 
     @MuCallable
-    public static String color_bg(final int r, final int g, final int b) {
+    public static String color_bg(final Integer r, final Integer g, final Integer b) {
         return TerminalColor.background(r, g, b);
     }
 

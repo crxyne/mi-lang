@@ -6,10 +6,6 @@ module testing {
 	
 	pub? moveCursorHome = "\u001b[H";
 	
-	pub enum Hi {
-		Hello, Test
-	}
-	
 	pub fn rainbow {
 		if (r == 255 && g < 255 && b == 0) {
 			g += 5;

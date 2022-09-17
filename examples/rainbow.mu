@@ -41,8 +41,8 @@ module testing {
 		setCursorVisible(false);
 		
 		while true {
-			//print(moveCursorHome);
-			//println(color_fg(r, g, b) + text);
+			print(moveCursorHome);
+			println(color_fg(r, g, b) + text);
 			rainbow();
 			sleep(wait_long);
 		}

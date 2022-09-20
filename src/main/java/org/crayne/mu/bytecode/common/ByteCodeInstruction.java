@@ -1,9 +1,10 @@
 package org.crayne.mu.bytecode.common;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.NotNull;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ByteCodeInstruction {
 
@@ -34,20 +35,15 @@ public class ByteCodeInstruction {
     }
 
     public static String write(@NotNull final ByteCodeInstruction instr) {
-        return Arrays.stream(instr.codes).map(b -> String.valueOf((char) b.byteValue())).collect(Collectors.joining(""));
+        return new String(ArrayUtils.toPrimitive(instr.codes), StandardCharsets.ISO_8859_1);
     }
 
     public static ByteCodeInstruction read(@NotNull final String instr) {
         return new ByteCodeInstruction(
-                instr
-                .chars()
-                .mapToObj(
-                        c -> ByteCode.of((char) c)
-                        .orElseThrow(IllegalArgumentException::new)
-                                .code()
-                )
-                .toList()
-                .toArray(new Byte[0])
+                Arrays.stream(ArrayUtils.toObject(instr.getBytes(StandardCharsets.ISO_8859_1)))
+                        .toList()
+                        .subList(0, instr.length() - 1)
+                        .toArray(new Byte[0])
         );
     }
 

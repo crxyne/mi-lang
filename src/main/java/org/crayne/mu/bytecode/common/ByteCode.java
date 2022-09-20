@@ -56,7 +56,7 @@ public enum ByteCode {
             }});
         }
 
-        public String of(@NotNull final ByteCodeInstruction instr) {                     // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
+        public String ofString(@NotNull final ByteCodeInstruction instr) {                     // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
                                                                                          // but remove last byte, since that will be the INSTRUCTION_FINISH code
             return new String(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(5, instr.codes().length - 1).toArray(new Byte[0])), StandardCharsets.UTF_8);
         }
@@ -116,7 +116,7 @@ public enum ByteCode {
         throw new IllegalArgumentException("Unimplemented");
     }
 
-    public String of(@NotNull final ByteCodeInstruction instr) {
+    public String ofString(@NotNull final ByteCodeInstruction instr) {
         throw new IllegalArgumentException("Unimplemented");
     }
 

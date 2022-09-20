@@ -46,11 +46,11 @@ public class ClassScope extends Scope {
     public void addVar(@NotNull final Parser parser, @NotNull final Variable var, @NotNull final Token identToken) {
         final Optional<Variable> alreadyExisting = members.stream().filter(v -> v.name().equals(var.name())).findFirst();
         if (alreadyExisting.isPresent()) {
-            parser.parserError("Redefinition of member variable '" + var.name() + "' in class " + name, identToken);
+            parser.parserError("Redefinition of ordinal variable '" + var.name() + "' in class " + name, identToken);
             return;
         }
         if (!methodConcepts.isEmpty()) {
-            parser.parserWarning("Expected member variables to be at the top of the class definition, before any methods", identToken);
+            parser.parserWarning("Expected ordinal variables to be at the top of the class definition, before any methods", identToken);
         }
         members.add(var);
     }

@@ -256,7 +256,7 @@ public class ValueParser {
 
             if (foundEnum == null) return TypedNode.empty();
             if (!foundEnum.members().contains(enumMemberStr)) {
-                parserParent.parserError("Enum '" + enumNameStr + "' does not have member '" + enumMemberStr + "'", enumMember);
+                parserParent.parserError("Enum '" + enumNameStr + "' does not have ordinal '" + enumMemberStr + "'", enumMember);
                 return TypedNode.empty();
             }
             nextPart();
@@ -338,7 +338,7 @@ public class ValueParser {
                 if (nextType != null) switch (nextType) {
                     case DOUBLE_COLON -> {
                         if (parsingPosition + 2 >= expr.size()) {
-                            parserParent.parserError("Expected enum member identifier after '::'");
+                            parserParent.parserError("Expected enum ordinal identifier after '::'");
                             return TypedNode.empty();
                         }
                         return evalEnumMember(nextPart);

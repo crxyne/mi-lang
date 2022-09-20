@@ -16,7 +16,7 @@ public enum ByteCode {
 
         public ByteCodeInstruction header() {
             return new ByteCodeInstruction(
-                    PROGRAM_HEADER.code, (byte) 0x0, (byte) 0x6D, (byte) 0x0, (byte) 0x75, (byte) bytecodeVersion
+                    PROGRAM_HEADER.code, (byte) 0x0, (byte) 0x6D, (byte) 0x0, (byte) 0x75, (byte) BYTECODE_VERSION
             );
         }
 
@@ -33,9 +33,11 @@ public enum ByteCode {
 
     },
     JUMP_IF((byte) 0x04),
-    SET_SAVED_LABEL((byte) 0x05),
-    GET_SAVED_LABEL((byte) 0x06),
+    PUSH_SAVED_LABEL((byte) 0x05),
+    POP_SAVED_LABEL((byte) 0x06),
     PUSH((byte) 0x07),
+    POP((byte) 0x08),
+    GET((byte) 0x09),
 
     DECLARE_VARIABLE((byte) 0xC0),
     DEFINE_VARIABLE((byte) 0xC1),
@@ -62,11 +64,56 @@ public enum ByteCode {
         }
 
     },
-    INTEGER_VALUE((byte) 0xB1),
-    FLOAT_VALUE((byte) 0xB2),
-    ENUM_VALUE((byte) 0xB3);
+    INTEGER_VALUE((byte) 0xB1) {
 
-    private static final int bytecodeVersion = 1;
+        public ByteCodeInstruction integer(final long literal) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(INTEGER_VALUE.code);
+                this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(literal))).toList());
+            }});
+        }
+
+        public long ofInteger(@NotNull final ByteCodeInstruction instr) {
+            return bytesToLong(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(1, instr.codes().length - 1).toArray(new Byte[0])));
+        }
+
+    },
+    FLOAT_VALUE((byte) 0xB2) {
+
+        public ByteCodeInstruction decimal(final double literal) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(FLOAT_VALUE.code);
+                this.addAll(Arrays.stream(ArrayUtils.toObject(floatToBytes(literal))).toList());
+            }});
+        }
+
+        public double ofDecimal(@NotNull final ByteCodeInstruction instr) {
+            return bytesToFloat(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(1, instr.codes().length - 1).toArray(new Byte[0])));
+        }
+
+    },
+    ENUM_VALUE((byte) 0xB3) {
+
+        public ByteCodeInstruction enumMember(@NotNull final ByteCodeEnumMember member) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(ENUM_VALUE.code);
+                this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(member.enumId()))).toList());
+                this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(member.ordinal()))).toList());
+            }});
+        }
+
+        public ByteCodeEnumMember ofEnumMember(@NotNull final ByteCodeInstruction instr) {
+            final List<Byte> sub = List.of(instr.codes()).subList(1, instr.codes().length - 1);
+            final int enumId = bytesToInt(ArrayUtils.toPrimitive(sub.subList(0, 4).toArray(new Byte[0])));
+            final long member = bytesToLong(ArrayUtils.toPrimitive(sub.subList(4, 12).toArray(new Byte[0])));
+            return new ByteCodeEnumMember(enumId, member);
+        }
+
+    }; /* NOTE for enums, map all enums to a unique id which will be a replacement for an entire ass name,
+               taking up less bytes. for names, save those somewhere, so that you can cast an enum ordinal to string to get the name back, instead of a number
+       */
+
+    public static final int BYTECODE_VERSION = 1;
 
     private final byte code;
 
@@ -112,6 +159,19 @@ public enum ByteCode {
         return buffer.getInt();
     }
 
+    public static byte[] floatToBytes(final double d) {
+        final ByteBuffer buffer = ByteBuffer.allocate(Double.BYTES);
+        buffer.putDouble(d);
+        return buffer.array();
+    }
+
+    public static double bytesToFloat(final byte[] bytes) {
+        final ByteBuffer buffer = ByteBuffer.allocate(Double.BYTES);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer.getDouble();
+    }
+
     public ByteCodeInstruction string(@NotNull final String literal) {
         throw new IllegalArgumentException("Unimplemented");
     }
@@ -125,6 +185,30 @@ public enum ByteCode {
     }
 
     public ByteCodeInstruction header() {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction enumMember(@NotNull final ByteCodeEnumMember member) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeEnumMember ofEnumMember(@NotNull final ByteCodeInstruction instr) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction integer(final long literal) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public long ofInteger(@NotNull final ByteCodeInstruction instr) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction decimal(final double literal) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public double ofDecimal(@NotNull final ByteCodeInstruction instr) {
         throw new IllegalArgumentException("Unimplemented");
     }
 

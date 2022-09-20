@@ -38,6 +38,10 @@ public class ByteCodeInstruction {
         return new String(ArrayUtils.toPrimitive(instr.codes), StandardCharsets.ISO_8859_1);
     }
 
+    public String write() {
+        return ByteCodeInstruction.write(this);
+    }
+
     public static ByteCodeInstruction read(@NotNull final String instr) {
         return new ByteCodeInstruction(
                 Arrays.stream(ArrayUtils.toObject(instr.getBytes(StandardCharsets.ISO_8859_1)))

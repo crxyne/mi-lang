@@ -229,7 +229,7 @@ public class REvaluator {
         final REnum found = findEnum.get();
         final String member = String.valueOf(oldValue);
         if (!found.getMembers().contains(member)) {
-            tree.runtimeError("Cannot find member '" + member + "' inside of enum '" + MuUtil.identOf(type.getName()) + "'");
+            tree.runtimeError("Cannot find ordinal '" + member + "' inside of enum '" + MuUtil.identOf(type.getName()) + "'");
             return null;
         }
         final int index = found.getMembers().indexOf(member);

@@ -32,21 +32,78 @@ public enum ByteCode {
         }
 
     },
-    JUMP_IF((byte) 0x04),
+    JUMP_IF((byte) 0x04) {
+
+        public ByteCodeInstruction jump(final long to) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(JUMP_IF.code);
+                this.addAll(List.of(ArrayUtils.toObject(longToBytes(to))));
+            }});
+        }
+
+    },
     PUSH_SAVED_LABEL((byte) 0x05),
     POP_SAVED_LABEL((byte) 0x06),
-    PUSH((byte) 0x07),
-    POP((byte) 0x08),
-    GET((byte) 0x09),
+    PUSH((byte) 0x07) {
 
-    DECLARE_VARIABLE((byte) 0xC0),
-    DEFINE_VARIABLE((byte) 0xC1),
-    VALUEOF_VARIABLE((byte) 0xC2),
-    FUNCTION_DEFINITION_BEGIN((byte) 0xC3),
+        public ByteCodeInstruction push(@NotNull final Byte... value) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(PUSH.code);
+                this.addAll(List.of(value));
+            }});
+        }
+
+    },
+    POP((byte) 0x08) {
+
+        public ByteCodeInstruction pop(final int amount) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(POP.code);
+                this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(amount))).toList());
+            }});
+        }
+
+    },
+
+    RELATIVE_TO_ABSOLUTE_ADDRESS((byte) 0x09),
+
+    DECLARE_VARIABLE((byte) 0xC0) {
+
+        public ByteCodeInstruction declareVariable(@NotNull final ByteDatatype type) {
+            return new ByteCodeInstruction(DECLARE_VARIABLE.code, type.code());
+        }
+
+    },
+    DEFINE_VARIABLE((byte) 0xC1) {
+
+        public ByteCodeInstruction defineVariable(@NotNull final ByteDatatype type) {
+            return new ByteCodeInstruction(DEFINE_VARIABLE.code, type.code());
+        }
+
+    },
+    VALUE_AT_ADDRESS((byte) 0xC2),
+    FUNCTION_DEFINITION_BEGIN((byte) 0xC3) {
+
+        public ByteCodeInstruction function(final int id) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(FUNCTION_DEFINITION_BEGIN.code);
+                this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(id))).toList());
+            }});
+        }
+
+    },
     FUNCTION_DEFINITION_END((byte) 0xC4),
-    FUNCTION_CALL((byte) 0xC5),
-    FUNCTION_PASS_ARGUMENT((byte) 0xC6),
-    RETURN_STATEMENT((byte) 0xC7),
+    FUNCTION_CALL((byte) 0xC5) {
+
+        public ByteCodeInstruction call(final int id) {
+            return new ByteCodeInstruction(new ArrayList<>() {{
+                this.add(FUNCTION_CALL.code);
+                this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(id))).toList());
+            }});
+        }
+
+    },
+    RETURN_STATEMENT((byte) 0xC6),
 
     STRING_VALUE((byte) 0xB0) {
 
@@ -209,6 +266,30 @@ public enum ByteCode {
     }
 
     public double ofDecimal(@NotNull final ByteCodeInstruction instr) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction defineVariable(@NotNull final ByteDatatype type) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction declareVariable(@NotNull final ByteDatatype type) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction function(final int id) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction call(final int id) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction push(@NotNull final Byte... value) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction pop(final int amount) {
         throw new IllegalArgumentException("Unimplemented");
     }
 

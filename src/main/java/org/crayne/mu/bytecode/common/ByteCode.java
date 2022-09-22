@@ -5,10 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public enum ByteCode {
 
@@ -67,6 +64,38 @@ public enum ByteCode {
 
     RELATIVE_TO_ABSOLUTE_ADDRESS((byte) 0x09),
 
+    // NOT operates on the current top of the stack.
+    // a similar approach is taken for more miscellaneous operators like RELATIVE_TO_ABSOLUTE_ADDRESS as for the NOT operator.
+    // the rest (plus, minus, etc) pop the top of the stack and use it as the 'y' value for the operator.
+    // the 'x' is now at the top, gets popped, operator is applied and mutated value is put back.
+    // this is why these operators do not have a function defined in this enum
+    NOT((byte) 0xA0),
+    PLUS((byte) 0xA1),
+    MINUS((byte) 0xA2),
+    MULTIPLY((byte) 0xA3),
+    DIVIDE((byte) 0xA4),
+    MODULO((byte) 0xA5),
+    LOGICAL_AND((byte) 0xA6),
+    LOGICAL_OR((byte) 0xA7),
+    BIT_AND((byte) 0xA8),
+    BIT_OR((byte) 0xA9),
+    BIT_XOR((byte) 0xAA),
+    BITSHIFT_LEFT((byte) 0xAB),
+    BITSHIFT_RIGHT((byte) 0xAC),
+    EQUALS((byte) 0xAD),
+    NOT_EQUALS((byte) 0xAE),
+    LESS_THAN((byte) 0xAF),
+    GREATER_THAN((byte) 0xB0),
+    LESS_THAN_OR_EQUAL((byte) 0xB1),
+    GREATER_THAN_OR_EQUAL((byte) 0xB2),
+    CAST((byte) 0xB3) {
+
+        public ByteCodeInstruction cast(@NotNull final ByteDatatype type) {
+            return new ByteCodeInstruction(CAST.code, type.code());
+        }
+
+    },
+
     DECLARE_VARIABLE((byte) 0xC0) {
 
         public ByteCodeInstruction declareVariable(@NotNull final ByteDatatype type) {
@@ -104,8 +133,9 @@ public enum ByteCode {
 
     },
     RETURN_STATEMENT((byte) 0xC6),
+    MUTATE_VARIABLE((byte) 0xC7),
 
-    STRING_VALUE((byte) 0xB0) {
+    STRING_VALUE((byte) 0xC8) {
 
         public ByteCodeInstruction string(@NotNull final String literal) {
             return new ByteCodeInstruction(new ArrayList<>() {{
@@ -121,7 +151,7 @@ public enum ByteCode {
         }
 
     },
-    INTEGER_VALUE((byte) 0xB1) {
+    INTEGER_VALUE((byte) 0xC9) {
 
         public ByteCodeInstruction integer(final long literal) {
             return new ByteCodeInstruction(new ArrayList<>() {{
@@ -135,7 +165,7 @@ public enum ByteCode {
         }
 
     },
-    FLOAT_VALUE((byte) 0xB2) {
+    FLOAT_VALUE((byte) 0xCA) {
 
         public ByteCodeInstruction decimal(final double literal) {
             return new ByteCodeInstruction(new ArrayList<>() {{
@@ -149,7 +179,7 @@ public enum ByteCode {
         }
 
     },
-    ENUM_VALUE((byte) 0xB3) {
+    ENUM_VALUE((byte) 0xCB) {
 
         public ByteCodeInstruction enumMember(@NotNull final ByteCodeEnumMember member) {
             return new ByteCodeInstruction(new ArrayList<>() {{

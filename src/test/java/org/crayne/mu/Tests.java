@@ -1,16 +1,14 @@
 package org.crayne.mu;
 
 import org.crayne.mu.bytecode.common.ByteCode;
+import org.crayne.mu.bytecode.common.ByteCodeInstruction;
 import org.crayne.mu.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mu.runtime.MuProgram;
 import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.stdlib.MuStandardLib;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 public class Tests {
 
@@ -28,8 +26,8 @@ public class Tests {
         if (AST.isEmpty()) return;
 
         final ByteCodeCompiler compiler = new ByteCodeCompiler(muProgram.messageHandler(), AST.get());
-        compiler.compile();
-
+        final List<ByteCodeInstruction> compiled = compiler.compile();
+        System.out.println(compiler);
     }
 
     private static Optional<Byte> findFirstDuplicateBytecode() {

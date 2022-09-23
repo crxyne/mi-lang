@@ -54,6 +54,8 @@ public class ByteCodeInstruction {
     public String toString() {
         final Optional<ByteCode> type = type();
         if (type.isEmpty()) return ";";
+        if (codes.length == 2) return type.get().name().toLowerCase() + " ;";
+
         return type.get().name().toLowerCase() + " " + String.join(" ",
                 Arrays.stream(codes)
                         .toList()
@@ -61,7 +63,7 @@ public class ByteCodeInstruction {
                         .stream()
                         .map(b -> "0x" + Integer.toHexString((int) b))
                         .toList()
-        ) + " ;";
+        ).trim() + " ;";
     }
 
 }

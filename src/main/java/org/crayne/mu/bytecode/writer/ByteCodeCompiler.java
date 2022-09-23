@@ -61,16 +61,16 @@ public class ByteCodeCompiler {
         return relativeAddress < 0;
     }
 
-    public void compile() {
+    public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
         traceback(ast.lineDebugging());
         if (ast.type() == NodeType.PARENT) {
             compileParent(ast);
         } else {
             panic("Expected 'PARENT' node at the beginning of syntax tree");
-            return;
+            return new ArrayList<>();
         }
-        System.out.println(this);
+        return result;
     }
 
     private void compileParent(@NotNull final Node parent) {
@@ -113,7 +113,7 @@ public class ByteCodeCompiler {
 
     private void compileExpression(final Node node) {
         if (node == null) return;
-        tree.traceback(node.lineDebugging());
+        traceback(node.lineDebugging());
         if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
             ofLiteral(node.child(0));
             return;
@@ -142,26 +142,30 @@ public class ByteCodeCompiler {
     private void operator(@NotNull final NodeType op, @NotNull final List<Node> values, final Token nodeVal) {
         final Node x = values.size() > 0 ? values.get(0) : null;
         final Node y = values.size() > 1 ? values.get(1) : null;
+
         switch (op) {
-            case DIVIDE -> divide(x, y);
-            case MULTIPLY -> multiply(x, y);
-            case ADD -> add(x, y);
-            case SUBTRACT -> subtract(x, y);
-            case MODULUS -> modulus(x, y);
-            case LOGICAL_AND -> logicalAnd(x, y);
-            case LOGICAL_OR -> logicalOr(x, y);
-            case XOR -> bitXor(x, y);
-            case BIT_AND -> bitAnd(x, y);
-            case BIT_OR -> bitOr(x, y);
-            case LSHIFT -> bitShiftLeft(x, y);
-            case RSHIFT -> bitShiftRight(x, y);
-            case LESS_THAN -> lessThan(x, y);
-            case LESS_THAN_EQ -> lessThanOrEquals(x, y);
-            case GREATER_THAN -> greaterThan(x, y);
-            case GREATER_THAN_EQ -> greaterThanOrEquals(x, y);
-            case EQUALS -> equals(x, y);
-            case NOTEQUALS -> notEquals(x, y);
-            case NEGATE -> subtract(Node.of(Token.of("0")), x);
+            case DIVIDE -> operator(x, y, ByteCode.DIVIDE);
+            case MULTIPLY -> operator(x, y, ByteCode.MULTIPLY);
+            case ADD -> operator(x, y, ByteCode.PLUS);
+            case SUBTRACT -> operator(x, y, ByteCode.MINUS);
+            case MODULUS ->  operator(x, y, ByteCode.MODULO);
+            case LOGICAL_AND ->  operator(x, y, ByteCode.LOGICAL_AND);
+            case LOGICAL_OR ->  operator(x, y, ByteCode.LOGICAL_OR);
+            case XOR ->  operator(x, y, ByteCode.BIT_XOR);
+            case BIT_AND ->  operator(x, y, ByteCode.BIT_AND);
+            case BIT_OR ->  operator(x, y, ByteCode.BIT_OR);
+            case LSHIFT ->  operator(x, y, ByteCode.BITSHIFT_LEFT);
+            case RSHIFT -> operator(x, y, ByteCode.BITSHIFT_RIGHT);
+            case LESS_THAN -> operator(x, y, ByteCode.LESS_THAN);
+            case LESS_THAN_EQ -> operator(x, y, ByteCode.LESS_THAN_OR_EQUAL);
+            case GREATER_THAN -> operator(x, y, ByteCode.GREATER_THAN);
+            case GREATER_THAN_EQ -> operator(x, y, ByteCode.GREATER_THAN_OR_EQUAL);
+            case EQUALS -> operator(x, y, ByteCode.EQUALS);
+            case NOTEQUALS -> {
+                operator(x, y, ByteCode.EQUALS);
+                rawInstruction(new ByteCodeInstruction(ByteCode.NOT.code()));
+            }
+            case NEGATE -> operator(Node.of(Token.of("0")), x, ByteCode.MINUS);
             /*case GET_ENUM_MEMBER -> {
                 final String identifier = values.get(0).value().token();
                 final String member = values.get(1).value().token();
@@ -188,116 +192,19 @@ public class ByteCodeCompiler {
         };
     }
 
-    public void multiply(final Node v1, final Node v2) {
+    private void operator(final Node v1, final Node v2, final ByteCode op) {
         compileExpression(v1);
         compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.MULTIPLY.code()));
+        rawInstruction(new ByteCodeInstruction(op.code()));
     }
 
-    public void divide(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.DIVIDE.code()));
-    }
-
-    private void subtract(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.MINUS.code()));
-    }
-
-    private void add(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.PLUS.code()));
-    }
-
-    private void modulus(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.MODULO.code()));
-    }
-
-    private void equals(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.EQUALS.code()));
-    }
-
-    private void notEquals(final Node v1, final Node v2) {
-        equals(v1, v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.NOT.code()));
-    }
-
-    private void lessThan(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.LESS_THAN.code()));
-    }
-
-    private void greaterThan(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.GREATER_THAN.code()));
-    }
-
-    private void lessThanOrEquals(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.LESS_THAN_OR_EQUAL.code()));
-    }
-
-    private void greaterThanOrEquals(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.GREATER_THAN_OR_EQUAL.code()));
-    }
-
-    private void logicalAnd(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.LOGICAL_AND.code()));
-    }
-
-    private void logicalOr(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.LOGICAL_OR.code()));
-    }
-
-    private void bitXor(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.BIT_XOR.code()));
-    }
-
-    private void bitAnd(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.BIT_AND.code()));
-    }
-
-    private void bitOr(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.BIT_OR.code()));
-    }
-
-    private void bitShiftLeft(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.BITSHIFT_LEFT.code()));
-    }
-
-    private void bitShiftRight(final Node v1, final Node v2) {
-        compileExpression(v1);
-        compileExpression(v2);
-        rawInstruction(new ByteCodeInstruction(ByteCode.BITSHIFT_RIGHT.code()));
+    private static String sanitize(@NotNull final String instr) {
+        return instr.replace("\r", "[CR]");
     }
 
     public String toString() {
         return String.join("\n", result.stream().map(ByteCodeInstruction::toString).toList())
                 + "\n----------------------------------\n"
-                + String.join("", result.stream().map(b -> b.write()).toList());
+                + String.join("", result.stream().map(b -> sanitize(b.write())).toList());
     }
 }

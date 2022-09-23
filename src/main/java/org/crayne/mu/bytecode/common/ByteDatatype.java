@@ -27,6 +27,7 @@ public enum ByteDatatype {
         return switch (name) {
             case "bool" -> BOOL;
             case "char" -> CHAR;
+            case "int" -> INT;
             case "long" -> LONG;
             case "float" -> FLOAT;
             case "double" -> DOUBLE;

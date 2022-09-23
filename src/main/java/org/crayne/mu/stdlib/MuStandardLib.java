@@ -11,6 +11,7 @@ public class MuStandardLib {
         return """
 pub? true = 1b;
 pub? false = 0b;
+pub? what = ((1 + 2 / 4) * 3) - 13;
 
 module std {
 

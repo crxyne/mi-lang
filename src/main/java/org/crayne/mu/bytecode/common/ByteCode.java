@@ -9,6 +9,7 @@ import java.util.*;
 
 public enum ByteCode {
 
+    INSTRUCT_FINISH((byte) 0x0A),
     PROGRAM_HEADER((byte) 0x01) {
 
         public ByteCodeInstruction header() {
@@ -18,7 +19,6 @@ public enum ByteCode {
         }
 
     },
-    INSTRUCT_FINISH((byte) 0x02),
     JUMP((byte) 0x03) {
 
         public ByteCodeInstruction jump(final long to) {
@@ -46,7 +46,7 @@ public enum ByteCode {
         public ByteCodeInstruction push(@NotNull final Byte... value) {
             return new ByteCodeInstruction(new ArrayList<>() {{
                 this.add(PUSH.code);
-                this.addAll(List.of(value));
+                this.addAll(List.of(value).subList(0, value.length - 1));
             }});
         }
 

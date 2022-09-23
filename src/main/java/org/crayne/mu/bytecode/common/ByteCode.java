@@ -83,12 +83,11 @@ public enum ByteCode {
     BITSHIFT_LEFT((byte) 0xAB),
     BITSHIFT_RIGHT((byte) 0xAC),
     EQUALS((byte) 0xAD),
-    NOT_EQUALS((byte) 0xAE),
-    LESS_THAN((byte) 0xAF),
-    GREATER_THAN((byte) 0xB0),
-    LESS_THAN_OR_EQUAL((byte) 0xB1),
-    GREATER_THAN_OR_EQUAL((byte) 0xB2),
-    CAST((byte) 0xB3) {
+    LESS_THAN((byte) 0xAE),
+    GREATER_THAN((byte) 0xAF),
+    LESS_THAN_OR_EQUAL((byte) 0xB0),
+    GREATER_THAN_OR_EQUAL((byte) 0xB1),
+    CAST((byte) 0xB2) {
 
         public ByteCodeInstruction cast(@NotNull final ByteDatatype type) {
             return new ByteCodeInstruction(CAST.code, type.code());
@@ -320,6 +319,10 @@ public enum ByteCode {
     }
 
     public ByteCodeInstruction pop(final int amount) {
+        throw new IllegalArgumentException("Unimplemented");
+    }
+
+    public ByteCodeInstruction cast(@NotNull final ByteDatatype type) {
         throw new IllegalArgumentException("Unimplemented");
     }
 

@@ -1,4 +1,4 @@
-package org.crayne.mu.runtime.util;
+package org.crayne.mu.bytecode.common;
 
 import org.jetbrains.annotations.NotNull;
 

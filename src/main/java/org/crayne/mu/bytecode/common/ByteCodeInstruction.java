@@ -51,4 +51,17 @@ public class ByteCodeInstruction {
         );
     }
 
+    public String toString() {
+        final Optional<ByteCode> type = type();
+        if (type.isEmpty()) return ";";
+        return type.get().name().toLowerCase() + " " + String.join(" ",
+                Arrays.stream(codes)
+                        .toList()
+                        .subList(1, codes.length - 1)
+                        .stream()
+                        .map(b -> "0x" + Integer.toHexString((int) b))
+                        .toList()
+        ) + " ;";
+    }
+
 }

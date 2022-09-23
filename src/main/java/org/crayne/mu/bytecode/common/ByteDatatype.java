@@ -1,5 +1,7 @@
 package org.crayne.mu.bytecode.common;
 
+import org.jetbrains.annotations.NotNull;
+
 public enum ByteDatatype {
 
     BOOL((byte) 0x00),
@@ -19,6 +21,18 @@ public enum ByteDatatype {
 
     public byte code() {
         return code;
+    }
+
+    public static ByteDatatype of(@NotNull final String name) {
+        return switch (name) {
+            case "bool" -> BOOL;
+            case "char" -> CHAR;
+            case "long" -> LONG;
+            case "float" -> FLOAT;
+            case "double" -> DOUBLE;
+            case "string" -> STRING;
+            default -> ENUM;
+        };
     }
 
 

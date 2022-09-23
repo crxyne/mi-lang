@@ -34,16 +34,16 @@ module helloworld {
 
 ## Java usage for application developers
 ```java
-final Runtime runtime = new Runtime(
+final Runtime muProgram = new Runtime(
                                 System.out, // PrintStream, where to log errors, warnings, etc
                                 true // boolean, whether to use ansi escape codes for color (will only be useful if the output stream is a terminal environment)
                         );
 
 try {
-    runtime.execute(
+    muProgram.execute(
               MuStandardLib.standardLib(), // String, standardlib to use for the mu script
               code, // String, code to use, obviously
-              true, // boolean, whether to print java stacktraces during runtime, useful for debugging (optional, can be left out)
+              true, // boolean, whether to print java stacktraces during muProgram, useful for debugging (optional, can be left out)
               mainFunc, // String, main function to run (for example "module.othermodule.main")
               passInParams // Object... , passed in parameters for the main function (can only be primitive types) (optional, can be left out)
     );

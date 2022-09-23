@@ -1,6 +1,10 @@
 package org.crayne.mu;
 
 import org.crayne.mu.bytecode.common.ByteCode;
+import org.crayne.mu.bytecode.writer.ByteCodeCompiler;
+import org.crayne.mu.runtime.MuProgram;
+import org.crayne.mu.runtime.SyntaxTreeExecution;
+import org.crayne.mu.stdlib.MuStandardLib;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -15,6 +19,17 @@ public class Tests {
         if (duplicateByteCode.isPresent()) {
             throw new Exception("Found duplicate bytecode: " + Integer.toHexString((int) duplicateByteCode.get()));
         }
+        final String code = """
+                
+                """;
+
+        final MuProgram muProgram = new MuProgram(System.out, true);
+        final Optional<SyntaxTreeExecution> AST = muProgram.parse(MuStandardLib.standardLib(), code);
+        if (AST.isEmpty()) return;
+
+        final ByteCodeCompiler compiler = new ByteCodeCompiler(muProgram.messageHandler(), AST.get());
+        compiler.compile();
+
     }
 
     private static Optional<Byte> findFirstDuplicateBytecode() {

@@ -515,7 +515,7 @@ public class ParserEvaluator {
 
         if (NodeType.of(equalsOrSemi) == NodeType.SEMI) {
             if (indefinite) {
-                parser.parserError("Unexpected token '?', expected a definite datatype", datatype,
+                parser.parserError("Unexpected token '?', expected a definite datatype",
                         "The '?' cannot be used as a datatype when there is no value directly specified, so change the datatype to a definite.");
                 return null;
             }

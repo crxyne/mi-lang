@@ -11,12 +11,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-public class Runtime {
+public class MuProgram {
 
     private static final List<String> multiTokens = Arrays.asList("<<", ">>", "->", "&&", "||", "==", "!=", "::", "<=", ">=", "++", "--", "+=", "*=", "/=", "-=", "%=", "<<=", ">>=", "&=", "|=");
     private final MessageHandler out;
 
-    public Runtime(@NotNull final PrintStream out, final boolean enableColor) {
+    public MuProgram(@NotNull final PrintStream out, final boolean enableColor) {
         this.out = new MessageHandler(out, enableColor);
     }
 

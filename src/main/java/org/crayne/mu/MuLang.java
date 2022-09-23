@@ -1,7 +1,7 @@
 package org.crayne.mu;
 
 import org.crayne.mu.log.MessageHandler;
-import org.crayne.mu.runtime.Runtime;
+import org.crayne.mu.runtime.MuProgram;
 import org.crayne.mu.stdlib.MuStandardLib;
 import org.jetbrains.annotations.NotNull;
 
@@ -88,8 +88,8 @@ public class MuLang {
     }
 
     public static void main(@NotNull final String... args) {
-        final Runtime runtime = new Runtime(System.out, true);
-        final MessageHandler messageHandler = runtime.messageHandler();
+        final MuProgram muProgram = new MuProgram(System.out, true);
+        final MessageHandler messageHandler = muProgram.messageHandler();
 
         final Optional<List<Argument>> oparams = parseArguments(messageHandler, args);
         if (oparams.isEmpty()) return;
@@ -107,7 +107,7 @@ public class MuLang {
         final Optional<String> code = readCode(inputFile.get(), messageHandler);
         if (code.isEmpty()) return;
 
-        runtime.execute(MuStandardLib.standardLib(), code.get(), true, mainFunc.get(), passInParams);
+        muProgram.execute(MuStandardLib.standardLib(), code.get(), true, mainFunc.get(), passInParams);
     }
 
 }

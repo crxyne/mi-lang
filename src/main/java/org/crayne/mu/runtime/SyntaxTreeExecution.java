@@ -8,8 +8,8 @@ import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.runtime.lang.*;
 import org.crayne.mu.runtime.util.MuUtil;
-import org.crayne.mu.runtime.util.errorhandler.Traceback;
-import org.crayne.mu.runtime.util.errorhandler.TracebackElement;
+import org.crayne.mu.bytecode.common.errorhandler.Traceback;
+import org.crayne.mu.bytecode.common.errorhandler.TracebackElement;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;

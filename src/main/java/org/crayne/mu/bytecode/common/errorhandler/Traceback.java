@@ -1,6 +1,6 @@
-package org.crayne.mu.runtime.util.errorhandler;
+package org.crayne.mu.bytecode.common.errorhandler;
 
-import org.crayne.mu.runtime.util.LimitedSizeQueue;
+import org.crayne.mu.bytecode.common.LimitedSizeQueue;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

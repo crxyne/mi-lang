@@ -8,6 +8,7 @@ import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.stdlib.MuStandardLib;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.*;
 
 public class Tests {
@@ -28,6 +29,8 @@ public class Tests {
         final ByteCodeCompiler compiler = new ByteCodeCompiler(muProgram.messageHandler(), AST.get());
         final List<ByteCodeInstruction> compiled = compiler.compile();
         System.out.println(compiler);
+        final File writeTo = new File("mu-testing.mub");
+        ByteCodeCompiler.compileToFile(compiled, writeTo);
     }
 
     private static Optional<Byte> findFirstDuplicateBytecode() {

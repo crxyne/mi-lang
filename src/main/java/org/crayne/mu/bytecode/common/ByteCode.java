@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+@SuppressWarnings("unused")
 public enum ByteCode {
 
     INSTRUCT_FINISH((byte) 0xFF),
@@ -59,10 +60,11 @@ public enum ByteCode {
     STRING_VALUE((byte) 0xC8),
     INTEGER_VALUE((byte) 0xC9),
     FLOAT_VALUE((byte) 0xCA),
-    ENUM_VALUE((byte) 0xCB);
+    ENUM_VALUE((byte) 0xCB),
         /* NOTE for enums, map all enums to a unique id which will be a replacement for an entire ass name,
                taking up less bytes. for names, save those somewhere, so that you can cast an enum ordinal to string to get the name back, instead of a number
        */
+    ENUM_DEFINITION((byte) 0xCC);
 
     public static final int BYTECODE_VERSION = 1;
 

@@ -12,6 +12,9 @@ import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 
 import static org.crayne.mu.bytecode.common.ByteCode.*;
@@ -89,6 +92,10 @@ public class ByteCodeCompiler {
         return result;
     }
 
+    public static void compileToFile(@NotNull final List<ByteCodeInstruction> bytecode, @NotNull final File file) throws IOException {
+        Files.writeString(file.toPath(), String.join("", bytecode.stream().map(b -> b.write()).toList()));
+    }
+
     private void compileParent(@NotNull final Node parent) {
         for (final Node instruction : parent.children()) {
             switch (instruction.type()) {
@@ -99,31 +106,47 @@ public class ByteCodeCompiler {
                     compileParent(instruction.child(1));
                     currentModuleName.remove(currentModuleName.size() - 1);
                 }
-                case NATIVE_FUNCTION_DEFINITION -> {
-                    final String name = instruction.child(0).value().token();
-                    final String returnType = instruction.child(1).value().token();
-                    final List<ByteDatatype> args = instruction
-                            .child(3)
-                            .children()
-                            .stream()
-                            .map(Node::children)
-                            .map(n -> ByteDatatype.of(n.get(0).value().token()))
-                            .toList();
-
-                    final String javaClass = instruction.child(4).value().token();
-                    defineFunction(name, returnType, args,
-                            javaClass.substring(1, javaClass.length() - 1) +
-                                    "." + name + "(" +
-                                    String.join("|", args
-                                            .stream()
-                                            .map(d -> d.name().toLowerCase()).toList()
-                                    )
-                                    + ")"
-                                    + ByteDatatype.of(returnType).code());
-                }
+                case NATIVE_FUNCTION_DEFINITION -> compileNativeFunction(instruction);
+                case FUNCTION_DEFINITION -> compileFunction(instruction, null);
                 default -> System.out.println("ignored instruction: " + instruction);
             }
         }
+    }
+
+    private void compileNativeFunction(@NotNull final Node instr) {
+        final String name = instr.child(0).value().token();
+        final String returnType = instr.child(1).value().token();
+        final List<ByteDatatype> args = functionDefinitionParams(instr);
+
+        final String javaClass = instr.child(4).value().token();
+        final String javaMethod = javaClass.substring(1, javaClass.length() - 1) +
+                "." + name + "(" +
+                String.join("|", args
+                        .stream()
+                        .map(d -> d.name().toLowerCase()).toList()
+                )
+                + ")"
+                + ByteDatatype.of(returnType).name().toLowerCase();
+
+        compileFunction(instr, javaMethod);
+    }
+
+    private List<ByteDatatype> functionDefinitionParams(@NotNull final Node instr) {
+        return instr
+                .child(3)
+                .children()
+                .stream()
+                .map(Node::children)
+                .map(n -> ByteDatatype.of(n.get(0).value().token()))
+                .toList();
+    }
+
+    private void compileFunction(@NotNull final Node instr, final String javaMethod) {
+        final String name = instr.child(0).value().token();
+        final String returnType = instr.child(1).value().token();
+        final List<ByteDatatype> args = functionDefinitionParams(instr);
+
+        defineFunction(name, returnType, args, javaMethod);
     }
 
     private ByteDatatype variableDeclarationCommon(@NotNull final Node var) {
@@ -185,14 +208,14 @@ public class ByteCodeCompiler {
     private void ofLiteral(@NotNull final Node node) {
         final String value = node.value().token();
         final String type = node.type().getAsDataType().getName();
-        switch (ByteDatatype.of(type)) {
-            case BOOL -> push(bool(value));
-            case STRING -> push(string(value));
-            case DOUBLE -> push(floating(value));
-            case FLOAT -> push(doubleFloating(value));
-            case LONG -> push(longInteger(value));
-            case INT -> push(integer(value));
-            case CHAR -> push(character(value));
+        switch (ByteDatatype.of(type).name()) {
+            case "bool" -> push(bool(value));
+            case "string" -> push(string(value));
+            case "double" -> push(floating(value));
+            case "float" -> push(doubleFloating(value));
+            case "long" -> push(longInteger(value));
+            case "int" -> push(integer(value));
+            case "char" -> push(character(value));
             default -> panic("Unexpected datatype '" + type + "'");
         }
     }

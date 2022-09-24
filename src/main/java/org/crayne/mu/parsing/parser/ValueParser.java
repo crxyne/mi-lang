@@ -290,7 +290,12 @@ public class ValueParser {
 
         return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifier)),
-                new Node(NodeType.PARAMETERS, parsedArgs.stream().map(TypedNode::node).toList())
+                new Node(NodeType.PARAMETERS, parsedArgs.stream().map(n ->
+                        new Node(NodeType.PARAMETER, -1,
+                                new Node(NodeType.VALUE, -1, n.node()),
+                                new Node(NodeType.TYPE, Token.of(n.type().getName()))
+                        )
+                ).toList())
         ));
     }
 

@@ -21,8 +21,11 @@ public class Tests {
         final String code = """
                 module hi {
                     pub fn main {
-                        int i = 0;
-                        std.println(i);
+                        std.println("hi!");
+                        int r = 255;
+                        int g = 0;
+                        int b = 0;
+                        string color = termion.color_fg(r - 1, g, b);
                     }
                 }
                 """;

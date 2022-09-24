@@ -109,8 +109,12 @@ public class ByteCodeCompiler {
     }
 
     private void compileFunctionCall(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
-        final long id = findFunctionId(instr.child(0).value().token(), instr.child(1).children());
-        instr.child(1).children().stream().map(n -> n.child(0)).toList().forEach(n -> compileExpression(n, result));
+        compileFunctionCall(instr.child(0).value().token(), instr.child(1).children(), result);
+    }
+
+    private void compileFunctionCall(@NotNull final String identifier, @NotNull final List<Node> inputArgs, @NotNull final Collection<ByteCodeInstruction> result) {
+        final long id = findFunctionId(identifier, inputArgs);
+        inputArgs.stream().map(n -> n.child(0)).toList().forEach(n -> compileExpression(n, result));
         rawInstruction(ByteCode.call(id), result);
     }
 
@@ -287,7 +291,6 @@ public class ByteCodeCompiler {
             }*/
             case IDENTIFIER -> {
                 final String identifier = nodeVal.token();
-                System.out.println("FIND VAR " + globalVariableStorage);
                 if (identifier.startsWith("!PARENT.")) {
                     final long absoluteAddress = globalVariableStorage.get(identifier);
                     push(result, ByteCode.integer(absoluteAddress));
@@ -300,8 +303,12 @@ public class ByteCodeCompiler {
                 rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
             }
             case CAST_VALUE -> rawInstruction(cast(ByteDatatype.of(nodeVal.token())), result);
-            /*case FUNCTION_CALL -> tree.functionCall(new Node(op, values));
-            case VAR_SET_VALUE -> tree.variableSetValue(new Node(op, values));*/
+            case FUNCTION_CALL -> {
+                final String name = values.get(0).value().token();
+                final List<Node> args = values.get(1).children();
+                compileFunctionCall(name, args, result);
+            }
+            //case VAR_SET_VALUE -> tree.variableSetValue(new Node(op, values));
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value(), result);
             default -> panic("Could not parse expression (failed at " + op + ")");
         }

@@ -24,6 +24,7 @@ public class ByteCodeCompiler {
 
     private final MessageHandler messageHandler;
     private final List<ByteCodeInstruction> result;
+    private final List<ByteCodeInstruction> globalVariables;
     private final List<ByteCodeInstruction> functionDefinitions;
     private final Set<ByteCodeInstruction> enumDefinitions;
     private final SyntaxTreeExecution tree;
@@ -55,6 +56,7 @@ public class ByteCodeCompiler {
         localVariableStorage = new HashMap<>();
         functionStorage = new HashSet<>();
         enumDefinitions = new HashSet<>();
+        globalVariables = new ArrayList<>();
         functionDefinitions = new ArrayList<>();
         result = new ArrayList<>();
     }
@@ -72,7 +74,7 @@ public class ByteCodeCompiler {
     }
 
     private boolean compilingFunction() {
-        return relativeAddress < 0;
+        return relativeAddress >= 0;
     }
 
     private String currentModuleName() {
@@ -90,6 +92,7 @@ public class ByteCodeCompiler {
         }
         result.addAll(0, enumDefinitions);
         result.addAll(0, functionDefinitions);
+        result.addAll(0, globalVariables);
         result.add(0, header());
         return result;
     }
@@ -205,20 +208,20 @@ public class ByteCodeCompiler {
 
     private void compileVariableDeclaration(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
         final ByteDatatype type = variableDeclarationCommon(definition);
-        rawInstruction(declareVariable(type), result);
+        rawInstruction(declareVariable(type), !compilingFunction() ? globalVariables : result);
     }
 
     private void compileVariableDefinition(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
-        compileExpression(definition.child(3), result);
+        compileExpression(definition.child(3), !compilingFunction() ? globalVariables : result);
         final ByteDatatype type = variableDeclarationCommon(definition);
-        rawInstruction(defineVariable(type), result);
+        rawInstruction(defineVariable(type), !compilingFunction() ? globalVariables : result);
     }
 
-    private void rawInstruction(@NotNull final ByteCodeInstruction instr, @NotNull final List<ByteCodeInstruction> result) {
+    private void rawInstruction(@NotNull final ByteCodeInstruction instr, @NotNull final Collection<ByteCodeInstruction> result) {
         result.add(instr);
     }
 
-    private void compileExpression(final Node node, @NotNull final List<ByteCodeInstruction> result) {
+    private void compileExpression(final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
         if (node == null) return;
         traceback(node.lineDebugging());
         if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
@@ -231,15 +234,15 @@ public class ByteCodeCompiler {
         operator(node.type(), node.children(), node.value(), result);
     }
 
-    private void push(@NotNull final List<ByteCodeInstruction> result, @NotNull final Byte... bytes) {
+    private void push(@NotNull final Collection<ByteCodeInstruction> result, @NotNull final Byte... bytes) {
         rawInstruction(ByteCode.push(bytes), result);
     }
 
-    private void push(@NotNull final List<ByteCodeInstruction> result, @NotNull final ByteCodeInstruction instr) {
+    private void push(@NotNull final Collection<ByteCodeInstruction> result, @NotNull final ByteCodeInstruction instr) {
         push(result, instr.codes());
     }
 
-    private void ofLiteral(@NotNull final Node node, @NotNull final List<ByteCodeInstruction> result) {
+    private void ofLiteral(@NotNull final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
         final String value = node.value().token();
         final String type = node.type().getAsDataType().getName();
         switch (ByteDatatype.of(type).name()) {
@@ -254,7 +257,7 @@ public class ByteCodeCompiler {
         }
     }
 
-    private void operator(@NotNull final NodeType op, @NotNull final List<Node> values, final Token nodeVal, @NotNull final List<ByteCodeInstruction> result) {
+    private void operator(@NotNull final NodeType op, @NotNull final List<Node> values, final Token nodeVal, @NotNull final Collection<ByteCodeInstruction> result) {
         final Node x = values.size() > 0 ? values.get(0) : null;
         final Node y = values.size() > 1 ? values.get(1) : null;
 
@@ -307,7 +310,7 @@ public class ByteCodeCompiler {
         };
     }
 
-    private void operator(final Node v1, final Node v2, final ByteCode op, @NotNull final List<ByteCodeInstruction> result) {
+    private void operator(final Node v1, final Node v2, final ByteCode op, @NotNull final Collection<ByteCodeInstruction> result) {
         compileExpression(v1, result);
         compileExpression(v2, result);
         rawInstruction(new ByteCodeInstruction(op.code()), result);

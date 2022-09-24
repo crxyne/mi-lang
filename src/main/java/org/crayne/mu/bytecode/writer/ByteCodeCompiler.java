@@ -9,23 +9,30 @@ import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
-import org.crayne.mu.parsing.lexer.Tokenizer;
 import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+import static org.crayne.mu.bytecode.common.ByteCode.*;
+
 public class ByteCodeCompiler {
 
     private final MessageHandler messageHandler;
     private final List<ByteCodeInstruction> result;
+    private final Set<ByteCodeInstruction> functionDefinitions;
+    private final Set<ByteCodeInstruction> enumDefinitions;
     private final SyntaxTreeExecution tree;
 
     private final Map<String, Long> globalVariableStorage;
     private final Map<String, Long> localVariableStorage;
+    private final Map<String, Long> functionStorage;
+
+    private final List<String> currentModuleName = new ArrayList<>();
 
     private long absoluteAddress = 1;
     private long relativeAddress = -1;
+    private long functionId = 0;
 
     private final Traceback traceback;
     public TracebackElement newTracebackElement(final int line) {
@@ -42,7 +49,10 @@ public class ByteCodeCompiler {
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
         localVariableStorage = new HashMap<>();
-        result = new ArrayList<>() {{this.add(ByteCode.PROGRAM_HEADER.header());}};
+        functionStorage = new HashMap<>();
+        enumDefinitions = new HashSet<>();
+        functionDefinitions = new HashSet<>();
+        result = new ArrayList<>() {{this.add(header());}};
     }
 
     public int getStdlibFinishLine() {
@@ -61,6 +71,10 @@ public class ByteCodeCompiler {
         return relativeAddress < 0;
     }
 
+    private String currentModuleName() {
+        return String.join(".", currentModuleName);
+    }
+
     public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
         traceback(ast.lineDebugging());
@@ -70,6 +84,8 @@ public class ByteCodeCompiler {
             panic("Expected 'PARENT' node at the beginning of syntax tree");
             return new ArrayList<>();
         }
+        result.addAll(functionDefinitions);
+        result.addAll(enumDefinitions);
         return result;
     }
 
@@ -78,6 +94,34 @@ public class ByteCodeCompiler {
             switch (instruction.type()) {
                 case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instruction);
                 case VAR_DEFINITION -> compileVariableDeclaration(instruction);
+                case CREATE_MODULE -> {
+                    currentModuleName.add(instruction.child(0).value().token());
+                    compileParent(instruction.child(1));
+                    currentModuleName.remove(currentModuleName.size() - 1);
+                }
+                case NATIVE_FUNCTION_DEFINITION -> {
+                    final String name = instruction.child(0).value().token();
+                    final String returnType = instruction.child(1).value().token();
+                    final List<ByteDatatype> args = instruction
+                            .child(3)
+                            .children()
+                            .stream()
+                            .map(Node::children)
+                            .map(n -> ByteDatatype.of(n.get(0).value().token()))
+                            .toList();
+
+                    final String javaClass = instruction.child(4).value().token();
+                    defineFunction(name, returnType, args,
+                            javaClass.substring(1, javaClass.length() - 1) +
+                                    "." + name + "(" +
+                                    String.join("|", args
+                                            .stream()
+                                            .map(d -> d.name().toLowerCase()).toList()
+                                    )
+                                    + ")"
+                                    + ByteDatatype.of(returnType).code());
+                }
+                default -> System.out.println("ignored instruction: " + instruction);
             }
         }
     }
@@ -96,15 +140,21 @@ public class ByteCodeCompiler {
         return type;
     }
 
+    private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final List<ByteDatatype> args, final String javaMethod) {
+        functionStorage.put(currentModuleName() + "." + name + "@" + returnType + ":" + String.join("", args.stream().map(d -> String.valueOf(d.code())).toList()), functionId);
+        functionDefinitions.add(javaMethod == null ? function(functionId) : nativeFunction(functionId, javaMethod));
+        functionId++;
+    }
+
     private void compileVariableDeclaration(@NotNull final Node definition) {
         final ByteDatatype type = variableDeclarationCommon(definition);
-        rawInstruction(ByteCode.DECLARE_VARIABLE.declareVariable(type));
+        rawInstruction(declareVariable(type));
     }
 
     private void compileVariableDefinition(@NotNull final Node definition) {
         compileExpression(definition.child(3));
         final ByteDatatype type = variableDeclarationCommon(definition);
-        rawInstruction(ByteCode.DEFINE_VARIABLE.defineVariable(type));
+        rawInstruction(defineVariable(type));
     }
 
     private void rawInstruction(@NotNull final ByteCodeInstruction instr) {
@@ -124,17 +174,25 @@ public class ByteCodeCompiler {
         operator(node.type(), node.children(), node.value());
     }
 
+    private void push(@NotNull final Byte... bytes) {
+        rawInstruction(ByteCode.push(bytes));
+    }
+
+    private void push(@NotNull final ByteCodeInstruction instr) {
+        push(instr.codes());
+    }
+
     private void ofLiteral(@NotNull final Node node) {
         final String value = node.value().token();
         final String type = node.type().getAsDataType().getName();
         switch (ByteDatatype.of(type)) {
-            case BOOL -> rawInstruction(ByteCode.PUSH.push(ByteCode.INTEGER_VALUE.integer(value.equals("1b") ? 1L : 0L).codes()));
-            case STRING -> rawInstruction(ByteCode.PUSH.push(ByteCode.STRING_VALUE.string(value).codes()));
-            case DOUBLE -> rawInstruction(ByteCode.PUSH.push(ByteCode.FLOAT_VALUE.decimal(Tokenizer.isDouble(value) != null ? Double.parseDouble(value) : 0d).codes()));
-            case FLOAT -> rawInstruction(ByteCode.PUSH.push(ByteCode.FLOAT_VALUE.decimal(Tokenizer.isFloat(value) != null ? Float.parseFloat(value) : 0f).codes()));
-            case LONG -> rawInstruction(ByteCode.PUSH.push(ByteCode.INTEGER_VALUE.integer(Tokenizer.isLong(value) != null ? Long.parseLong(value) : 0L).codes()));
-            case INT -> rawInstruction(ByteCode.PUSH.push(ByteCode.INTEGER_VALUE.integer(Tokenizer.isInt(value) != null ? Integer.parseInt(value) : 0).codes()));
-            case CHAR -> rawInstruction(ByteCode.PUSH.push(ByteCode.INTEGER_VALUE.integer((value.startsWith("'") ? value.charAt(1) : Integer.parseInt(value))).codes()));
+            case BOOL -> push(bool(value));
+            case STRING -> push(string(value));
+            case DOUBLE -> push(floating(value));
+            case FLOAT -> push(doubleFloating(value));
+            case LONG -> push(longInteger(value));
+            case INT -> push(integer(value));
+            case CHAR -> push(character(value));
             default -> panic("Unexpected datatype '" + type + "'");
         }
     }
@@ -144,28 +202,28 @@ public class ByteCodeCompiler {
         final Node y = values.size() > 1 ? values.get(1) : null;
 
         switch (op) {
-            case DIVIDE -> operator(x, y, ByteCode.DIVIDE);
-            case MULTIPLY -> operator(x, y, ByteCode.MULTIPLY);
-            case ADD -> operator(x, y, ByteCode.PLUS);
-            case SUBTRACT -> operator(x, y, ByteCode.MINUS);
-            case MODULUS ->  operator(x, y, ByteCode.MODULO);
-            case LOGICAL_AND ->  operator(x, y, ByteCode.LOGICAL_AND);
-            case LOGICAL_OR ->  operator(x, y, ByteCode.LOGICAL_OR);
-            case XOR ->  operator(x, y, ByteCode.BIT_XOR);
-            case BIT_AND ->  operator(x, y, ByteCode.BIT_AND);
-            case BIT_OR ->  operator(x, y, ByteCode.BIT_OR);
-            case LSHIFT ->  operator(x, y, ByteCode.BITSHIFT_LEFT);
-            case RSHIFT -> operator(x, y, ByteCode.BITSHIFT_RIGHT);
-            case LESS_THAN -> operator(x, y, ByteCode.LESS_THAN);
-            case LESS_THAN_EQ -> operator(x, y, ByteCode.LESS_THAN_OR_EQUAL);
-            case GREATER_THAN -> operator(x, y, ByteCode.GREATER_THAN);
-            case GREATER_THAN_EQ -> operator(x, y, ByteCode.GREATER_THAN_OR_EQUAL);
-            case EQUALS -> operator(x, y, ByteCode.EQUALS);
+            case DIVIDE -> operator(x, y, DIVIDE);
+            case MULTIPLY -> operator(x, y, MULTIPLY);
+            case ADD -> operator(x, y, PLUS);
+            case SUBTRACT -> operator(x, y, MINUS);
+            case MODULUS ->  operator(x, y, MODULO);
+            case LOGICAL_AND ->  operator(x, y, LOGICAL_AND);
+            case LOGICAL_OR ->  operator(x, y, LOGICAL_OR);
+            case XOR ->  operator(x, y, BIT_XOR);
+            case BIT_AND ->  operator(x, y, BIT_AND);
+            case BIT_OR ->  operator(x, y, BIT_OR);
+            case LSHIFT ->  operator(x, y, BITSHIFT_LEFT);
+            case RSHIFT -> operator(x, y, BITSHIFT_RIGHT);
+            case LESS_THAN -> operator(x, y, LESS_THAN);
+            case LESS_THAN_EQ -> operator(x, y, LESS_THAN_OR_EQUAL);
+            case GREATER_THAN -> operator(x, y, GREATER_THAN);
+            case GREATER_THAN_EQ -> operator(x, y, GREATER_THAN_OR_EQUAL);
+            case EQUALS -> operator(x, y, EQUALS);
             case NOTEQUALS -> {
-                operator(x, y, ByteCode.EQUALS);
-                rawInstruction(new ByteCodeInstruction(ByteCode.NOT.code()));
+                operator(x, y, EQUALS);
+                rawInstruction(new ByteCodeInstruction(NOT.code()));
             }
-            case NEGATE -> operator(Node.of(Token.of("0")), x, ByteCode.MINUS);
+            case NEGATE -> operator(Node.of(Token.of("0")), x, MINUS);
             /*case GET_ENUM_MEMBER -> {
                 final String identifier = values.get(0).value().token();
                 final String member = values.get(1).value().token();
@@ -184,7 +242,7 @@ public class ByteCodeCompiler {
                 }
                 yield new RValue(find.get().getType(), find.get().getValue().getValue());
             }*/
-            case CAST_VALUE -> rawInstruction(ByteCode.CAST.cast(ByteDatatype.of(nodeVal.token())));
+            case CAST_VALUE -> rawInstruction(cast(ByteDatatype.of(nodeVal.token())));
             /*case FUNCTION_CALL -> tree.functionCall(new Node(op, values));
             case VAR_SET_VALUE -> tree.variableSetValue(new Node(op, values));*/
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value());

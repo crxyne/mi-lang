@@ -25,9 +25,8 @@ public class Tests {
                     }
                 
                     pub fn main {
-                        ?r = Result::Err;
-                        ?r2 = Result::Ok;
-                        ?b = string(r) == string(r2);
+                        mut? i = 0;
+                        ?i2 = i++;
                     }
                 }
                 """;

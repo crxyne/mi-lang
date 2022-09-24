@@ -373,7 +373,7 @@ public class ParserEvaluator {
         return new Node(NodeType.VAR_SET_VALUE, finalEq.actualLine(),
                 new Node(NodeType.IDENTIFIER, var.asIdentifierToken(identifier)),
                 new Node(NodeType.OPERATOR, finalEq),
-                new Node(NodeType.VALUE, value.node().value().actualLine(), value.node())
+                new Node(NodeType.VALUE, -1, value.node())
         );
     }
 

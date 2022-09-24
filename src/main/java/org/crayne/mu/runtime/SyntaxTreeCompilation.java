@@ -59,7 +59,7 @@ public class SyntaxTreeCompilation {
     }
 
     public void compile(@NotNull final File file) throws IOException {
-        final ByteCodeCompiler compiler = new ByteCodeCompiler(out, this);
+        final ByteCodeCompiler compiler = new ByteCodeCompiler(this);
         final List<ByteCodeInstruction> compiled = compiler.compile();
         System.out.println(compiler);
         System.out.println("------------------------------------------------------------------------------");

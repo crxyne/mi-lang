@@ -42,5 +42,12 @@ public class ByteDatatype {
         };
     }
 
+    public boolean equals(@NotNull final ByteDatatype other) {
+        return name.equals(other.name) && code == other.code;
+    }
+
+    public String toString() {
+        return name + ":" + code;
+    }
 
 }

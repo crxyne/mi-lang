@@ -19,7 +19,11 @@ public class Tests {
             throw new Exception("Found duplicate bytecode: " + Integer.toHexString((int) duplicateByteCode.get()));
         }
         final String code = """
-                
+                module hi {
+                    pub fn main {
+                        std.println("hi!");
+                    }
+                }
                 """;
 
         final MuProgram muProgram = new MuProgram(System.out, true);

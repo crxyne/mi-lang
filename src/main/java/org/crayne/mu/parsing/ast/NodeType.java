@@ -70,6 +70,7 @@ public enum NodeType {
     NATIVE_FUNCTION_DEFINITION(null),
     NATIVE_JAVA_FUNCTION_STR(null),
     PARAMETERS(null),
+    PARAMETER(null),
     CREATE_MODULE(null),
     CREATE_ENUM(null),
     ENUM_VALUES(null),

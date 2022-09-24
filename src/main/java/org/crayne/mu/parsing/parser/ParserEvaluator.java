@@ -445,7 +445,12 @@ public class ParserEvaluator {
 
         return new Node(NodeType.FUNCTION_CALL, identifierTok.actualLine(),
                 new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifierTok)),
-                new Node(NodeType.PARAMETERS, params.stream().map(n -> new Node(NodeType.VALUE, -1, n.node())).toList())
+                new Node(NodeType.PARAMETERS, params.stream().map(n ->
+                        new Node(NodeType.PARAMETER, -1,
+                                new Node(NodeType.VALUE, -1, n.node()),
+                                new Node(NodeType.TYPE, Token.of(n.type().getName()))
+                        )
+                ).toList())
         );
     }
 

@@ -199,10 +199,10 @@ public enum ByteCode {
         return new String(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(5, instr.codes().length - 1).toArray(new Byte[0])), StandardCharsets.UTF_8);
     }
 
-    public static ByteCodeInstruction call(final int id) {
+    public static ByteCodeInstruction call(final long id) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(FUNCTION_CALL.code);
-            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(id))).toList());
+            this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(id))).toList());
         }});
     }
 

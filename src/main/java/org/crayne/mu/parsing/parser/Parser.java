@@ -6,7 +6,7 @@ import org.crayne.mu.lang.Module;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
-import org.crayne.mu.runtime.SyntaxTreeExecution;
+import org.crayne.mu.runtime.SyntaxTreeCompilation;
 import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
@@ -36,7 +36,6 @@ public class Parser {
     protected boolean stdlib = true;
     private final String code;
     protected Module currentParsingModule;
-    private final boolean printStackTraces;
 
     public Module currentParsingModule() {
         return currentParsingModule;
@@ -46,7 +45,7 @@ public class Parser {
         add(new Scope(ScopeType.PARENT, 0, 0));
     }};
 
-    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code, final boolean printStackTraces) {
+    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code) {
         this.output = output;
         this.tokens = tokens;
         if (stdlibFinishLine == -1) {
@@ -56,10 +55,9 @@ public class Parser {
         this.code = code;
         this.stdlibFinishLine = stdlibFinishLine;
         evaluator = new ParserEvaluator(this);
-        this.printStackTraces = printStackTraces;
     }
 
-    public SyntaxTreeExecution parse() {
+    public SyntaxTreeCompilation parse() {
         encounteredError = false;
         evaluator = new ParserEvaluator(this);
         skim();
@@ -71,7 +69,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTreeExecution result = new SyntaxTreeExecution(parentModule(), parent, output, code, stdlibFinishLine, printStackTraces);
+        final SyntaxTreeCompilation result = new SyntaxTreeCompilation(parent, output, code, stdlibFinishLine);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }

@@ -1,5 +1,6 @@
 package org.crayne.mu;
 
+import org.apache.commons.lang3.StringUtils;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.runtime.MuProgram;
 import org.crayne.mu.stdlib.MuStandardLib;
@@ -58,7 +59,7 @@ public class MuLang {
         return Optional.of(result);
     }
 
-    private static final Set<String> validArgs = new HashSet<>(Arrays.asList("main", "pass", "file"));
+    private static final Set<String> validArgs = new HashSet<>(Arrays.asList("out", "file"));
 
     public static Predicate<String> invalidArgument = arg -> !validArgs.contains(arg);
 
@@ -97,17 +98,15 @@ public class MuLang {
 
         final Optional<String> inputFile = findKeyvalueOrElse("file", messageHandler,
                 "No input file specified (specify using the file='some file.mu' argument)", params);
-        final Optional<String> mainFunc = findKeyvalueOrElse("main", messageHandler,
-                "No main function specified (specify using the main=testing.main argument, format: 'main=module.function_name')", params);
 
-        if (inputFile.isEmpty() || mainFunc.isEmpty()) return;
-
-        final Object[] passInParams = params.stream().filter(a -> a.key.equals("pass")).map(Argument::value).toArray();
+        if (inputFile.isEmpty()) return;
 
         final Optional<String> code = readCode(inputFile.get(), messageHandler);
         if (code.isEmpty()) return;
 
-        muProgram.execute(MuStandardLib.standardLib(), code.get(), true, mainFunc.get(), passInParams);
+        final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mub");
+
+        muProgram.compile(MuStandardLib.standardLib(), code.get(), outputFile);
     }
 
 }

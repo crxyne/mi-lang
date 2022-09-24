@@ -4,13 +4,11 @@ import org.crayne.mu.bytecode.common.ByteCode;
 import org.crayne.mu.bytecode.common.ByteCodeFunction;
 import org.crayne.mu.bytecode.common.ByteCodeInstruction;
 import org.crayne.mu.bytecode.common.ByteDatatype;
-import org.crayne.mu.bytecode.common.errorhandler.Traceback;
-import org.crayne.mu.bytecode.common.errorhandler.TracebackElement;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
 import org.crayne.mu.parsing.lexer.Token;
-import org.crayne.mu.runtime.SyntaxTreeExecution;
+import org.crayne.mu.runtime.SyntaxTreeCompilation;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -27,7 +25,7 @@ public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> globalVariables;
     private final List<ByteCodeInstruction> functionDefinitions;
     private final Set<ByteCodeInstruction> enumDefinitions;
-    private final SyntaxTreeExecution tree;
+    private final SyntaxTreeCompilation tree;
 
     private final Map<String, Long> globalVariableStorage;
     private final Map<String, Long> localVariableStorage;
@@ -39,18 +37,8 @@ public class ByteCodeCompiler {
     private long relativeAddress = -1;
     private long functionId = 0;
 
-    private final Traceback traceback;
-    public TracebackElement newTracebackElement(final int line) {
-        return new TracebackElement(this, line);
-    }
-
-    public void traceback(final int... lines) {
-        for (final int line : lines) traceback.add(newTracebackElement(line));
-    }
-
-    public ByteCodeCompiler(@NotNull final MessageHandler messageHandler, @NotNull final SyntaxTreeExecution tree) {
+    public ByteCodeCompiler(@NotNull final MessageHandler messageHandler, @NotNull final SyntaxTreeCompilation tree) {
         this.messageHandler = messageHandler;
-        this.traceback = new Traceback();
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
         localVariableStorage = new HashMap<>();
@@ -70,7 +58,7 @@ public class ByteCodeCompiler {
     }
 
     private void panic(@NotNull final String message) {
-        messageHandler.errorMsg("Encountered fatal compiler error: " + message);
+        tree.error(message);
     }
 
     private boolean compilingFunction() {
@@ -83,7 +71,7 @@ public class ByteCodeCompiler {
 
     public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
-        traceback(ast.lineDebugging());
+        tree.traceback(ast.lineDebugging());
         if (ast.type() == NodeType.PARENT) {
             compileParent(ast, result);
         } else {
@@ -98,6 +86,7 @@ public class ByteCodeCompiler {
     }
 
     public static void compileToFile(@NotNull final List<ByteCodeInstruction> bytecode, @NotNull final File file) throws IOException {
+        if (bytecode.isEmpty()) return;
         Files.writeString(file.toPath(), String.join("", bytecode.stream().map(b -> b.write()).toList()));
     }
 
@@ -223,7 +212,7 @@ public class ByteCodeCompiler {
 
     private void compileExpression(final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
         if (node == null) return;
-        traceback(node.lineDebugging());
+        tree.traceback(node.lineDebugging());
         if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
             ofLiteral(node.child(0), result);
             return;

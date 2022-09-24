@@ -1,7 +1,7 @@
 package org.crayne.mu.bytecode.common.errorhandler;
 
 import org.crayne.mu.bytecode.writer.ByteCodeCompiler;
-import org.crayne.mu.runtime.SyntaxTreeExecution;
+import org.crayne.mu.runtime.SyntaxTreeCompilation;
 import org.jetbrains.annotations.NotNull;
 
 public class TracebackElement {
@@ -10,7 +10,7 @@ public class TracebackElement {
     final int line;
     final int lineNoStandardLib;
 
-    public TracebackElement(@NotNull final SyntaxTreeExecution tree, final int line) {
+    public TracebackElement(@NotNull final SyntaxTreeCompilation tree, final int line) {
         this.line = line;
         this.lineNoStandardLib = line - tree.getStdlibFinishLine();
         final String getline = tree.getLine(line);

@@ -1,15 +1,15 @@
 package org.crayne.mu;
 
 import org.crayne.mu.bytecode.common.ByteCode;
-import org.crayne.mu.bytecode.common.ByteCodeInstruction;
-import org.crayne.mu.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mu.runtime.MuProgram;
-import org.crayne.mu.runtime.SyntaxTreeExecution;
 import org.crayne.mu.stdlib.MuStandardLib;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 
 public class Tests {
 
@@ -21,20 +21,14 @@ public class Tests {
         final String code = """
                 module hi {
                     pub fn main {
-                        std.println("hi!");
+                        std.println(true);
                     }
                 }
                 """;
 
         final MuProgram muProgram = new MuProgram(System.out, true);
-        final Optional<SyntaxTreeExecution> AST = muProgram.parse(MuStandardLib.standardLib(), code);
-        if (AST.isEmpty()) return;
-
-        final ByteCodeCompiler compiler = new ByteCodeCompiler(muProgram.messageHandler(), AST.get());
-        final List<ByteCodeInstruction> compiled = compiler.compile();
-        System.out.println(compiler);
         final File writeTo = new File("mu-testing.mub");
-        ByteCodeCompiler.compileToFile(compiled, writeTo);
+        muProgram.compile(MuStandardLib.standardLib(), code, writeTo);
     }
 
     private static Optional<Byte> findFirstDuplicateBytecode() {

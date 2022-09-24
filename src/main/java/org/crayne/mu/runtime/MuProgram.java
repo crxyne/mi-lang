@@ -6,6 +6,7 @@ import org.crayne.mu.parsing.lexer.Tokenizer;
 import org.crayne.mu.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
@@ -24,11 +25,7 @@ public class MuProgram {
         return out;
     }
 
-    public Optional<SyntaxTreeExecution> parse(@NotNull final String stdlib, @NotNull final String code) {
-        return parse(stdlib, code, true);
-    }
-
-    private Optional<SyntaxTreeExecution> parse(@NotNull final String stdlib, @NotNull final String code, final boolean printStackTraces) {
+    private Optional<SyntaxTreeCompilation> parse(@NotNull final String stdlib, @NotNull final String code) {
         final String actualCode = stdlib + code + "\n";
         this.out.setProgram(actualCode);
 
@@ -36,17 +33,17 @@ public class MuProgram {
         final List<Token> tokenList = tokenizer.tokenize(actualCode);
         if (tokenizer.encounteredError()) return Optional.empty();
 
-        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), actualCode, printStackTraces);
+        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), actualCode);
         return Optional.ofNullable(parser.parse());
     }
 
-    public void execute(@NotNull final String stdlib, @NotNull final String code, final boolean printStackTraces, @NotNull final String mainFunc, @NotNull final Object... args) {
-        final Optional<SyntaxTreeExecution> tree = parse(stdlib, code, printStackTraces);
+    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file) {
+        final Optional<SyntaxTreeCompilation> tree = parse(stdlib, code);
         if (tree.isPresent()) {
             try {
-                tree.get().execute(mainFunc, List.of(args));
+                tree.get().compile(file);
             } catch (Throwable e) {
-                tree.get().runtimeError("Fatal Mu error encountered: " + e.getClass().getSimpleName() + " " + e.getMessage());
+                tree.get().error("Error encountered when trying to compile: " + e.getClass().getSimpleName() + " " + e.getMessage());
             }
         }
     }

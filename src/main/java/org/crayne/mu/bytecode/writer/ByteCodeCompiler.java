@@ -71,7 +71,6 @@ public class ByteCodeCompiler {
 
     public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
-        tree.traceback(ast.lineDebugging());
         if (ast.type() == NodeType.PARENT) {
             compileParent(ast, result);
         } else {
@@ -92,6 +91,7 @@ public class ByteCodeCompiler {
 
     private void compileParent(@NotNull final Node parent, @NotNull final List<ByteCodeInstruction> result) {
         for (final Node instruction : parent.children()) {
+            tree.traceback(instruction.lineDebugging());
             switch (instruction.type()) {
                 case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instruction, result);
                 case VAR_DEFINITION -> compileVariableDeclaration(instruction, result);
@@ -173,7 +173,7 @@ public class ByteCodeCompiler {
             localVariableStorage.put(name.token(), relativeAddress);
             relativeAddress++;
         } else {
-            globalVariableStorage.put(name.token(), absoluteAddress);
+            globalVariableStorage.put(currentModuleName() + "." + name.token(), absoluteAddress);
         }
         absoluteAddress++;
         return type;
@@ -182,6 +182,7 @@ public class ByteCodeCompiler {
     private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final List<ByteDatatype> args, final String javaMethod, final Node scope, @NotNull final List<ByteCodeInstruction> result) {
         functionStorage.add(new ByteCodeFunction(currentModuleName() + "." + name, ByteDatatype.of(returnType), args, functionId));
         if (javaMethod == null) {
+            relativeAddress = 0;
             functionDefinitions.add(function(functionId));
             if (scope == null) {
                 panic("The function scope of '" + name + "' is null");
@@ -189,6 +190,7 @@ public class ByteCodeCompiler {
             }
             compileParent(scope, functionDefinitions);
             rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
+            relativeAddress = -1;
         } else {
             functionDefinitions.add(nativeFunction(functionId, javaMethod));
         }
@@ -282,21 +284,27 @@ public class ByteCodeCompiler {
                 final boolean ternaryCondition = isTrue(compileExpression(values.get(0).child(0)).getValue());
                 if (ternaryCondition) yield compileExpression(values.get(1).child(0));
                 yield compileExpression(values.get(2).child(0));
-            }
-            case IDENTIFIER -> {
-                final Optional<RVariable> find = MuUtil.findVariable(tree, nodeVal.token());
-                if (find.isEmpty()) {
-                    tree.runtimeError("Cannot find variable '" + nodeVal.token() + "'");
-                    yield null;
-                }
-                yield new RValue(find.get().getType(), find.get().getValue().getValue());
             }*/
+            case IDENTIFIER -> {
+                final String identifier = nodeVal.token();
+                System.out.println("FIND VAR " + globalVariableStorage);
+                if (identifier.startsWith("!PARENT.")) {
+                    final long absoluteAddress = globalVariableStorage.get(identifier);
+                    push(result, ByteCode.integer(absoluteAddress));
+                    rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
+                    return;
+                }
+                final long relativeAddress = localVariableStorage.get(identifier);
+                push(result, ByteCode.integer(relativeAddress));
+                rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
+                rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
+            }
             case CAST_VALUE -> rawInstruction(cast(ByteDatatype.of(nodeVal.token())), result);
             /*case FUNCTION_CALL -> tree.functionCall(new Node(op, values));
             case VAR_SET_VALUE -> tree.variableSetValue(new Node(op, values));*/
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value(), result);
             default -> panic("Could not parse expression (failed at " + op + ")");
-        };
+        }
     }
 
     private void operator(final Node v1, final Node v2, final ByteCode op, @NotNull final Collection<ByteCodeInstruction> result) {

@@ -21,7 +21,8 @@ public class Tests {
         final String code = """
                 module hi {
                     pub fn main {
-                        std.println(true);
+                        int i = 0;
+                        std.println(i);
                     }
                 }
                 """;

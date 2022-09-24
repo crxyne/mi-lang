@@ -26,7 +26,7 @@ public class TracebackElement {
 
     public String toString() {
         if (lineStr == null) return null;
-        if (lineNoStandardLib <= 0) return lineStr + "  :   @ line " + line;
+        if (lineNoStandardLib <= 0) return lineStr.replace("STANDARDLIB_MU_FINISH_CODE;", "") + "  :   @ line " + line;
         return lineStr + "  :   @ line " + lineNoStandardLib;
     }
 

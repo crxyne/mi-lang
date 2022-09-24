@@ -47,7 +47,6 @@ public class Datatype {
     public static Enum findEnumByIdentifier(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token identifier, final boolean panic) {
         final String enumNameStr = identifier.token();
         final Optional<Module> module = parser.findModuleFromIdentifier(enumNameStr, identifier, panic);
-
         for (final String using : usingMods) {
             final Token findOther = new Token(using + "." + identifier.token(), identifier.actualLine(), identifier.line(), identifier.column());
 
@@ -140,7 +139,7 @@ public class Datatype {
     }
 
     public String getName() {
-        return toString();
+        return primitiveDatatype != null ? primitiveDatatype.name().toLowerCase() : enumDatatype != null ? enumDatatype.asIdentifierToken().token() : null;
     }
 
     public Datatype heavier(@NotNull final Datatype d) {

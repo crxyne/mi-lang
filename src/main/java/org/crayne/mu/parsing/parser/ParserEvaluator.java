@@ -1112,7 +1112,7 @@ public class ParserEvaluator {
         final EnumScope enumScope = (EnumScope) newScope.get();
         enumScope.modifiers(modifiers.stream().map(n -> Modifier.of(n.type())).collect(Collectors.toList()));
         enumScope.name(identifier.token());
-        enumScope.module(parser.lastModule());
+        enumScope.module(parser.currentParsingModule == null ? parser.lastModule() : parser.currentParsingModule);
 
         return new Node(NodeType.CREATE_ENUM, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier),

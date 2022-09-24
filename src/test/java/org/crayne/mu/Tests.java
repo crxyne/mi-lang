@@ -20,12 +20,14 @@ public class Tests {
         }
         final String code = """
                 module hi {
+                    pub enum Result {
+                        Ok, Err
+                    }
+                
                     pub fn main {
-                        std.println("hi!");
-                        int r = -2147483647;
-                        int g = 0;
-                        int b = 0;
-                        string color = termion.color_fg(r - 1, g, b);
+                        ?r = Result::Err;
+                        ?r2 = Result::Ok;
+                        ?b = string(r) == string(r2);
                     }
                 }
                 """;

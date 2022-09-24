@@ -1,12 +1,12 @@
 package org.crayne.mu.bytecode.common;
 
-public record ByteCodeEnumMember(int enumId, long ordinal) {
+public record ByteCodeEnumMember(int enumId, int ordinal) {
 
     public int enumId() {
         return enumId;
     }
 
-    public long ordinal() {
+    public int ordinal() {
         return ordinal;
     }
 

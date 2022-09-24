@@ -85,6 +85,8 @@ public enum PrimitiveDatatype {
     },
     STRING("String") {
         public boolean addDefined(final PrimitiveDatatype y) {return true;}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y == STRING;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y == STRING;}
     },
     CHAR("Character") {
         public boolean addDefined(final PrimitiveDatatype y) {return y.isNumber() || y == STRING;}

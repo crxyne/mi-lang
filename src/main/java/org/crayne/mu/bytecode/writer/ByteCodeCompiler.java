@@ -1,9 +1,6 @@
 package org.crayne.mu.bytecode.writer;
 
-import org.crayne.mu.bytecode.common.ByteCode;
-import org.crayne.mu.bytecode.common.ByteCodeFunction;
-import org.crayne.mu.bytecode.common.ByteCodeInstruction;
-import org.crayne.mu.bytecode.common.ByteDatatype;
+import org.crayne.mu.bytecode.common.*;
 import org.crayne.mu.log.MessageHandler;
 import org.crayne.mu.parsing.ast.Node;
 import org.crayne.mu.parsing.ast.NodeType;
@@ -24,11 +21,12 @@ public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> result;
     private final List<ByteCodeInstruction> globalVariables;
     private final List<ByteCodeInstruction> functionDefinitions;
-    private final Set<ByteCodeInstruction> enumDefinitions;
+    private final List<ByteCodeInstruction> enumDefinitions;
     private final SyntaxTreeCompilation tree;
 
     private final Map<String, Long> globalVariableStorage;
     private final Map<String, Long> localVariableStorage;
+    private final Map<String, ByteCodeEnum> enumStorage;
     private final Set<ByteCodeFunction> functionStorage;
 
     private final List<String> currentModuleName = new ArrayList<>() {{this.add("!PARENT");}};
@@ -36,14 +34,16 @@ public class ByteCodeCompiler {
     private long absoluteAddress = 1;
     private long relativeAddress = -1;
     private long functionId = 0;
+    private int enumId = 0;
 
     public ByteCodeCompiler(@NotNull final MessageHandler messageHandler, @NotNull final SyntaxTreeCompilation tree) {
         this.messageHandler = messageHandler;
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
         localVariableStorage = new HashMap<>();
+        enumStorage = new HashMap<>();
         functionStorage = new HashSet<>();
-        enumDefinitions = new HashSet<>();
+        enumDefinitions = new ArrayList<>();
         globalVariables = new ArrayList<>();
         functionDefinitions = new ArrayList<>();
         result = new ArrayList<>();
@@ -77,8 +77,8 @@ public class ByteCodeCompiler {
             panic("Expected 'PARENT' node at the beginning of syntax tree");
             return new ArrayList<>();
         }
-        result.addAll(0, enumDefinitions);
         result.addAll(0, functionDefinitions);
+        result.addAll(0, enumDefinitions);
         result.addAll(0, globalVariables);
         result.add(0, header());
         return result;
@@ -103,9 +103,28 @@ public class ByteCodeCompiler {
                 case NATIVE_FUNCTION_DEFINITION -> compileNativeFunction(instruction);
                 case FUNCTION_DEFINITION -> compileFunction(instruction, null, instruction.child(4), result);
                 case FUNCTION_CALL -> compileFunctionCall(instruction, result);
+                case CREATE_ENUM -> compileEnumDefinition(instruction, result);
                 default -> System.out.println("ignored instruction: " + instruction);
             }
         }
+    }
+
+    private int findEnumId(@NotNull final String fullName) {
+        final ByteCodeEnum enumDef = findEnum(fullName);
+        return enumDef == null ? -1 : enumDef.id();
+    }
+
+    private ByteCodeEnum findEnum(@NotNull final String fullName) {
+        return enumStorage.get(fullName);
+    }
+
+    private void compileEnumDefinition(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        final String name = instr.child(0).value().token();
+        final List<String> members = instr.child(2).child(0).children().stream().map(n -> n.value().token()).toList();
+        final ByteCodeEnum enumDef = new ByteCodeEnum(name, enumId, members);
+        enumId++;
+        enumDefinitions.addAll(ByteCode.defineEnum(enumDef));
+        enumStorage.put(currentModuleName() + "." + name, enumDef);
     }
 
     private void compileFunctionCall(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
@@ -121,7 +140,10 @@ public class ByteCodeCompiler {
     private long findFunctionId(@NotNull final String fullName, @NotNull final List<Node> inputArgs) {
         final List<ByteDatatype> args = inputArgs
                 .stream()
-                .map(n -> ByteDatatype.of(n.child(1).value().token()))
+                .map(n -> {
+                    final String type = n.child(1).value().token();
+                    return ByteDatatype.of(type, findEnumId(type));
+                })
                 .toList();
 
         final ByteCodeFunction functionCall = new ByteCodeFunction(fullName, null, args, -1);
@@ -146,7 +168,7 @@ public class ByteCodeCompiler {
                         .map(d -> d.name().toLowerCase()).toList()
                 )
                 + ")"
-                + ByteDatatype.of(returnType).name().toLowerCase();
+                + ByteDatatype.of(returnType, findEnumId(returnType)).name().toLowerCase();
 
         compileFunction(instr, javaMethod, null, new ArrayList<>());
     }
@@ -157,7 +179,10 @@ public class ByteCodeCompiler {
                 .children()
                 .stream()
                 .map(Node::children)
-                .map(n -> ByteDatatype.of(n.get(0).value().token()))
+                .map(n -> {
+                    final String type = n.get(0).value().token();
+                    return ByteDatatype.of(type, findEnumId(type));
+                })
                 .toList();
     }
 
@@ -171,7 +196,8 @@ public class ByteCodeCompiler {
 
     private ByteDatatype variableDeclarationCommon(@NotNull final Node var) {
         final Token name = var.child(1).value();
-        final ByteDatatype type = ByteDatatype.of(var.child(2).value().token());
+        final String typeStr = var.child(2).value().token();
+        final ByteDatatype type = ByteDatatype.of(typeStr, findEnumId(typeStr));
 
         if (compilingFunction()) {
             localVariableStorage.put(name.token(), relativeAddress);
@@ -184,7 +210,7 @@ public class ByteCodeCompiler {
     }
 
     private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final List<ByteDatatype> args, final String javaMethod, final Node scope, @NotNull final List<ByteCodeInstruction> result) {
-        functionStorage.add(new ByteCodeFunction(currentModuleName() + "." + name, ByteDatatype.of(returnType), args, functionId));
+        functionStorage.add(new ByteCodeFunction(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args, functionId));
         if (javaMethod == null) {
             relativeAddress = 0;
             functionDefinitions.add(function(functionId));
@@ -240,7 +266,7 @@ public class ByteCodeCompiler {
     private void ofLiteral(@NotNull final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
         final String value = node.value().token();
         final String type = node.type().getAsDataType().getName();
-        switch (ByteDatatype.of(type).name()) {
+        switch (ByteDatatype.of(type, findEnumId(type)).name()) {
             case "bool" -> push(result, bool(value));
             case "string" -> push(result, string(value.substring(1, value.length() - 1)));
             case "double" -> push(result, floating(value));
@@ -279,11 +305,16 @@ public class ByteCodeCompiler {
                 rawInstruction(new ByteCodeInstruction(NOT.code()), result);
             }
             case NEGATE -> operator(Node.of(Token.of("0")), x, MINUS, result);
-            /*case GET_ENUM_MEMBER -> {
+            case GET_ENUM_MEMBER -> {
                 final String identifier = values.get(0).value().token();
                 final String member = values.get(1).value().token();
-                yield new RValue(RDatatype.of(identifier), member);
-            }
+                final ByteCodeEnum enumDef = findEnum(identifier);
+                if (enumDef == null) {
+                    panic("Cannot find enum '" + identifier + "'");
+                    return;
+                }
+                rawInstruction(ByteCode.enumMember(new ByteCodeEnumMember(enumDef.id(), enumDef.ordinalMember(member))), result);
+            }/*
             case TERNARY_OPERATOR -> {
                 final boolean ternaryCondition = isTrue(compileExpression(values.get(0).child(0)).getValue());
                 if (ternaryCondition) yield compileExpression(values.get(1).child(0));
@@ -302,7 +333,10 @@ public class ByteCodeCompiler {
                 rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
                 rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
             }
-            case CAST_VALUE -> rawInstruction(cast(ByteDatatype.of(nodeVal.token())), result);
+            case CAST_VALUE -> {
+                compileExpression(new Node(NodeType.VALUE, values), result);
+                rawInstruction(cast(ByteDatatype.of(nodeVal.token(), findEnumId(nodeVal.token()))), result);
+            }
             case FUNCTION_CALL -> {
                 final String name = values.get(0).value().token();
                 final List<Node> args = values.get(1).children();

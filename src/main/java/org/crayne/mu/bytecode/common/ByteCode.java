@@ -63,10 +63,9 @@ public enum ByteCode {
     INTEGER_VALUE((byte) 0xC9),
     FLOAT_VALUE((byte) 0xCA),
     ENUM_VALUE((byte) 0xCB),
-        /* NOTE for enums, map all enums to a unique id which will be a replacement for an entire ass name,
-               taking up less bytes. for names, save those somewhere, so that you can cast an enum ordinal to string to get the name back, instead of a number
-       */
-    ENUM_DEFINITION((byte) 0xCC);
+    ENUM_DEFINITION_BEGIN((byte) 0xCC),
+    ENUM_DEFINITION_END((byte) 0xCD),
+    ENUM_MEMBER_DEFINITION((byte) 0xCE);
 
     public static final int BYTECODE_VERSION = 1;
 
@@ -121,15 +120,37 @@ public enum ByteCode {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(ENUM_VALUE.code);
             this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(member.enumId()))).toList());
-            this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(member.ordinal()))).toList());
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(member.ordinal()))).toList());
         }});
     }
 
     public static ByteCodeEnumMember ofEnumMember(@NotNull final ByteCodeInstruction instr) {
         final List<Byte> sub = List.of(instr.codes()).subList(1, instr.codes().length - 1);
         final int enumId = bytesToInt(ArrayUtils.toPrimitive(sub.subList(0, 4).toArray(new Byte[0])));
-        final long member = bytesToLong(ArrayUtils.toPrimitive(sub.subList(4, 12).toArray(new Byte[0])));
+        final int member = bytesToInt(ArrayUtils.toPrimitive(sub.subList(4, 8).toArray(new Byte[0])));
         return new ByteCodeEnumMember(enumId, member);
+    }
+
+    public static List<ByteCodeInstruction> defineEnum(@NotNull final ByteCodeEnum enumDef) {
+        return new ArrayList<>() {
+            {
+                this.add(new ByteCodeInstruction(new ArrayList<>() {{
+                    this.add(ENUM_DEFINITION_BEGIN.code);
+                    this.addAll(List.of(ArrayUtils.toObject(intToBytes(enumDef.id()))));
+                }}));
+                this.addAll(enumDef
+                        .members()
+                        .stream()
+                        .map(m -> new ByteCodeInstruction(new ArrayList<>() {{
+                            this.add(ENUM_MEMBER_DEFINITION.code);
+                            this.addAll(List.of(ArrayUtils.toObject(intToBytes(enumDef.ordinalMember(m)))));
+                            final List<Byte> memberName = List.of(string(m).codes());
+                            this.addAll(memberName.subList(1, memberName.size() - 1));
+                        }}))
+                        .toList());
+                this.add(new ByteCodeInstruction(ENUM_DEFINITION_END.code));
+            }
+        };
     }
 
     public static ByteCodeInstruction floating(final double literal) {
@@ -215,15 +236,24 @@ public enum ByteCode {
     }
 
     public static ByteCodeInstruction defineVariable(@NotNull final ByteDatatype type) {
-        return new ByteCodeInstruction(DEFINE_VARIABLE.code, type.code());
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(DEFINE_VARIABLE.code);
+            this.addAll(List.of(type.bytes()));
+        }});
     }
 
     public static ByteCodeInstruction declareVariable(@NotNull final ByteDatatype type) {
-        return new ByteCodeInstruction(DECLARE_VARIABLE.code, type.code());
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(DECLARE_VARIABLE.code);
+            this.addAll(List.of(type.bytes()));
+        }});
     }
 
     public static ByteCodeInstruction cast(@NotNull final ByteDatatype type) {
-        return new ByteCodeInstruction(CAST.code, type.code());
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(CAST.code);
+            this.addAll(List.of(type.bytes()));
+        }});
     }
 
     public static ByteCodeInstruction pop(final int amount) {

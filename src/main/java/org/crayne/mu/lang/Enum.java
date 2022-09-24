@@ -53,6 +53,10 @@ public class Enum {
         );
     }
 
+    public Token asIdentifierToken() {
+        return new Token(module().fullName() + "." + name());
+    }
+
     public static Optional<Enum> findEnumByName(@NotNull final Collection<Enum> moduleEnums, @NotNull final String name) {
         Enum result = null;
         for (final Enum var : moduleEnums) if (var.name.equals(name)) result = var;

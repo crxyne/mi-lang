@@ -322,6 +322,7 @@ public class Parser {
             }
             prev = current;
         }
+        if (lastModule() != null && identifier.startsWith(lastModule().fullName())) identifier = identifier.substring(lastModule().fullName().length());
 
         final String moduleAsString = StringUtils.substringBeforeLast(identifier, ".");
         final boolean relative = identifier.charAt(0) == '.';

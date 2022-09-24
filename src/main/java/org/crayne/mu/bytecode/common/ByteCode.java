@@ -1,5 +1,7 @@
 package org.crayne.mu.bytecode.common;
 
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import org.apache.commons.lang3.ArrayUtils;
 import org.crayne.mu.parsing.lexer.Tokenizer;
 import org.jetbrains.annotations.NotNull;
@@ -87,29 +89,19 @@ public enum ByteCode {
     }
 
     public static byte[] longToBytes(final long l) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(l);
-        return buffer.array();
+        return Longs.toByteArray(l);
     }
 
     public static long bytesToLong(final byte[] bytes) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.put(bytes);
-        buffer.flip();
-        return buffer.getLong();
+        return Longs.fromByteArray(bytes);
     }
 
     public static byte[] intToBytes(final int i) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.putInt(i);
-        return buffer.array();
+        return Ints.toByteArray(i);
     }
 
     public static int bytesToInt(final byte[] bytes) {
-        final ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.put(bytes);
-        buffer.flip();
-        return buffer.getInt();
+        return Ints.fromByteArray(bytes);
     }
 
     public static byte[] floatToBytes(final double d) {

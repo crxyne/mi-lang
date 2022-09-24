@@ -62,6 +62,9 @@ public class SyntaxTreeCompilation {
         final ByteCodeCompiler compiler = new ByteCodeCompiler(out, this);
         final List<ByteCodeInstruction> compiled = compiler.compile();
         System.out.println(compiler);
+        System.out.println("------------------------------------------------------------------------------");
+        System.out.println(String.join("\n", compiled.stream().map(i -> ByteCodeInstruction.read(i.write()).toString()).toList()));
+        System.out.println("------------------------------------------------------------------------------");
         ByteCodeCompiler.compileToFile(compiled, file);
     }
 

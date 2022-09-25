@@ -22,9 +22,11 @@ public class Tests {
                 module hi {
                 
                     pub fn main {
-                        if false {
-                            std.println("yah");
-                            std.println("yah");
+                        use std;
+                        if true {
+                            println("yah");
+                        } else {
+                            println("nah");
                         }
                     }
                     

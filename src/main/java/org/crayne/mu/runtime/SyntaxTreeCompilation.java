@@ -63,7 +63,12 @@ public class SyntaxTreeCompilation {
         final List<ByteCodeInstruction> compiled = compiler.compile();
         System.out.println(compiler);
         System.out.println("------------------------------------------------------------------------------");
-        System.out.println(String.join("\n", compiled.stream().map(i -> ByteCodeInstruction.read(i.write()).toString()).toList()));
+        final long[] label = {0};
+        System.out.println(String.join("\n", compiled.stream().map(i -> {
+            final long at = label[0];
+            label[0]++;
+            return "@" + at + ": " + ByteCodeInstruction.read(i.write());
+        }).toList()));
         System.out.println("------------------------------------------------------------------------------");
         ByteCodeCompiler.compileToFile(compiled, file);
     }

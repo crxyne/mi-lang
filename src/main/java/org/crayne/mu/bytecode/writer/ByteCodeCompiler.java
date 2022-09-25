@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 import static org.crayne.mu.bytecode.common.ByteCode.*;
 
-// TODO final todos to finish up the compiler: add if, else, while, do while, for & ternary operator
+// TODO final todos to finish up the compiler: add while, do while, for & ternary operator
 // after this, directly start work on interpreter
 public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> result;

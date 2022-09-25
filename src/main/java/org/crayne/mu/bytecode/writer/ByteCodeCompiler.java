@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 import static org.crayne.mu.bytecode.common.ByteCode.*;
 
-// TODO final todos to finish up the compiler: add while, do while, for & ternary operator
+// TODO final todos to finish up the compiler: add break, continue & ternary operator
 // after this, directly start work on interpreter
 public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> result;
@@ -94,42 +94,36 @@ public class ByteCodeCompiler {
     }
 
     private void compileParent(@NotNull final Node parent, @NotNull final List<ByteCodeInstruction> result) {
-        for (final Node instruction : parent.children()) {
-            tree.traceback(instruction.lineDebugging());
-            switch (instruction.type()) {
-                case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instruction, result);
-                case VAR_DEFINITION -> compileVariableDeclaration(instruction, result);
-                case CREATE_MODULE -> {
-                    currentModuleName.add(instruction.child(0).value().token());
-                    compileParent(instruction.child(1), result);
-                    currentModuleName.remove(currentModuleName.size() - 1);
-                }
-                case NATIVE_FUNCTION_DEFINITION -> compileNativeFunction(instruction);
-                case FUNCTION_DEFINITION -> compileFunction(instruction, null, instruction.child(4));
-                case FUNCTION_CALL -> compileFunctionCall(instruction, result);
-                case CREATE_ENUM -> compileEnumDefinition(instruction);
-                case VAR_SET_VALUE -> compileVariableMutation(instruction, false, result);
-                case RETURN_VALUE -> compileReturnStatement(instruction, result);
-                case NOOP -> {
-                    if (!instruction.children().isEmpty()) {
-                        compileParent(instruction, result);
-                    }
-                }
-                case SCOPE -> {
-                    scope++;
-                    localScopeVariables.add(0);
-                    compileParent(instruction, result);
-                    final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
-                    if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
-                    //noinspection SuspiciousMethodCalls
-                    Arrays.asList(localVariableStorage.keySet().toArray()).subList(0, vars).forEach(localVariableStorage.keySet()::remove);
+        for (final Node instr : parent.children()) {
+            compileInstruction(instr, result);
+        }
+    }
 
-                    localScopeVariables.remove(localScopeVariables.size() - 1);
-                    scope--;
-                }
-                case IF_STATEMENT -> compileIfStatement(instruction, result);
-                default -> System.out.println("ignored instruction: " + instruction);
+    private void compileInstruction(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        tree.traceback(instr.lineDebugging());
+        switch (instr.type()) {
+            case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instr, result);
+            case VAR_DEFINITION -> compileVariableDeclaration(instr, result);
+            case CREATE_MODULE -> {
+                currentModuleName.add(instr.child(0).value().token());
+                compileParent(instr.child(1), result);
+                currentModuleName.remove(currentModuleName.size() - 1);
             }
+            case NATIVE_FUNCTION_DEFINITION -> compileNativeFunction(instr);
+            case FUNCTION_DEFINITION -> compileFunction(instr, null, instr.child(4));
+            case FUNCTION_CALL -> compileFunctionCall(instr, result);
+            case CREATE_ENUM -> compileEnumDefinition(instr);
+            case VAR_SET_VALUE -> compileVariableMutation(instr, false, result);
+            case RETURN_VALUE -> compileReturnStatement(instr, result);
+            case NOOP -> {
+                if (!instr.children().isEmpty()) compileParent(instr, result); // local scopes are technically noop since theres no statement aside from the { itself
+            }
+            case SCOPE -> compileLocalScope(instr, result);
+            case IF_STATEMENT -> compileIfStatement(instr, result);
+            case WHILE_STATEMENT -> compileWhileStatement(instr, result);
+            case DO_STATEMENT -> compileDoWhileStatement(instr, result);
+            case FOR_FAKE_SCOPE -> compileForStatement(instr, result);
+            default -> System.out.println("ignored instruction: " + instr);
         }
     }
 
@@ -151,6 +145,27 @@ public class ByteCodeCompiler {
         enumDefinitions.addAll(bytes);
         label += bytes.size();
         enumStorage.put(currentModuleName() + "." + name, enumDef);
+    }
+
+    private void compileLocalScope(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        initLocalScopeVars();
+        compileParent(instr, result);
+        deleteLocalScopeVars(result);
+    }
+
+    private void initLocalScopeVars() {
+        scope++;
+        localScopeVariables.add(0);
+    }
+
+    private void deleteLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
+        final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
+        if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
+        //noinspection SuspiciousMethodCalls
+        Arrays.asList(localVariableStorage.keySet().toArray()).subList(0, vars).forEach(localVariableStorage.keySet()::remove);
+
+        localScopeVariables.remove(localScopeVariables.size() - 1);
+        scope--;
     }
 
     private void compileIfStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
@@ -177,6 +192,54 @@ public class ByteCodeCompiler {
             result.add(afterElseJumpIndex, jump(label + 1));
             label++;
         }
+    }
+
+    private long compileLoopStatement(@NotNull final Node condition, @NotNull final Node scope, final Node forLoopInstr, @NotNull final List<ByteCodeInstruction> result) {
+        final long loopBeginLabel = label;
+
+        compileExpression(condition, result);
+        rawInstruction(new ByteCodeInstruction(NOT.code()), result); // while loops will work similarly like if statements
+        // the plan is to jump out of the loop once the condition is false (once the inverted condition is true)
+        // but if the condition is false, there will be an unconditional jump back to the condition check (after the entire loop "scope")
+        final int afterLoopJumpIndex = result.size(); // save the current index for later, so we can add back the jump statement with the label (which we do not have yet)
+        final long labelBeforeJumpIf = label + 1;
+        compileParent(scope, result);
+        if (forLoopInstr != null) compileInstruction(forLoopInstr, result); // for loops -- one difference between them and while loops is obviously the instruction executed at every iteration
+        rawInstruction(ByteCode.jump(loopBeginLabel), result); // the unconditional jump mentioned earlier (this goes back to the condition check)
+        result.add(afterLoopJumpIndex, ByteCode.jumpIf(label++ + 1)); // add the condition jump, which exits the loop once the condition is false
+        return labelBeforeJumpIf; // this is only useful for do {} while cond;
+    }
+
+    private void compileWhileStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        final Node condition = instr.child(0).child(0);
+        final Node scope = instr.child(1);
+        compileLoopStatement(condition, scope, null, result);
+    }
+
+    private void compileDoWhileStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        final Node condition = instr.child(1).child(0);
+        final Node scope = instr.child(0);
+        final int beforeLoopJumpIndex = result.size();
+        // the plan for bytecode generation in do while is simple:
+        // simply compile a while loop as usual BUT add a jump, that completely ignores the condition checking the first time.
+        // this way, the loop scope will always be executed atleast once. after that, it jumps to the condition checking and loops like a normal while loop would
+        label++;
+        final long loopLabel = compileLoopStatement(condition, scope, null, result);
+        result.add(beforeLoopJumpIndex, ByteCode.jump(loopLabel));
+    }
+
+    private void compileForStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        initLocalScopeVars(); // the entire for statement is inside of a hidden scope, so that the temporary variable (for example 'i') gets deleted afterwards to be reused
+
+        final Node vardef = instr.child(0).child(0);
+        compileInstruction(vardef, result); // for loops have a variable definition inside of their actual statement, so define that variable here
+
+        final Node condition = instr.child(0).child(1).child(0);
+        final Node forLoopInstr = instr.child(0).child(2).child(0);
+        final Node scope = instr.child(1);
+        compileLoopStatement(condition, scope, forLoopInstr, result);
+
+        deleteLocalScopeVars(result);
     }
 
     private void compileReturnStatement(@NotNull final Node instr, @NotNull final Collection<ByteCodeInstruction> result) {

@@ -21,12 +21,11 @@ public class Tests {
         final String code = """
 module hi {
     pub fn main {
-        use std;
-        if true {
-            println("yah");
-        } else {
-            println("nah");
-        }
+        mut? i = 0;
+        do {
+            std.println(i);
+            i++;
+        } while i < 10;
     }
 }
                 """;

@@ -12,9 +12,12 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.crayne.mu.bytecode.common.ByteCode.*;
 
+// TODO final todos to finish up the compiler: add if, else, while, do while, for & ternary operator
+// after this, directly start work on interpreter
 public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> result;
     private final List<ByteCodeInstruction> globalVariables;
@@ -23,7 +26,7 @@ public class ByteCodeCompiler {
     private final SyntaxTreeCompilation tree;
 
     private final Map<String, Long> globalVariableStorage;
-    private final Map<String, Long> localVariableStorage;
+    private final LinkedHashMap<String, Long> localVariableStorage;
     private final Map<String, ByteCodeEnum> enumStorage;
     private final Set<ByteCodeFunction> functionStorage;
 
@@ -32,12 +35,16 @@ public class ByteCodeCompiler {
     private long absoluteAddress = 1;
     private long relativeAddress = -1;
     private long functionId = 0;
+    private long label = 1;
     private int enumId = 0;
+    private final List<Integer> localScopeVariables;
+    private int scope = -1;
 
     public ByteCodeCompiler(@NotNull final SyntaxTreeCompilation tree) {
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
-        localVariableStorage = new HashMap<>();
+        localScopeVariables = new ArrayList<>();
+        localVariableStorage = new LinkedHashMap<>();
         enumStorage = new HashMap<>();
         functionStorage = new HashSet<>();
         enumDefinitions = new ArrayList<>();
@@ -102,6 +109,25 @@ public class ByteCodeCompiler {
                 case FUNCTION_CALL -> compileFunctionCall(instruction, result);
                 case CREATE_ENUM -> compileEnumDefinition(instruction);
                 case VAR_SET_VALUE -> compileVariableMutation(instruction, false, result);
+                case RETURN_VALUE -> compileReturnStatement(instruction, result);
+                case NOOP -> {
+                    if (!instruction.children().isEmpty()) {
+                        compileParent(instruction, result);
+                    }
+                }
+                case SCOPE -> {
+                    scope++;
+                    localScopeVariables.add(0);
+                    compileParent(instruction, result);
+                    final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
+                    if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
+                    //noinspection SuspiciousMethodCalls
+                    Arrays.asList(localVariableStorage.keySet().toArray()).subList(0, vars).forEach(localVariableStorage.keySet()::remove);
+
+                    localScopeVariables.remove(localScopeVariables.size() - 1);
+                    scope--;
+                }
+                case IF_STATEMENT -> compileIfStatement(instruction, result);
                 default -> System.out.println("ignored instruction: " + instruction);
             }
         }
@@ -121,8 +147,45 @@ public class ByteCodeCompiler {
         final List<String> members = instr.child(2).child(0).children().stream().map(n -> n.value().token()).toList();
         final ByteCodeEnum enumDef = new ByteCodeEnum(name, enumId, members);
         enumId++;
-        enumDefinitions.addAll(ByteCode.defineEnum(enumDef));
+        final List<ByteCodeInstruction> bytes = defineEnum(enumDef);
+        enumDefinitions.addAll(bytes);
+        label += bytes.size();
         enumStorage.put(currentModuleName() + "." + name, enumDef);
+    }
+
+    private void compileIfStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        final Node condition = instr.child(0).child(0);
+        final Node ifScope = instr.child(1);
+        final boolean hasElse = instr.children().size() > 2;
+
+        compileExpression(condition, result);
+        rawInstruction(new ByteCodeInstruction(NOT.code()), result); // push the condition and invert it
+        // the plan is to jump to the else scope if the condition was false, otherwise just keep going (execute if scope)
+        // then, after the if scope, jump to whenever the else scope ends
+
+        final int elseJumpIndex = result.size(); // save the index in the result, to add the label later
+        compileParent(ifScope, result); // normally parse the if scope
+        final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
+        final long elseJumpLabel = label + 2; // then get the label of where the else scope starts (+ 2, because 2 jumps have to be added)
+        if (hasElse) { // check if there even is an else scope
+            final Node elseScope = instr.child(2).child(0).child(0).child(0);
+            compileParent(elseScope, result); // parse the else scope like normal here
+        }
+        result.add(elseJumpIndex, jumpIf(elseJumpLabel)); // add the jump statements using the saved labels, at their right positions
+        label++;
+        if (hasElse) { // to avoid unnecessary jumping, just check if theres an else at all
+            result.add(afterElseJumpIndex, jump(label + 1));
+            label++;
+        }
+    }
+
+    private void compileReturnStatement(@NotNull final Node instr, @NotNull final Collection<ByteCodeInstruction> result) {
+        if (instr.children().isEmpty()) {
+            rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
+            return;
+        }
+        compileExpression(instr.child(0), result);
+        rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
     }
 
     private void singleInstruction(@NotNull final ByteCode byteCode, @NotNull final Collection<ByteCodeInstruction> result) {
@@ -130,7 +193,6 @@ public class ByteCodeCompiler {
     }
 
     private void compileVariableMutation(@NotNull final Node instr, final boolean pushMutated, @NotNull final Collection<ByteCodeInstruction> result) {
-        System.out.println("MUTATE VARIABLE " + instr);
         final String identifier = instr.child(0).value().token();
         final String operator = instr.child(1).value().token();
         final Node value = instr.child(2);
@@ -165,7 +227,7 @@ public class ByteCodeCompiler {
         rawInstruction(new ByteCodeInstruction(MUTATE_VARIABLE.code()), result);
     }
 
-    private void compileFunctionCall(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+    private void compileFunctionCall(@NotNull final Node instr, @NotNull final Collection<ByteCodeInstruction> result) {
         compileFunctionCall(instr.child(0).value().token(), instr.child(1).children(), result);
     }
 
@@ -196,12 +258,12 @@ public class ByteCodeCompiler {
     private void compileNativeFunction(@NotNull final Node instr) {
         final String name = instr.child(0).value().token();
         final String returnType = instr.child(1).value().token();
-        final List<ByteDatatype> args = functionDefinitionParams(instr);
+        final Map<String, ByteDatatype> args = functionDefinitionParams(instr);
 
         final String javaClass = instr.child(4).value().token();
         final String javaMethod = javaClass.substring(1, javaClass.length() - 1) +
                 "." + name + "(" +
-                String.join("|", args
+                String.join("|", args.values()
                         .stream()
                         .map(d -> d.name().toLowerCase()).toList()
                 )
@@ -211,7 +273,7 @@ public class ByteCodeCompiler {
         compileFunction(instr, javaMethod, null);
     }
 
-    private List<ByteDatatype> functionDefinitionParams(@NotNull final Node instr) {
+    private Map<String, ByteDatatype> functionDefinitionParams(@NotNull final Node instr) {
         return instr
                 .child(3)
                 .children()
@@ -219,15 +281,19 @@ public class ByteCodeCompiler {
                 .map(Node::children)
                 .map(n -> {
                     final String type = n.get(0).value().token();
-                    return ByteDatatype.of(type, findEnumId(type));
+                    final String name = n.get(1).value().token();
+                    return Map.entry(name, ByteDatatype.of(type, findEnumId(type)));
                 })
-                .toList();
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1,v2)->v1,
+                        LinkedHashMap::new));
     }
 
     private void compileFunction(@NotNull final Node instr, final String javaMethod, final Node scope) {
         final String name = instr.child(0).value().token();
         final String returnType = instr.child(1).value().token();
-        final List<ByteDatatype> args = functionDefinitionParams(instr);
+        final Map<String, ByteDatatype> args = functionDefinitionParams(instr);
 
         defineFunction(name, returnType, args, javaMethod, scope);
     }
@@ -238,8 +304,7 @@ public class ByteCodeCompiler {
         final ByteDatatype type = ByteDatatype.of(typeStr, findEnumId(typeStr));
 
         if (compilingFunction()) {
-            localVariableStorage.put(name.token(), relativeAddress);
-            relativeAddress++;
+            addLocalVariableToStorage(name.token());
         } else {
             globalVariableStorage.put(currentModuleName() + "." + name.token(), absoluteAddress);
         }
@@ -247,30 +312,46 @@ public class ByteCodeCompiler {
         return type;
     }
 
-    private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final List<ByteDatatype> args, final String javaMethod, final Node scope) {
-        functionStorage.add(new ByteCodeFunction(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args, functionId));
+    private void addLocalVariableToStorage(@NotNull final String name) {
+        localVariableStorage.put(name, relativeAddress);
+        localScopeVariables.set(this.scope, localScopeVariables.get(this.scope) + 1);
+        relativeAddress++;
+    }
+
+    private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final Map<String, ByteDatatype> args, final String javaMethod, final Node scope) {
+        functionStorage.add(new ByteCodeFunction(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args.values(), functionId));
         if (javaMethod == null) {
             relativeAddress = 0;
+            this.scope = 0;
+            localScopeVariables.add(0);
+
+            args.forEach((s, d) -> addLocalVariableToStorage(s));
             functionDefinitions.add(function(functionId));
+            label++;
             if (scope == null) {
                 panic("The function scope of '" + name + "' is null");
                 return;
             }
             compileParent(scope, functionDefinitions);
-            rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
+            final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
+            if (vars > 0) rawInstruction(ByteCode.pop(vars), functionDefinitions);
+            localVariableStorage.clear();
+            localScopeVariables.clear();
             relativeAddress = -1;
+            rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
         } else {
             functionDefinitions.add(nativeFunction(functionId, javaMethod));
+            label++;
         }
         functionId++;
     }
 
-    private void compileVariableDeclaration(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
+    private void compileVariableDeclaration(@NotNull final Node definition, @NotNull final Collection<ByteCodeInstruction> result) {
         final ByteDatatype type = variableDeclarationCommon(definition);
         rawInstruction(declareVariable(type), !compilingFunction() ? globalVariables : result);
     }
 
-    private void compileVariableDefinition(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
+    private void compileVariableDefinition(@NotNull final Node definition, @NotNull final Collection<ByteCodeInstruction> result) {
         compileExpression(definition.child(3), !compilingFunction() ? globalVariables : result);
         final ByteDatatype type = variableDeclarationCommon(definition);
         rawInstruction(defineVariable(type), !compilingFunction() ? globalVariables : result);
@@ -278,6 +359,7 @@ public class ByteCodeCompiler {
 
     private void rawInstruction(@NotNull final ByteCodeInstruction instr, @NotNull final Collection<ByteCodeInstruction> result) {
         result.add(instr);
+        label++;
     }
 
     private void compileExpression(final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
@@ -340,6 +422,10 @@ public class ByteCodeCompiler {
             case EQUALS -> operator(x, y, EQUALS, result);
             case NOTEQUALS -> {
                 operator(x, y, EQUALS, result);
+                rawInstruction(new ByteCodeInstruction(NOT.code()), result);
+            }
+            case BOOL_NOT -> {
+                compileExpression(new Node(NodeType.VALUE, values), result);
                 rawInstruction(new ByteCodeInstruction(NOT.code()), result);
             }
             case NEGATE -> operator(Node.of(Token.of("0")), x, MINUS, result);

@@ -20,14 +20,14 @@ public class Tests {
         }
         final String code = """
                 module hi {
-                    pub enum Result {
-                        Ok, Err
-                    }
                 
                     pub fn main {
-                        mut? i = 0;
-                        ?i2 = i++;
+                        if false {
+                            std.println("yah");
+                            std.println("yah");
+                        }
                     }
+                    
                 }
                 """;
 

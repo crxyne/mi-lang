@@ -42,14 +42,14 @@ public class FunctionScope extends Scope {
 
     public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent) {
         super(type, scopeIndent, actualIndent);
-        this.localVariables = localVariables;
+        this.localVariables = new ArrayList<>(localVariables);
         this.parent = parent;
         this.definition = parent.definition;
     }
 
     public FunctionScope(@NotNull final ScopeType type, final int scopeIndent, final int actualIndent, @NotNull final List<LocalVariable> localVariables, final FunctionScope parent, @NotNull final List<String> using) {
         super(type, scopeIndent, actualIndent);
-        this.localVariables = localVariables;
+        this.localVariables = new ArrayList<>(localVariables);
         this.parent = parent;
         this.definition = parent.definition;
         for (final String use : using) using(use);

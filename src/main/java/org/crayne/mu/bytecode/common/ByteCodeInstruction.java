@@ -61,8 +61,8 @@ public class ByteCodeInstruction {
                         .toList()
                         .subList(1, codes.length - 1)
                         .stream()
-                        .map(b -> "0x" + Integer.toHexString((int) b))
-                        //.map(b -> "" + (int) b)
+                        //.map(b -> "0x" + Integer.toHexString((int) b))
+                        .map(b -> "" + (int) b)
                         .toList()
         ).trim() + " ;";
     }

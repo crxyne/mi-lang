@@ -3,6 +3,7 @@ package org.crayne.mu.bytecode.common;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class ByteCodeFunction {
@@ -12,7 +13,7 @@ public class ByteCodeFunction {
     private final ByteDatatype returnType;
     private final List<ByteDatatype> args;
 
-    public ByteCodeFunction(@NotNull final String fullName, final ByteDatatype returnType, @NotNull final List<ByteDatatype> args, final long id) {
+    public ByteCodeFunction(@NotNull final String fullName, final ByteDatatype returnType, @NotNull final Collection<ByteDatatype> args, final long id) {
         this.fullName = fullName;
         this.returnType = returnType;
         this.id = id;

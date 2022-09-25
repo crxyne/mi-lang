@@ -17,20 +17,18 @@ public class Tests {
         final Optional<Byte> duplicateByteCode = findFirstDuplicateBytecode();
         if (duplicateByteCode.isPresent()) {
             throw new Exception("Found duplicate bytecode: " + Integer.toHexString((int) duplicateByteCode.get()));
-        }
+        } // this is just to help myself not make stupid mistakes when adding bytecodes
         final String code = """
-                module hi {
-                
-                    pub fn main {
-                        use std;
-                        if true {
-                            println("yah");
-                        } else {
-                            println("nah");
-                        }
-                    }
-                    
-                }
+module hi {
+    pub fn main {
+        use std;
+        if true {
+            println("yah");
+        } else {
+            println("nah");
+        }
+    }
+}
                 """;
 
         final MuProgram muProgram = new MuProgram(System.out, true);

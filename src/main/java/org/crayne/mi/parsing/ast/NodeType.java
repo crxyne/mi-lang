@@ -19,7 +19,7 @@ public enum NodeType {
     STATEMENT(null),
     NOOP(null),
 
-    STANDARDLIB_MU_FINISH_CODE("STANDARDLIB_MU_FINISH_CODE"),
+    STANDARDLIB_MI_FINISH_CODE("STANDARDLIB_MI_FINISH_CODE"),
 
     //keywords
     LITERAL_INT("int", Datatype.INT),

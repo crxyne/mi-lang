@@ -51,7 +51,7 @@ public class Parser {
         this.output = output;
         this.tokens = tokens;
         if (stdlibFinishLine == -1) {
-            output.errorMsg("Cannot find STANDARDLIB_MU_FINISH_CODE anywhere in the code, please contact the developer of your standard library to fix this issue.");
+            output.errorMsg("Cannot find STANDARDLIB_MI_FINISH_CODE anywhere in the code, please contact the developer of your standard library to fix this issue.");
             encounteredError = true;
         }
         this.code = code;
@@ -295,7 +295,7 @@ public class Parser {
         if (first.isDatatype()) return evaluator.evalVariableDefinition(tokens, modifiers);
 
         return switch (first) {
-            case STANDARDLIB_MU_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
+            case STANDARDLIB_MI_FINISH_CODE -> evaluator.evalStdLibFinish(tokens, modifiers);
             case IDENTIFIER -> evaluator.evalFirstIdentifier(tokens, modifiers);
             case LITERAL_WHILE -> evaluator.evalWhileStatement(tokens, modifiers, true);
             case LITERAL_FN -> evaluator.evalFunctionDefinition(tokens, modifiers);

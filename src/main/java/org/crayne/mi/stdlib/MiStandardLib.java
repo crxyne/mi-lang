@@ -1,6 +1,6 @@
 package org.crayne.mi.stdlib;
 
-import org.crayne.mi.lang.MuCallable;
+import org.crayne.mi.lang.MiCallable;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
@@ -43,87 +43,87 @@ module termion {
 	
 }
 
-STANDARDLIB_MU_FINISH_CODE;"""
+STANDARDLIB_MI_FINISH_CODE;"""
                 .replace("$stdclass", MiStandardLib.class.getName())
                 .replace("$stdtermion", StdTermion.class.getName());
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(@NotNull final String str) {
         System.out.println(str);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(@NotNull final String str) {
         System.out.print(str);
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(final Integer i) {
         System.out.println(i);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(final Integer i) {
         System.out.print(i);
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(final Double d) {
         System.out.println(d);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(final Double d) {
         System.out.print(d);
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(final Float f) {
         System.out.println(f);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(final Float f) {
         System.out.print(f);
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(final Long l) {
         System.out.println(l);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(final Long l) {
         System.out.print(l);
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(final Boolean b) {
         System.out.println(b);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(final Boolean b) {
         System.out.print(b);
     }
 
-    @MuCallable
+    @MiCallable
     public static void println(final Character c) {
         System.out.println(c);
     }
 
-    @MuCallable
+    @MiCallable
     public static void print(final Character c) {
         System.out.print(c);
     }
 
-    @MuCallable
+    @MiCallable
     public static void sleep(final Long millis) throws InterruptedException {
         Thread.sleep(millis);
     }
 
-    @MuCallable
+    @MiCallable
     public static Long random_uuid_long() {
         return UUID.randomUUID().getMostSignificantBits();
     }

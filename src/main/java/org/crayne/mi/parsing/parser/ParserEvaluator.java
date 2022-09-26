@@ -878,9 +878,9 @@ public class ParserEvaluator {
                         "Native functions cannot use primitive types like 'int'. Use the class java.lang.Integer instead of 'int' for example, to allow for nullable types");
                 return null;
             }
-            final MuCallable annotationTest = invokeMethod.getAnnotation(MuCallable.class);
+            final MiCallable annotationTest = invokeMethod.getAnnotation(MiCallable.class);
             if (annotationTest == null) {
-                parser.parserError("May only use java methods annotated with org.crayne.mu.lang.MuCallable as native functions", at, "Annotate the java method with org.crayne.mu.lang.MuCallable");
+                parser.parserError("May only use java methods annotated with org.crayne.mi.lang.MiCallable as native functions", at, "Annotate the java method with org.crayne.mi.lang.MiCallable");
                 return null;
             }
             return invokeMethod;
@@ -1139,13 +1139,13 @@ public class ParserEvaluator {
     public Node evalStdLibFinish(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
 
-        final Token stdlibFinish = parser.getAndExpect(tokens, 0, NodeType.STANDARDLIB_MU_FINISH_CODE);
+        final Token stdlibFinish = parser.getAndExpect(tokens, 0, NodeType.STANDARDLIB_MI_FINISH_CODE);
         final Token semi = parser.getAndExpect(tokens, 1, NodeType.SEMI);
         if (stdlibFinish == null || semi == null) return null;
 
         parser.stdlib = false;
 
-        return new Node(NodeType.STANDARDLIB_MU_FINISH_CODE);
+        return new Node(NodeType.STANDARDLIB_MI_FINISH_CODE);
     }
 
     public FunctionScope expectFunctionScope(@NotNull final Token at) {

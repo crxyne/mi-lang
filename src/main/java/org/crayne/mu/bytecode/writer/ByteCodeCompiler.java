@@ -198,6 +198,20 @@ public class ByteCodeCompiler {
         }
     }
 
+    private void compileTernaryOperator(@NotNull final Node condition, @NotNull final Node ifExpr, @NotNull final Node elseExpr, @NotNull final List<ByteCodeInstruction> result) {
+        compileExpression(condition, result);
+        rawInstruction(new ByteCodeInstruction(NOT.code()), result);
+        final int elseJumpIndex = result.size();
+        compileExpression(ifExpr, result);
+        final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
+        final long elseJumpLabel = label + 2;
+        compileExpression(elseExpr, result);
+        result.add(elseJumpIndex, jumpIf(elseJumpLabel)); // add the jump statements using the saved labels, at their right positions
+        label++;
+        result.add(afterElseJumpIndex, jump(label + 1));
+        label++;
+    }
+
     private void compileBreakStatement(@NotNull final List<ByteCodeInstruction> result) {
         if (loopBounds.isEmpty()) {
             panic("Unexpected 'break' statement outside of loop");
@@ -274,7 +288,7 @@ public class ByteCodeCompiler {
         deleteLocalScopeVars(result);
     }
 
-    private void compileReturnStatement(@NotNull final Node instr, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileReturnStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
         if (instr.children().isEmpty()) {
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
             return;
@@ -283,11 +297,11 @@ public class ByteCodeCompiler {
         rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
     }
 
-    private void singleInstruction(@NotNull final ByteCode byteCode, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void singleInstruction(@NotNull final ByteCode byteCode, @NotNull final List<ByteCodeInstruction> result) {
         rawInstruction(new ByteCodeInstruction(byteCode.code()), result);
     }
 
-    private void compileVariableMutation(@NotNull final Node instr, final boolean pushMutated, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileVariableMutation(@NotNull final Node instr, final boolean pushMutated, @NotNull final List<ByteCodeInstruction> result) {
         final String identifier = instr.child(0).value().token();
         final String operator = instr.child(1).value().token();
         final Node value = instr.child(2);
@@ -322,11 +336,11 @@ public class ByteCodeCompiler {
         rawInstruction(new ByteCodeInstruction(MUTATE_VARIABLE.code()), result);
     }
 
-    private void compileFunctionCall(@NotNull final Node instr, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileFunctionCall(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
         compileFunctionCall(instr.child(0).value().token(), instr.child(1).children(), result);
     }
 
-    private void compileFunctionCall(@NotNull final String identifier, @NotNull final List<Node> inputArgs, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileFunctionCall(@NotNull final String identifier, @NotNull final List<Node> inputArgs, @NotNull final List<ByteCodeInstruction> result) {
         final long id = findFunctionId(identifier, inputArgs);
         inputArgs.stream().map(n -> n.child(0)).toList().forEach(n -> compileExpression(n, result));
         rawInstruction(ByteCode.call(id), result);
@@ -441,23 +455,23 @@ public class ByteCodeCompiler {
         functionId++;
     }
 
-    private void compileVariableDeclaration(@NotNull final Node definition, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileVariableDeclaration(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
         final ByteDatatype type = variableDeclarationCommon(definition);
         rawInstruction(declareVariable(type), !compilingFunction() ? globalVariables : result);
     }
 
-    private void compileVariableDefinition(@NotNull final Node definition, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileVariableDefinition(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
         compileExpression(definition.child(3), !compilingFunction() ? globalVariables : result);
         final ByteDatatype type = variableDeclarationCommon(definition);
         rawInstruction(defineVariable(type), !compilingFunction() ? globalVariables : result);
     }
 
-    private void rawInstruction(@NotNull final ByteCodeInstruction instr, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void rawInstruction(@NotNull final ByteCodeInstruction instr, @NotNull final List<ByteCodeInstruction> result) {
         result.add(instr);
         label++;
     }
 
-    private void compileExpression(final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void compileExpression(final Node node, @NotNull final List<ByteCodeInstruction> result) {
         if (node == null) return;
         tree.traceback(node.lineDebugging());
         if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
@@ -470,15 +484,15 @@ public class ByteCodeCompiler {
         operator(node.type(), node.children(), node.value(), result);
     }
 
-    private void push(@NotNull final Collection<ByteCodeInstruction> result, @NotNull final Byte... bytes) {
+    private void push(@NotNull final List<ByteCodeInstruction> result, @NotNull final Byte... bytes) {
         rawInstruction(ByteCode.push(bytes), result);
     }
 
-    private void push(@NotNull final Collection<ByteCodeInstruction> result, @NotNull final ByteCodeInstruction instr) {
+    private void push(@NotNull final List<ByteCodeInstruction> result, @NotNull final ByteCodeInstruction instr) {
         push(result, instr.codes());
     }
 
-    private void ofLiteral(@NotNull final Node node, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void ofLiteral(@NotNull final Node node, @NotNull final List<ByteCodeInstruction> result) {
         final String value = node.value().token();
         final String type = node.type().getAsDataType().getName();
         switch (ByteDatatype.of(type, findEnumId(type)).name()) {
@@ -493,7 +507,7 @@ public class ByteCodeCompiler {
         }
     }
 
-    private void operator(@NotNull final NodeType op, @NotNull final List<Node> values, final Token nodeVal, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void operator(@NotNull final NodeType op, @NotNull final List<Node> values, final Token nodeVal, @NotNull final List<ByteCodeInstruction> result) {
         final Node x = values.size() > 0 ? values.get(0) : null;
         final Node y = values.size() > 1 ? values.get(1) : null;
 
@@ -533,12 +547,13 @@ public class ByteCodeCompiler {
                     return;
                 }
                 rawInstruction(ByteCode.enumMember(new ByteCodeEnumMember(enumDef.id(), enumDef.ordinalMember(member))), result);
-            }/*
+            }
             case TERNARY_OPERATOR -> {
-                final boolean ternaryCondition = isTrue(compileExpression(values.get(0).child(0)).getValue());
-                if (ternaryCondition) yield compileExpression(values.get(1).child(0));
-                yield compileExpression(values.get(2).child(0));
-            }*/
+                final Node condition = values.get(0).child(0);
+                final Node ifExpr = values.get(1).child(0);
+                final Node elseExpr = values.get(2).child(0);
+                compileTernaryOperator(condition, ifExpr, elseExpr, result);
+            }
             case IDENTIFIER -> {
                 final String identifier = nodeVal.token();
                 if (identifier.startsWith("!PARENT.")) {
@@ -567,7 +582,7 @@ public class ByteCodeCompiler {
         }
     }
 
-    private void operator(final Node v1, final Node v2, final ByteCode op, @NotNull final Collection<ByteCodeInstruction> result) {
+    private void operator(final Node v1, final Node v2, final ByteCode op, @NotNull final List<ByteCodeInstruction> result) {
         compileExpression(v1, result);
         compileExpression(v2, result);
         rawInstruction(new ByteCodeInstruction(op.code()), result);

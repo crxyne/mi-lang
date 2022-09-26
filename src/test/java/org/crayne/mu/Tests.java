@@ -23,17 +23,7 @@ public class Tests {
         final String code = """
 module hi {
     pub fn main {
-        mut? i = 0;
-        do {
-            if i == 5 {
-                continue;
-            }
-            if i == 7 {
-                break;
-            }
-            std.println(i);
-            i++;
-        } while i < 10;
+        ?i = true ? 5 : 2;
     }
 }
                 """;

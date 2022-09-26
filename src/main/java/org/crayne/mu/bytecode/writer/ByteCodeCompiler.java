@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,7 +93,7 @@ public class ByteCodeCompiler {
 
     public static void compileToFile(@NotNull final List<ByteCodeInstruction> bytecode, @NotNull final File file) throws IOException {
         if (bytecode.isEmpty()) return;
-        Files.writeString(file.toPath(), String.join("", bytecode.stream().map(b -> b.write()).toList()));
+        Files.writeString(file.toPath(), String.join("", bytecode.stream().map(b -> b.write()).toList()), StandardCharsets.ISO_8859_1);
     }
 
     private void compileParent(@NotNull final Node parent, @NotNull final List<ByteCodeInstruction> result) {

@@ -1,4 +1,4 @@
-package org.crayne.mi.bytecode.common.errorhandler;
+package org.crayne.mi.util.errorhandler;
 
 import org.crayne.mi.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mi.runtime.SyntaxTreeCompilation;

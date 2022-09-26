@@ -1,8 +1,8 @@
 package org.crayne.mi.runtime;
 
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
-import org.crayne.mi.bytecode.common.errorhandler.Traceback;
-import org.crayne.mi.bytecode.common.errorhandler.TracebackElement;
+import org.crayne.mi.util.errorhandler.Traceback;
+import org.crayne.mi.util.errorhandler.TracebackElement;
 import org.crayne.mi.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mi.log.LogHandler;
 import org.crayne.mi.log.MessageHandler;

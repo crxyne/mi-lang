@@ -1,4 +1,4 @@
-package org.crayne.mi.bytecode.common;
+package org.crayne.mi.bytecode.writer;
 
 import org.crayne.mi.parsing.ast.Node;
 

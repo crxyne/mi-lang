@@ -1,6 +1,6 @@
-package org.crayne.mi.bytecode.common.errorhandler;
+package org.crayne.mi.util.errorhandler;
 
-import org.crayne.mi.bytecode.common.LimitedSizeQueue;
+import org.crayne.mi.util.LimitedSizeQueue;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

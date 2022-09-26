@@ -1,4 +1,4 @@
-package org.crayne.mi.bytecode.common;
+package org.crayne.mi.util;
 
 import org.jetbrains.annotations.NotNull;
 

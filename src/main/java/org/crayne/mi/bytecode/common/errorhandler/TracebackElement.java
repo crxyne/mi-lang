@@ -1,0 +1,33 @@
+package org.crayne.mi.bytecode.common.errorhandler;
+
+import org.crayne.mi.bytecode.writer.ByteCodeCompiler;
+import org.crayne.mi.runtime.SyntaxTreeCompilation;
+import org.jetbrains.annotations.NotNull;
+
+public class TracebackElement {
+
+    final String lineStr;
+    final int line;
+    final int lineNoStandardLib;
+
+    public TracebackElement(@NotNull final SyntaxTreeCompilation tree, final int line) {
+        this.line = line;
+        this.lineNoStandardLib = line - tree.getStdlibFinishLine();
+        final String getline = tree.getLine(line);
+        this.lineStr = getline == null ? null : "\"" + getline.trim() + "\"";
+    }
+
+    public TracebackElement(@NotNull final ByteCodeCompiler compiler, final int line) {
+        this.line = line;
+        this.lineNoStandardLib = line - compiler.getStdlibFinishLine();
+        final String getline = compiler.getLine(line);
+        this.lineStr = getline == null ? null : "\"" + getline.trim() + "\"";
+    }
+
+    public String toString() {
+        if (lineStr == null) return null;
+        if (lineNoStandardLib <= 0) return lineStr.replace("STANDARDLIB_MU_FINISH_CODE;", "") + "  :   @ line " + line;
+        return lineStr + "  :   @ line " + lineNoStandardLib;
+    }
+
+}

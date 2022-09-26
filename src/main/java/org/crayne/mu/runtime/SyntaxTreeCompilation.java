@@ -16,18 +16,20 @@ import java.util.List;
 
 public class SyntaxTreeCompilation {
     private final Node parentNode;
+    private final File inputFile;
     private final MessageHandler out;
     private final List<String> code;
     private final Traceback traceback;
     private final int stdlibFinishLine;
     private boolean error;
 
-    public SyntaxTreeCompilation(@NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine) {
+    public SyntaxTreeCompilation(@NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine, @NotNull final File inputFile) {
         this.parentNode = parentNode;
         this.out = out;
         this.code = Arrays.stream(code.split("\n")).toList();
         this.traceback = new Traceback();
         this.stdlibFinishLine = stdlibFinishLine;
+        this.inputFile = inputFile;
     }
 
     public TracebackElement newTracebackElement(final int line) {
@@ -60,8 +62,14 @@ public class SyntaxTreeCompilation {
 
     public void compile(@NotNull final File file) throws IOException {
         final ByteCodeCompiler compiler = new ByteCodeCompiler(this);
+        out.infoMsg("Compiling " + inputFile.getName() + "...");
         final List<ByteCodeInstruction> compiled = compiler.compile();
         ByteCodeCompiler.compileToFile(compiled, file);
+        if (compiled.isEmpty()) {
+            out.errorMsg("Could not compile " + inputFile.getName() + ". See error output above.");
+            return;
+        }
+        out.infoMsg("Completed. See output file here: " + file.getAbsolutePath());
     }
 
     public void error(@NotNull final String msg, @NotNull final String... quickFixes) {

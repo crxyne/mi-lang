@@ -25,7 +25,7 @@ public class MuProgram {
         return out;
     }
 
-    private Optional<SyntaxTreeCompilation> parse(@NotNull final String stdlib, @NotNull final String code) {
+    private Optional<SyntaxTreeCompilation> parse(@NotNull final String stdlib, @NotNull final String code, @NotNull final File inputFile) {
         final String actualCode = stdlib + code + "\n";
         this.out.setProgram(actualCode);
 
@@ -33,12 +33,12 @@ public class MuProgram {
         final List<Token> tokenList = tokenizer.tokenize(actualCode);
         if (tokenizer.encounteredError()) return Optional.empty();
 
-        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), actualCode);
+        final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), actualCode, inputFile);
         return Optional.ofNullable(parser.parse());
     }
 
-    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file) {
-        final Optional<SyntaxTreeCompilation> tree = parse(stdlib, code);
+    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile) {
+        final Optional<SyntaxTreeCompilation> tree = parse(stdlib, code, inputFile);
         if (tree.isPresent()) {
             try {
                 tree.get().compile(file);

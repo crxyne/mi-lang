@@ -49,12 +49,12 @@ module testing {
 		executeRainbow(wait_long, text);
 	}
 	
-	pub fn main~ (string wait) {
-		main(wait, "µ");
-	}
-	
 	pub fn main {
 		main("10", "µ");
+	}
+	
+	pub fn main~ (string wait) {
+		main(wait, "µ");
 	}
 	
 }

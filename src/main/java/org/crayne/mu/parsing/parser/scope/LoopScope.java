@@ -24,7 +24,7 @@ public class LoopScope extends FunctionScope {
                 scope = scope.parent;
                 if (scope != null) {
                     if ((scope.type == ScopeType.WHILE || scope.type == ScopeType.FOR || scope.type == ScopeType.DO) && scope instanceof final LoopScope loopScope) loopScope.reachedBreakOrContinue = true;
-                    else scope.reachedEnd();
+                   // else scope.reachedEnd();
                 }
             }
         }

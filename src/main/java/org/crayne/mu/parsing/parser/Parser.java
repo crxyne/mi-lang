@@ -11,6 +11,7 @@ import org.crayne.mu.parsing.lexer.Token;
 import org.crayne.mu.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.*;
 
 public class Parser {
@@ -36,6 +37,7 @@ public class Parser {
     protected boolean stdlib = true;
     private final String code;
     protected Module currentParsingModule;
+    private final File inputFile;
 
     public Module currentParsingModule() {
         return currentParsingModule;
@@ -45,7 +47,7 @@ public class Parser {
         add(new Scope(ScopeType.PARENT, 0, 0));
     }};
 
-    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code) {
+    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code, @NotNull final File inputFile) {
         this.output = output;
         this.tokens = tokens;
         if (stdlibFinishLine == -1) {
@@ -54,6 +56,7 @@ public class Parser {
         }
         this.code = code;
         this.stdlibFinishLine = stdlibFinishLine;
+        this.inputFile = inputFile;
         evaluator = new ParserEvaluator(this);
     }
 
@@ -69,7 +72,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTreeCompilation result = new SyntaxTreeCompilation(parent, output, code, stdlibFinishLine);
+        final SyntaxTreeCompilation result = new SyntaxTreeCompilation(parent, output, code, stdlibFinishLine, inputFile);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }

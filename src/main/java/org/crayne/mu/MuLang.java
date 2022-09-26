@@ -59,7 +59,7 @@ public class MuLang {
         return Optional.of(result);
     }
 
-    private static final Set<String> validArgs = new HashSet<>(Arrays.asList("out", "file"));
+    private static final Set<String> validArgs = new HashSet<>(Arrays.asList("file"));
 
     public static Predicate<String> invalidArgument = arg -> !validArgs.contains(arg);
 
@@ -81,7 +81,7 @@ public class MuLang {
         final String code;
         try {
             code = Files.readString(input.toPath());
-            return Optional.ofNullable(code);
+            return Optional.of(code.replace("\t", "    "));
         } catch (IOException e) {
             messageHandler.errorMsg("Could not read input file: " + e.getClass().getSimpleName() + " " + e.getMessage());
             return Optional.empty();
@@ -106,7 +106,7 @@ public class MuLang {
 
         final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mub");
 
-        muProgram.compile(MuStandardLib.standardLib(), code.get(), outputFile);
+        muProgram.compile(MuStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()));
     }
 
 }

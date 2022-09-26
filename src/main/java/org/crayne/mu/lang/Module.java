@@ -135,7 +135,6 @@ public class Module {
             final Optional<Scope> currentScope = parser.scope();
             if (currentScope.isPresent() && currentScope.get() instanceof final FunctionScope functionScope
                     && functionScope.definition().name().equals(name.token()) && findRawFunctionConcept(name.token()).isEmpty()) {
-                addFunction(parser, name, functionScope.definition());
                 return functionConcepts.stream().filter(f -> f.name().equals(nameStr)).findFirst();
             }
         }

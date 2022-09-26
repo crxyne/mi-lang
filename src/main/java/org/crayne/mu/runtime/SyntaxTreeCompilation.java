@@ -61,15 +61,6 @@ public class SyntaxTreeCompilation {
     public void compile(@NotNull final File file) throws IOException {
         final ByteCodeCompiler compiler = new ByteCodeCompiler(this);
         final List<ByteCodeInstruction> compiled = compiler.compile();
-        System.out.println(compiler);
-        System.out.println("------------------------------------------------------------------------------");
-        final long[] label = {0};
-        System.out.println(String.join("\n", compiled.stream().map(i -> {
-            final long at = label[0];
-            label[0]++;
-            return "@" + at + ": " + ByteCodeInstruction.read(i.write());
-        }).toList()));
-        System.out.println("------------------------------------------------------------------------------");
         ByteCodeCompiler.compileToFile(compiled, file);
     }
 

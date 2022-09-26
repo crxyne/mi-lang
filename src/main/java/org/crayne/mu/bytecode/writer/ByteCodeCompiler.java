@@ -127,7 +127,6 @@ public class ByteCodeCompiler {
             case FOR_FAKE_SCOPE -> compileForStatement(instr, result);
             case BREAK_STATEMENT -> compileBreakStatement(result);
             case CONTINUE_STATEMENT -> compileContinueStatement(result);
-            default -> System.out.println("ignored instruction: " + instr);
         }
     }
 
@@ -593,8 +592,6 @@ public class ByteCodeCompiler {
     }
 
     public String toString() {
-        return String.join("\n", result.stream().map(ByteCodeInstruction::toString).toList())
-                + "\n----------------------------------\n"
-                + String.join("", result.stream().map(b -> sanitize(b.write())).toList());
+        return String.join("\n", result.stream().map(ByteCodeInstruction::toString).toList());
     }
 }

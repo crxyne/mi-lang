@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 import static org.crayne.mu.bytecode.common.ByteCode.*;
 
-// TODO final todos to finish up the compiler: add break, continue & ternary operator
+// TODO final todos to finish up the compiler: add ternary operator
 // after this, directly start work on interpreter
 public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> result;
@@ -29,6 +29,7 @@ public class ByteCodeCompiler {
     private final LinkedHashMap<String, Long> localVariableStorage;
     private final Map<String, ByteCodeEnum> enumStorage;
     private final Set<ByteCodeFunction> functionStorage;
+    private final List<ByteLoopBound> loopBounds;
 
     private final List<String> currentModuleName = new ArrayList<>() {{this.add("!PARENT");}};
 
@@ -50,6 +51,7 @@ public class ByteCodeCompiler {
         enumDefinitions = new ArrayList<>();
         globalVariables = new ArrayList<>();
         functionDefinitions = new ArrayList<>();
+        loopBounds = new ArrayList<>();
         result = new ArrayList<>();
     }
 
@@ -123,6 +125,8 @@ public class ByteCodeCompiler {
             case WHILE_STATEMENT -> compileWhileStatement(instr, result);
             case DO_STATEMENT -> compileDoWhileStatement(instr, result);
             case FOR_FAKE_SCOPE -> compileForStatement(instr, result);
+            case BREAK_STATEMENT -> compileBreakStatement(result);
+            case CONTINUE_STATEMENT -> compileContinueStatement(result);
             default -> System.out.println("ignored instruction: " + instr);
         }
     }
@@ -194,6 +198,30 @@ public class ByteCodeCompiler {
         }
     }
 
+    private void compileBreakStatement(@NotNull final List<ByteCodeInstruction> result) {
+        if (loopBounds.isEmpty()) {
+            panic("Unexpected 'break' statement outside of loop");
+            return;
+        }
+        push(result, ByteCode.integer(1).codes());
+        // the way to implement break, is to push a literal "true" value, then jump to the condition check, right to the jump_if of the loop
+        // this way, no crazy code is required and it still works as expected -> it jumps to after the loop end, always
+        final long beforeJumpIf = loopBounds.get(loopBounds.size() - 1).beforeJumpIfLabel() - 1;
+        rawInstruction(ByteCode.jump(beforeJumpIf), result);
+    }
+
+    private void compileContinueStatement(@NotNull final List<ByteCodeInstruction> result) {
+        if (loopBounds.isEmpty()) {
+            panic("Unexpected 'continue' statement outside of loop");
+            return;
+        }
+        final ByteLoopBound bound = loopBounds.get(loopBounds.size() - 1);
+        final Node forLoopInstr = bound.forloopInstr();
+        // continue works similarly like break, however here we simply execute the for loop instruction (if it is not null) and jump back to the condition check of the loop
+        if (forLoopInstr != null) compileInstruction(forLoopInstr, result);
+        rawInstruction(ByteCode.jump(bound.beginLabel()), result);
+    }
+
     private long compileLoopStatement(@NotNull final Node condition, @NotNull final Node scope, final Node forLoopInstr, @NotNull final List<ByteCodeInstruction> result) {
         final long loopBeginLabel = label;
 
@@ -203,7 +231,11 @@ public class ByteCodeCompiler {
         // but if the condition is false, there will be an unconditional jump back to the condition check (after the entire loop "scope")
         final int afterLoopJumpIndex = result.size(); // save the current index for later, so we can add back the jump statement with the label (which we do not have yet)
         final long labelBeforeJumpIf = label + 1;
+
+        loopBounds.add(new ByteLoopBound(loopBeginLabel, labelBeforeJumpIf, forLoopInstr));
         compileParent(scope, result);
+        loopBounds.remove(loopBounds.size() - 1);
+
         if (forLoopInstr != null) compileInstruction(forLoopInstr, result); // for loops -- one difference between them and while loops is obviously the instruction executed at every iteration
         rawInstruction(ByteCode.jump(loopBeginLabel), result); // the unconditional jump mentioned earlier (this goes back to the condition check)
         result.add(afterLoopJumpIndex, ByteCode.jumpIf(label++ + 1)); // add the condition jump, which exits the loop once the condition is false

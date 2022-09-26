@@ -17,12 +17,20 @@ public class Tests {
         final Optional<Byte> duplicateByteCode = findFirstDuplicateBytecode();
         if (duplicateByteCode.isPresent()) {
             throw new Exception("Found duplicate bytecode: " + Integer.toHexString((int) duplicateByteCode.get()));
-        } // this is just to help myself not make stupid mistakes when adding bytecodes
+        } // this is just to help myself not make stupid mistakes when adding new bytecodes
+
+
         final String code = """
 module hi {
     pub fn main {
         mut? i = 0;
         do {
+            if i == 5 {
+                continue;
+            }
+            if i == 7 {
+                break;
+            }
             std.println(i);
             i++;
         } while i < 10;

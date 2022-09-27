@@ -1,6 +1,8 @@
 package org.crayne.mi;
 
 import org.apache.commons.lang3.StringUtils;
+import org.crayne.mi.bytecode.common.ByteCodeInstruction;
+import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.crayne.mi.log.MessageHandler;
 import org.crayne.mi.runtime.MiProgram;
 import org.crayne.mi.stdlib.MiStandardLib;
@@ -92,7 +94,18 @@ public class MiLang {
         final MiProgram miProgram = new MiProgram(System.out, true);
         final MessageHandler messageHandler = miProgram.messageHandler();
 
-        final Optional<List<Argument>> oparams = parseArguments(messageHandler, args);
+        if (args.length == 0) {
+            messageHandler.errorMsg("Expected either 'compile' or 'run' as first argument in args: " + Arrays.toString(args));
+            return;
+        }
+        final String first = args[0];
+        if (!first.equals("compile") && !first.equals("run")) {
+            messageHandler.errorMsg("Expected either 'compile' or 'run' as first argument in args: " + Arrays.toString(args));
+            return;
+        }
+        final boolean compile = first.equals("compile");
+
+        final Optional<List<Argument>> oparams = parseArguments(messageHandler, List.of(args).subList(1, args.length).toArray(new String[0]));
         if (oparams.isEmpty()) return;
         final List<Argument> params = oparams.get();
 
@@ -101,12 +114,21 @@ public class MiLang {
 
         if (inputFile.isEmpty()) return;
 
-        final Optional<String> code = readCode(inputFile.get(), messageHandler);
-        if (code.isEmpty()) return;
+        if (compile) {
+            final Optional<String> code = readCode(inputFile.get(), messageHandler);
+            if (code.isEmpty()) return;
 
-        final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mib");
+            final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mib");
 
-        miProgram.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()));
+            miProgram.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()));
+            return;
+        }
+        try {
+            final List<ByteCodeInstruction> instrs = ByteCodeReader.read(new File(inputFile.get()), messageHandler);
+            // TODO actually execute the read code
+        } catch (final Throwable e) {
+            e.printStackTrace();
+        }
     }
 
 }

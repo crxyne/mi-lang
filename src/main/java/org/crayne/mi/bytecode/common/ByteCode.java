@@ -65,7 +65,7 @@ public enum ByteCode {
     ENUM_DEFINITION_END((byte) 0xCD),
     ENUM_MEMBER_DEFINITION((byte) 0xCE);
 
-    public static final int BYTECODE_VERSION = 1;
+    public static final byte BYTECODE_VERSION = 1;
 
     private final byte code;
 
@@ -143,7 +143,7 @@ public enum ByteCode {
                             this.add(ENUM_MEMBER_DEFINITION.code);
                             this.addAll(List.of(ArrayUtils.toObject(intToBytes(enumDef.ordinalMember(m)))));
                             final List<Byte> memberName = List.of(string(m).codes());
-                            this.addAll(memberName.subList(1, memberName.size() - 1));
+                            this.addAll(memberName.subList(0, memberName.size() - 1));
                         }}))
                         .toList());
                 this.add(new ByteCodeInstruction(ENUM_DEFINITION_END.code));
@@ -200,8 +200,9 @@ public enum ByteCode {
     public static ByteCodeInstruction string(@NotNull final String literal) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(STRING_VALUE.code);
-            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(literal.length()))).toList());
-            this.addAll(Arrays.stream(ArrayUtils.toObject(literal.getBytes(StandardCharsets.UTF_8))).toList());
+            final byte[] stringBytes = literal.getBytes(StandardCharsets.ISO_8859_1);
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(stringBytes.length))).toList());
+            this.addAll(Arrays.stream(ArrayUtils.toObject(stringBytes)).toList());
         }});
     }
 
@@ -257,13 +258,13 @@ public enum ByteCode {
     public static ByteCodeInstruction pop(final int amount) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(POP.code);
-            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(amount))).toList());
+            this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(amount))).toList());
         }});
     }
 
     public static ByteCodeInstruction header() {
         return new ByteCodeInstruction(
-                PROGRAM_HEADER.code, (byte) 0x0, (byte) 0x6D, (byte) 0x0, (byte) 0x75, (byte) BYTECODE_VERSION
+                PROGRAM_HEADER.code, (byte) 0x00, (byte) 0x6D, (byte) 0x00, (byte) 0x75, BYTECODE_VERSION
         );
     }
 

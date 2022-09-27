@@ -588,11 +588,8 @@ public class ByteCodeCompiler {
         rawInstruction(new ByteCodeInstruction(op.code()), result);
     }
 
-    private static String sanitize(@NotNull final String instr) {
-        return instr.replace("\r", "[CR]");
-    }
-
     public String toString() {
         return String.join("\n", result.stream().map(ByteCodeInstruction::toString).toList());
     }
+
 }

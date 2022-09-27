@@ -337,7 +337,7 @@ public class Tokenizer {
 
     private void addCurrent() {
         if (currentToken.isEmpty()) return;
-        if (currentToken.toString().equals("STANDARDLIB_MU_FINISH_CODE")) {
+        if (currentToken.toString().equals("STANDARDLIB_MI_FINISH_CODE")) {
             if (countIndices) {
                 lexerError("Duplicate standardlib code finish token", line, column - currentToken.toString().length(),
                         "Only the standard library can use this, so it is not useful anywhere else.",

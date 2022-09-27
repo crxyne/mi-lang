@@ -8,7 +8,7 @@ Scripting language designed to communicate with java, to allow for easy plugins,
 ## NOTE
 I am currently working on bytecode execution, so at this state, mi is unusable. Be patient.
 
-While this language may be interpreted in java (which is generally a horrible idea), the purpose of this language is not to be fast. However, whenever possible, the code will be optimized to allow for a faster execution. As a sidenote, this compiles to bytecode, meaning anyone could, in theory, write an interpreter for it in another language for faster execution.
+While this language may be interpreted in java (which is generally a horrible idea), the purpose of this language is not to be fast. However, whenever possible, the code will be optimized to allow for a faster execution. As a sidenote, this compiles to bytecode, meaning anyone could, in theory, write an interpreter for it in another language to get a better performance.
 
 ### helloworld
 ```

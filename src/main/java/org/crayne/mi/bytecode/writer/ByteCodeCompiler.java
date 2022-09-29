@@ -26,23 +26,28 @@ public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> enumDefinitions;
     private final SyntaxTreeCompilation tree;
 
-    private final Map<String, Long> globalVariableStorage;
-    private final LinkedHashMap<String, Long> localVariableStorage;
+    private final Map<String, Integer> globalVariableStorage;
+    private final LinkedHashMap<String, Integer> localVariableStorage;
     private final Map<String, ByteCodeEnum> enumStorage;
-    private final Set<ByteCodeFunction> functionStorage;
+    private final Set<ByteCodeFunctionDefinition> functionStorage;
     private final List<ByteLoopBound> loopBounds;
 
     private final List<String> currentModuleName = new ArrayList<>() {{this.add("!PARENT");}};
 
-    private long absoluteAddress = 1;
-    private long relativeAddress = -1;
+    private int absoluteAddress = 1;
+    private int relativeAddress = -1;
     private long functionId = 0;
     private long label = 1;
     private int enumId = 0;
     private final List<Integer> localScopeVariables;
     private int scope = -1;
 
-    public ByteCodeCompiler(@NotNull final SyntaxTreeCompilation tree) {
+
+    private final String mainFuncMod;
+    private final String mainFunc;
+    private boolean foundMainFunc = false;
+
+    public ByteCodeCompiler(@NotNull final SyntaxTreeCompilation tree, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
         localScopeVariables = new ArrayList<>();
@@ -54,6 +59,8 @@ public class ByteCodeCompiler {
         functionDefinitions = new ArrayList<>();
         loopBounds = new ArrayList<>();
         result = new ArrayList<>();
+        mainFunc = mainFunction;
+        mainFuncMod = "!PARENT." + mainFunctionModule;
     }
 
     public int getStdlibFinishLine() {
@@ -82,6 +89,10 @@ public class ByteCodeCompiler {
             compileParent(ast, result);
         } else {
             panic("Expected 'PARENT' node at the beginning of syntax tree");
+            return new ArrayList<>();
+        }
+        if (!foundMainFunc) {
+            panic("Could not find main function '" + mainFuncMod + "." + mainFunc + "'. Make sure it exists at the right place, has no arguments and is an intern function.");
             return new ArrayList<>();
         }
         result.addAll(0, functionDefinitions);
@@ -322,18 +333,14 @@ public class ByteCodeCompiler {
             case SHIFTR -> singleInstruction(BITSHIFT_RIGHT, result);
         }
         if (identifier.startsWith("!PARENT.")) {
-            final long absoluteAddress = globalVariableStorage.get(identifier);
+            final int absoluteAddress = globalVariableStorage.get(identifier);
             push(result, ByteCode.integer(absoluteAddress));
         } else {
-            final long relativeAddress = localVariableStorage.get(identifier);
+            final int relativeAddress = localVariableStorage.get(identifier);
             push(result, ByteCode.integer(relativeAddress));
             rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
         }
-        if (pushMutated) {
-            rawInstruction(new ByteCodeInstruction(PUSH.code(), MUTATE_VARIABLE.code()), result);
-            return;
-        }
-        rawInstruction(new ByteCodeInstruction(MUTATE_VARIABLE.code()), result);
+        rawInstruction(new ByteCodeInstruction((pushMutated ? MUTATE_VARIABLE_AND_PUSH : MUTATE_VARIABLE).code()), result);
     }
 
     private void compileFunctionCall(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
@@ -355,8 +362,8 @@ public class ByteCodeCompiler {
                 })
                 .toList();
 
-        final ByteCodeFunction functionCall = new ByteCodeFunction(fullName, null, args, -1);
-        final Optional<ByteCodeFunction> found = functionStorage.stream().filter(f -> f.equals(functionCall)).findFirst();
+        final ByteCodeFunctionDefinition functionCall = new ByteCodeFunctionDefinition(fullName, null, args, -1);
+        final Optional<ByteCodeFunctionDefinition> found = functionStorage.stream().filter(f -> f.equals(functionCall)).findFirst();
         if (found.isEmpty()) {
             panic("Cannot find function '" + fullName + "'");
             return 0;
@@ -374,7 +381,7 @@ public class ByteCodeCompiler {
                 "." + name + "(" +
                 String.join("|", args.values()
                         .stream()
-                        .map(d -> d.name().toLowerCase()).toList()
+                        .map(ByteDatatype::name).toList()
                 )
                 + ")"
                 + ByteDatatype.of(returnType, findEnumId(returnType)).name().toLowerCase();
@@ -428,14 +435,14 @@ public class ByteCodeCompiler {
     }
 
     private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final Map<String, ByteDatatype> args, final String javaMethod, final Node scope) {
-        functionStorage.add(new ByteCodeFunction(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args.values(), functionId));
+        functionStorage.add(new ByteCodeFunctionDefinition(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args.values(), functionId));
         if (javaMethod == null) {
             relativeAddress = 0;
             this.scope = 0;
             localScopeVariables.add(0);
 
             args.forEach((s, d) -> addLocalVariableToStorage(s));
-            functionDefinitions.add(function(functionId));
+            functionDefinitions.add(function());
             label++;
             if (scope == null) {
                 panic("The function scope of '" + name + "' is null");
@@ -448,8 +455,13 @@ public class ByteCodeCompiler {
             localScopeVariables.clear();
             relativeAddress = -1;
             rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
+
+            if (args.isEmpty() && currentModuleName().equals(mainFuncMod) && name.equals(mainFunc)) {
+                rawInstruction(ByteCode.mainFunction(functionId), functionDefinitions);
+                foundMainFunc = true;
+            }
         } else {
-            functionDefinitions.add(nativeFunction(functionId, javaMethod));
+            functionDefinitions.add(nativeFunction(javaMethod));
             label++;
         }
         functionId++;
@@ -498,8 +510,8 @@ public class ByteCodeCompiler {
         switch (ByteDatatype.of(type, findEnumId(type)).name()) {
             case "bool" -> push(result, bool(value));
             case "string" -> push(result, string(value.substring(1, value.length() - 1)));
-            case "double" -> push(result, floating(value));
-            case "float" -> push(result, doubleFloating(value));
+            case "double" -> push(result, doubleFloating(value));
+            case "float" -> push(result, floating(value));
             case "long" -> push(result, longInteger(value));
             case "int" -> push(result, integer(value));
             case "char" -> push(result, character(value));
@@ -557,12 +569,12 @@ public class ByteCodeCompiler {
             case IDENTIFIER -> {
                 final String identifier = nodeVal.token();
                 if (identifier.startsWith("!PARENT.")) {
-                    final long absoluteAddress = globalVariableStorage.get(identifier);
+                    final int absoluteAddress = globalVariableStorage.get(identifier);
                     push(result, ByteCode.integer(absoluteAddress));
                     rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
                     return;
                 }
-                final long relativeAddress = localVariableStorage.get(identifier);
+                final int relativeAddress = localVariableStorage.get(identifier);
                 push(result, ByteCode.integer(relativeAddress));
                 rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
                 rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);

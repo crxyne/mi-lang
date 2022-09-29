@@ -2,8 +2,10 @@ package org.crayne.mi;
 
 import org.apache.commons.lang3.StringUtils;
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
+import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.crayne.mi.log.MessageHandler;
+import org.crayne.mi.parsing.parser.ParserEvaluator;
 import org.crayne.mi.runtime.MiProgram;
 import org.crayne.mi.stdlib.MiStandardLib;
 import org.jetbrains.annotations.NotNull;
@@ -61,7 +63,7 @@ public class MiLang {
         return Optional.of(result);
     }
 
-    private static final Set<String> validArgs = new HashSet<>(Arrays.asList("file"));
+    private static final Set<String> validArgs = new HashSet<>(Arrays.asList("file", "main"));
 
     public static Predicate<String> invalidArgument = arg -> !validArgs.contains(arg);
 
@@ -115,17 +117,23 @@ public class MiLang {
         if (inputFile.isEmpty()) return;
 
         if (compile) {
+            final Optional<String> omainFunc = findKeyvalueOrElse("main", messageHandler,
+                    "No main function specified (specify using the main=some.module.name.main argument)", params);
+            if (omainFunc.isEmpty()) return;
+
+            final String mainFunc = omainFunc.get();
             final Optional<String> code = readCode(inputFile.get(), messageHandler);
             if (code.isEmpty()) return;
 
             final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mib");
 
-            miProgram.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()));
+            miProgram.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()), ParserEvaluator.moduleOf(mainFunc), ParserEvaluator.identOf(mainFunc));
             return;
         }
         try {
             final List<ByteCodeInstruction> instrs = ByteCodeReader.read(new File(inputFile.get()), messageHandler);
-            // TODO actually execute the read code
+            final ByteCodeInterpreter interpreter = new ByteCodeInterpreter(instrs, messageHandler);
+            interpreter.run();
         } catch (final Throwable e) {
             e.printStackTrace();
         }

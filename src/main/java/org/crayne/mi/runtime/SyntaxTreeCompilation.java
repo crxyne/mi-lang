@@ -60,8 +60,8 @@ public class SyntaxTreeCompilation {
         return parentNode;
     }
 
-    public void compile(@NotNull final File file) throws IOException {
-        final ByteCodeCompiler compiler = new ByteCodeCompiler(this);
+    public void compile(@NotNull final File file, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) throws IOException {
+        final ByteCodeCompiler compiler = new ByteCodeCompiler(this, mainFunctionModule, mainFunction);
         out.infoMsg("Compiling " + inputFile.getName() + "...");
         final List<ByteCodeInstruction> compiled = compiler.compile();
         ByteCodeCompiler.compileToFile(compiled, file);

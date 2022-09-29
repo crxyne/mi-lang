@@ -3,6 +3,7 @@ package org.crayne.mi.bytecode.reader;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.ArrayUtils;
 import org.crayne.mi.bytecode.common.ByteCode;
+import org.crayne.mi.bytecode.common.ByteCodeException;
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.log.MessageHandler;
 import org.jetbrains.annotations.NotNull;
@@ -52,15 +53,15 @@ public class ByteCodeReader {
                 switch (code) {
                     case PUSH -> readPushInstruction(code);
                     case DEFINE_VARIABLE, DECLARE_VARIABLE, CAST -> readVariablar(code);
-                    case FUNCTION_DEFINITION_BEGIN, JUMP, JUMP_IF, POP, FUNCTION_CALL -> readWithInteger(code);
+                    case JUMP, JUMP_IF, POP, FUNCTION_CALL, MAIN_FUNCTION -> readWithInteger(code);
                     case NATIVE_FUNCTION_DEFINITION_BEGIN -> readNativeFunctionBegin(code);
                     case ENUM_DEFINITION_BEGIN -> readEnumDefinitionBegin(code);
                     case ENUM_MEMBER_DEFINITION -> readEnumMemberDefinition(code);
-                    case FUNCTION_DEFINITION_END, VALUE_AT_ADDRESS, EQUALS, NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
+                    case FUNCTION_DEFINITION_BEGIN, FUNCTION_DEFINITION_END, VALUE_AT_ADDRESS, EQUALS, NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
                             BIT_AND, BIT_OR, BIT_XOR, LOGICAL_AND, LOGICAL_OR, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL,
-                            MUTATE_VARIABLE, BITSHIFT_LEFT, BITSHIFT_RIGHT, RELATIVE_TO_ABSOLUTE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END // any of the instructions that dont pass any arguments in should just be added to instruction set
+                            MUTATE_VARIABLE, MUTATE_VARIABLE_AND_PUSH, BITSHIFT_LEFT, BITSHIFT_RIGHT, RELATIVE_TO_ABSOLUTE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END // any of the instructions that dont pass any arguments in should just be added to instruction set
                             -> instruction(code, (l) -> {});
-                    default -> throw new ByteCodeReaderException("Unhandled bytecode instruction " + code);
+                    default -> throw new ByteCodeException("Unhandled bytecode instruction " + code);
                 }
                 expect(ByteCode.INSTRUCT_FINISH);
             }
@@ -94,17 +95,15 @@ public class ByteCodeReader {
     }
 
     private void readWithInteger(@NotNull final ByteCode code) {
-        final Byte[] num = readLongIntegerValue();
+        final Byte[] num = code == ByteCode.POP ? readIntegerValue() : readLongIntegerValue();
         instruction(code, (l) -> l.addAll(listOfByteArray(num)));
     }
 
     private void readNativeFunctionBegin(@NotNull final ByteCode code) {
-        final Byte[] functionId = readLongIntegerValue();
         expect(ByteCode.STRING_VALUE);
         final Byte[] nativeFunction = readStringValue();
 
         instruction(code, (l) -> {
-            l.addAll(listOfByteArray(functionId));
             l.add(ByteCode.STRING_VALUE.code());
             l.addAll(listOfByteArray(nativeFunction));
             expect(ByteCode.INSTRUCT_FINISH, ByteCode.FUNCTION_DEFINITION_END);
@@ -131,14 +130,14 @@ public class ByteCodeReader {
 
     private static ByteCode byteCodeOfByte(final byte b) throws Throwable {
         return Arrays.stream(ByteCode.values()).filter(c -> c.code() == b).findFirst().orElseThrow((Supplier<Throwable>) () ->
-                new ByteCodeReaderException("Unrecognized bytecode instruction " + byteToHexString(b)));
+                new ByteCodeException("Unrecognized bytecode instruction " + byteToHexString(b)));
     }
 
     private void readHeader() {
         final byte[] expectedHeader = new byte[] {ByteCode.PROGRAM_HEADER.code(), (byte) 0x00, (byte) 0x6D, (byte) 0x00, (byte) 0x75};
         expect(expectedHeader);
         final byte bytecodeVersion = currentByte;
-        if (bytecodeVersion > ByteCode.BYTECODE_VERSION) throw new ByteCodeReaderException("Unsupported bytecode version: " + bytecodeVersion);
+        if (bytecodeVersion > ByteCode.BYTECODE_VERSION) throw new ByteCodeException("Unsupported bytecode version: " + bytecodeVersion);
         next();
         expect(ByteCode.INSTRUCT_FINISH);
         instructionSet.add(new ByteCodeInstruction(ByteCode.PROGRAM_HEADER.code(), (byte) 0x00, (byte) 0x6D, (byte) 0x00, (byte) 0x75, bytecodeVersion));
@@ -154,12 +153,15 @@ public class ByteCodeReader {
 
     private Byte[] readValue() throws Throwable {
         final ByteCode valueType = byteCodeOfByte(currentByte);
-        expectAny(valueType, ByteCode.ENUM_VALUE, ByteCode.FLOAT_VALUE, ByteCode.INTEGER_VALUE, ByteCode.STRING_VALUE);
+        expectAny(valueType, ByteCode.ENUM_VALUE, ByteCode.FLOAT_VALUE, ByteCode.INTEGER_VALUE, ByteCode.LONG_INTEGER_VALUE, ByteCode.STRING_VALUE, ByteCode.DOUBLE_VALUE, ByteCode.BOOL_VALUE);
 
         return switch (valueType) {
-            case INTEGER_VALUE -> readLongIntegerValue();
+            case INTEGER_VALUE -> readIntegerValue();
+            case LONG_INTEGER_VALUE -> readLongIntegerValue();
             case ENUM_VALUE -> readEnumValue();
             case FLOAT_VALUE -> readFloatValue();
+            case DOUBLE_VALUE -> readDoubleValue();
+            case BOOL_VALUE, BYTE_VALUE -> readByteValue();
             case STRING_VALUE -> readStringValue();
             default -> new Byte[0];
         };
@@ -177,8 +179,16 @@ public class ByteCodeReader {
         return readBytes(8);
     }
 
+    private Byte[] readDoubleValue() {
+        return readBytes(8);
+    }
+
     private Byte[] readFloatValue() {
-        return readBytes(16);
+        return readBytes(4);
+    }
+
+    private Byte[] readByteValue() {
+        return readBytes(1);
     }
 
     private Byte[] readStringValue() {
@@ -211,7 +221,7 @@ public class ByteCodeReader {
 
     private void expectAny(final byte b, final byte... possible) {
         if (!List.of(ArrayUtils.toObject(possible)).contains(b))
-            throw new ByteCodeReaderException("Expected any of the possible bytes " +
+            throw new ByteCodeException("Expected any of the possible bytes " +
                     Arrays.stream(ArrayUtils.toObject(possible)).map(ByteCodeReader::byteToHexString).toList()
                     + ", but got " + byteToHexString(b) + " instead");
         next();
@@ -224,13 +234,13 @@ public class ByteCodeReader {
     private void expect(final byte... nextBytes) {
         for (final byte next : nextBytes) {
             if (currentByte != next)
-                throw new ByteCodeReaderException("Expected byte " + byteToHexString(next) + " at position " + currentBytePos + ", got " + byteToHexString(currentByte) + " instead");
+                throw new ByteCodeException("Expected byte " + byteToHexString(next) + " at position " + currentBytePos + ", got " + byteToHexString(currentByte) + " instead");
             next();
         }
     }
 
     private void next() {
-        if (currentBytePos >= bytecodeProgram.size()) throw new ByteCodeReaderException("Reached end of file");
+        if (currentBytePos >= bytecodeProgram.size()) throw new ByteCodeException("Reached end of file");
         currentBytePos++;
         currentByte = currentBytePos >= bytecodeProgram.size() ? 0 : bytecodeProgram.get(currentBytePos);
     }

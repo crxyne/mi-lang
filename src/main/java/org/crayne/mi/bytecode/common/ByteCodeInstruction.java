@@ -1,6 +1,7 @@
 package org.crayne.mi.bytecode.common;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
@@ -61,8 +62,8 @@ public class ByteCodeInstruction {
                         .toList()
                         .subList(1, codes.length - 1)
                         .stream()
-                        //.map(b -> "0x" + Integer.toHexString((int) b))
-                        .map(b -> "" + (int) b)
+                        .map(ByteCodeReader::byteToHexString)
+                        //.map(b -> "" + (int) b)
                         .toList()
         ).trim() + " ;";
     }

@@ -15,6 +15,7 @@ public enum ByteCode {
 
     INSTRUCT_FINISH((byte) 0xFF),
     PROGRAM_HEADER((byte) 0x01),
+    MAIN_FUNCTION((byte) 0x02),
     JUMP((byte) 0x03),
     JUMP_IF((byte) 0x04),
     PUSH((byte) 0x07),
@@ -56,14 +57,19 @@ public enum ByteCode {
     FUNCTION_CALL((byte) 0xC5),
     RETURN_STATEMENT((byte) 0xC6),
     MUTATE_VARIABLE((byte) 0xC7),
+    ENUM_DEFINITION_BEGIN((byte) 0xC8),
+    ENUM_DEFINITION_END((byte) 0xC9),
+    ENUM_MEMBER_DEFINITION((byte) 0xCA),
+    MUTATE_VARIABLE_AND_PUSH((byte) 0xCB),
 
-    STRING_VALUE((byte) 0xC8),
-    INTEGER_VALUE((byte) 0xC9),
-    FLOAT_VALUE((byte) 0xCA),
-    ENUM_VALUE((byte) 0xCB),
-    ENUM_DEFINITION_BEGIN((byte) 0xCC),
-    ENUM_DEFINITION_END((byte) 0xCD),
-    ENUM_MEMBER_DEFINITION((byte) 0xCE);
+    STRING_VALUE((byte) 0xCC),
+    INTEGER_VALUE((byte) 0xCD),
+    LONG_INTEGER_VALUE((byte) 0xCE),
+    FLOAT_VALUE((byte) 0xCF),
+    DOUBLE_VALUE((byte) 0xD0),
+    BYTE_VALUE((byte) 0xD1),
+    BOOL_VALUE((byte) 0xD2),
+    ENUM_VALUE((byte) 0xD3);
 
     public static final byte BYTECODE_VERSION = 1;
 
@@ -101,13 +107,26 @@ public enum ByteCode {
         return Ints.fromByteArray(bytes);
     }
 
-    public static byte[] floatToBytes(final double d) {
+    public static byte[] floatToBytes(final float f) {
+        final ByteBuffer buffer = ByteBuffer.allocate(Float.BYTES);
+        buffer.putFloat(f);
+        return buffer.array();
+    }
+
+    public static float bytesToFloat(final byte[] bytes) {
+        final ByteBuffer buffer = ByteBuffer.allocate(Float.BYTES);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer.getFloat();
+    }
+
+    public static byte[] doubleToBytes(final double d) {
         final ByteBuffer buffer = ByteBuffer.allocate(Double.BYTES);
         buffer.putDouble(d);
         return buffer.array();
     }
 
-    public static double bytesToFloat(final byte[] bytes) {
+    public static double bytesToDouble(final byte[] bytes) {
         final ByteBuffer buffer = ByteBuffer.allocate(Double.BYTES);
         buffer.put(bytes);
         buffer.flip();
@@ -151,18 +170,25 @@ public enum ByteCode {
         };
     }
 
-    public static ByteCodeInstruction floating(final double literal) {
+    public static ByteCodeInstruction floating(final float literal) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(FLOAT_VALUE.code);
             this.addAll(Arrays.stream(ArrayUtils.toObject(floatToBytes(literal))).toList());
         }});
     }
 
-    public static Byte[] floating(@NotNull final String value) {
-        return floating(Tokenizer.isDouble(value) != null ? Double.parseDouble(value) : 0d).codes();
+    public static ByteCodeInstruction doubleFloating(final double literal) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(DOUBLE_VALUE.code);
+            this.addAll(Arrays.stream(ArrayUtils.toObject(doubleToBytes(literal))).toList());
+        }});
     }
 
     public static Byte[] doubleFloating(@NotNull final String value) {
+        return doubleFloating(Tokenizer.isDouble(value) != null ? Double.parseDouble(value) : 0d).codes();
+    }
+
+    public static Byte[] floating(@NotNull final String value) {
         return floating(Tokenizer.isFloat(value) != null ? Float.parseFloat(value) : 0f).codes();
     }
 
@@ -170,31 +196,48 @@ public enum ByteCode {
         return bytesToFloat(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(1, instr.codes().length - 1).toArray(new Byte[0])));
     }
 
-    public static ByteCodeInstruction integer(final long literal) {
+    public static ByteCodeInstruction longInteger(final long literal) {
         return new ByteCodeInstruction(new ArrayList<>() {{
-            this.add(INTEGER_VALUE.code);
+            this.add(LONG_INTEGER_VALUE.code);
             this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(literal))).toList());
         }});
     }
 
+    public static ByteCodeInstruction integer(final int literal) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(INTEGER_VALUE.code);
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(literal))).toList());
+        }});
+    }
+
+    public static ByteCodeInstruction byteValue(final byte literal) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(BYTE_VALUE.code);
+            this.add(literal);
+        }});
+    }
+
+    public static ByteCodeInstruction boolValue(final boolean literal) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(BOOL_VALUE.code);
+            this.add(literal ? (byte) 1 : (byte) 0);
+        }});
+    }
+
     public static Byte[] longInteger(@NotNull final String value) {
-        return integer(Tokenizer.isLong(value) != null ? Long.parseLong(value) : 0L).codes();
+        return longInteger(Tokenizer.isLong(value) != null ? Tokenizer.isLong(value) : 0L).codes();
     }
 
     public static Byte[] integer(@NotNull final String value) {
-        return integer(Tokenizer.isInt(value) != null ? Integer.parseInt(value) : 0).codes();
+        return integer(Tokenizer.isInt(value) != null ? Tokenizer.isInt(value) : 0).codes();
     }
 
     public static Byte[] character(@NotNull final String value) {
-        return integer((value.startsWith("'") ? value.charAt(1) : Integer.parseInt(value))).codes();
+        return integer((value.startsWith("'") ? value.charAt(1) : Integer.parseInt(value))).codes(); // integer, because characters support unicode
     }
 
     public static Byte[] bool(@NotNull final String value) {
-        return integer(value.equals("1b") ? 1L : 0L).codes();
-    }
-
-    public static long ofInteger(@NotNull final ByteCodeInstruction instr) {
-        return bytesToLong(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(1, instr.codes().length - 1).toArray(new Byte[0])));
+        return boolValue(value.equals("1b")).codes();
     }
 
     public static ByteCodeInstruction string(@NotNull final String literal) {
@@ -208,7 +251,12 @@ public enum ByteCode {
 
     public static String ofString(@NotNull final ByteCodeInstruction instr) {                     // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
         // but remove last byte, since that will be the INSTRUCTION_FINISH code
-        return new String(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(5, instr.codes().length - 1).toArray(new Byte[0])), StandardCharsets.UTF_8);
+        return new String(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(5, instr.codes().length - 1).toArray(new Byte[0])), StandardCharsets.ISO_8859_1);
+    }
+
+    public static String ofString(final byte[] arr) {                     // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
+        // but remove last byte, since that will be the INSTRUCTION_FINISH code
+        return new String(arr, StandardCharsets.ISO_8859_1);
     }
 
     public static ByteCodeInstruction call(final long id) {
@@ -218,17 +266,15 @@ public enum ByteCode {
         }});
     }
 
-    public static ByteCodeInstruction function(final long id) {
+    public static ByteCodeInstruction function() {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(FUNCTION_DEFINITION_BEGIN.code);
-            this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(id))).toList());
         }});
     }
 
-    public static ByteCodeInstruction nativeFunction(final long id, @NotNull final String javaMethod) {
+    public static ByteCodeInstruction nativeFunction(@NotNull final String javaMethod) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(NATIVE_FUNCTION_DEFINITION_BEGIN.code);
-            this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(id))).toList());
             this.addAll(Arrays.stream(string(javaMethod).codes()).toList());
             this.add(FUNCTION_DEFINITION_END.code);
         }});
@@ -258,7 +304,7 @@ public enum ByteCode {
     public static ByteCodeInstruction pop(final int amount) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(POP.code);
-            this.addAll(Arrays.stream(ArrayUtils.toObject(longToBytes(amount))).toList());
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(amount))).toList());
         }});
     }
 
@@ -272,6 +318,13 @@ public enum ByteCode {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(JUMP_IF.code);
             this.addAll(List.of(ArrayUtils.toObject(longToBytes(to))));
+        }});
+    }
+
+    public static ByteCodeInstruction mainFunction(final long funcId) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(MAIN_FUNCTION.code);
+            this.addAll(List.of(ArrayUtils.toObject(longToBytes(funcId))));
         }});
     }
 

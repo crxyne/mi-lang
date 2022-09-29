@@ -37,11 +37,11 @@ public class MiProgram {
         return Optional.ofNullable(parser.parse());
     }
 
-    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile) {
+    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
         final Optional<SyntaxTreeCompilation> tree = parse(stdlib, code, inputFile);
         if (tree.isPresent()) {
             try {
-                tree.get().compile(file);
+                tree.get().compile(file, mainFunctionModule, mainFunction);
             } catch (Throwable e) {
                 tree.get().error("Error encountered when trying to compile: " + e.getClass().getSimpleName() + " " + e.getMessage());
             }

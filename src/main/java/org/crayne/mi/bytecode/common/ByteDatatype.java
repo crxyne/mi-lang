@@ -55,6 +55,20 @@ public class ByteDatatype {
         };
     }
 
+    public static ByteDatatype ofId(final int id) {
+        return switch (id) {
+            case 0 -> BOOL;
+            case 1 -> CHAR;
+            case 2 -> INT;
+            case 3 -> LONG;
+            case 4 -> FLOAT;
+            case 5 -> DOUBLE;
+            case 6 -> STRING;
+            case 7 -> ENUM;
+            default -> UNKNOWN;
+        };
+    }
+
     public static ByteDatatype ofEnum(@NotNull final String name, final int id) {
         return new ByteDatatype(ENUM.code, id, name);
     }

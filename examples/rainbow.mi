@@ -44,17 +44,8 @@ module testing {
 		}
 	}
 	
-	pub fn main~ (string wait, string text) {
-		long wait_long = long(wait);
-		executeRainbow(wait_long, text);
-	}
-	
 	pub fn main {
-		main("10", "µ");
-	}
-	
-	pub fn main~ (string wait) {
-		main(wait, "µ");
+		executeRainbow(10L, "µ");
 	}
 	
 }

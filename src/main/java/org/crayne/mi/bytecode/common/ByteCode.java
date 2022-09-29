@@ -21,7 +21,7 @@ public enum ByteCode {
     PUSH((byte) 0x07),
     POP((byte) 0x08),
 
-    RELATIVE_TO_ABSOLUTE_ADDRESS((byte) 0x09),
+    VALUE_AT_RELATIVE_ADDRESS((byte) 0x09),
 
     // NOT operates on the current top of the stack.
     // a similar approach is taken for more miscellaneous operators like RELATIVE_TO_ABSOLUTE_ADDRESS as for the NOT operator.

@@ -59,7 +59,7 @@ public class ByteCodeReader {
                     case ENUM_MEMBER_DEFINITION -> readEnumMemberDefinition(code);
                     case FUNCTION_DEFINITION_BEGIN, FUNCTION_DEFINITION_END, VALUE_AT_ADDRESS, EQUALS, NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
                             BIT_AND, BIT_OR, BIT_XOR, LOGICAL_AND, LOGICAL_OR, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL,
-                            MUTATE_VARIABLE, MUTATE_VARIABLE_AND_PUSH, BITSHIFT_LEFT, BITSHIFT_RIGHT, RELATIVE_TO_ABSOLUTE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END // any of the instructions that dont pass any arguments in should just be added to instruction set
+                            MUTATE_VARIABLE, MUTATE_VARIABLE_AND_PUSH, BITSHIFT_LEFT, BITSHIFT_RIGHT, VALUE_AT_RELATIVE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END // any of the instructions that dont pass any arguments in should just be added to instruction set
                             -> instruction(code, (l) -> {});
                     default -> throw new ByteCodeException("Unhandled bytecode instruction " + code);
                 }

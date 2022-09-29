@@ -132,6 +132,7 @@ public class MiLang {
         }
         try {
             final List<ByteCodeInstruction> instrs = ByteCodeReader.read(new File(inputFile.get()), messageHandler);
+            System.out.println(String.join("\n", instrs.stream().map(ByteCodeInstruction::toString).toList()));
             final ByteCodeInterpreter interpreter = new ByteCodeInterpreter(instrs, messageHandler);
             interpreter.run();
         } catch (final Throwable e) {

@@ -198,7 +198,7 @@ public class ByteCodeCompiler {
         final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
         final long elseJumpLabel = label + 2; // then get the label of where the else scope starts (+ 2, because 2 jumps have to be added)
         if (hasElse) { // check if there even is an else scope
-            final Node elseScope = instr.child(2).child(0).child(0).child(0);
+            final Node elseScope = instr.child(2).child(0);
             compileParent(elseScope, result); // parse the else scope like normal here
         }
         result.add(elseJumpIndex, jumpIf(elseJumpLabel)); // add the jump statements using the saved labels, at their right positions
@@ -335,10 +335,11 @@ public class ByteCodeCompiler {
         if (identifier.startsWith("!PARENT.")) {
             final int absoluteAddress = globalVariableStorage.get(identifier);
             push(result, ByteCode.integer(absoluteAddress));
+            rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
         } else {
             final int relativeAddress = localVariableStorage.get(identifier);
             push(result, ByteCode.integer(relativeAddress));
-            rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
+            rawInstruction(new ByteCodeInstruction(VALUE_AT_RELATIVE_ADDRESS.code()), result);
         }
         rawInstruction(new ByteCodeInstruction((pushMutated ? MUTATE_VARIABLE_AND_PUSH : MUTATE_VARIABLE).code()), result);
     }
@@ -576,8 +577,7 @@ public class ByteCodeCompiler {
                 }
                 final int relativeAddress = localVariableStorage.get(identifier);
                 push(result, ByteCode.integer(relativeAddress));
-                rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
-                rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
+                rawInstruction(new ByteCodeInstruction(VALUE_AT_RELATIVE_ADDRESS.code()), result);
             }
             case CAST_VALUE -> {
                 compileExpression(new Node(NodeType.VALUE, values), result);

@@ -556,6 +556,10 @@ public class ByteCodeCompiler {
                 compileExpression(new Node(NodeType.VALUE, values), result);
                 rawInstruction(new ByteCodeInstruction(NOT.code()), result);
             }
+            case BIT_NOT -> {
+                compileExpression(new Node(NodeType.VALUE, values), result);
+                rawInstruction(new ByteCodeInstruction(BIT_NOT.code()), result);
+            }
             case NEGATE -> operator(Node.of(Token.of("0")), x, MINUS, result);
             case GET_ENUM_MEMBER -> {
                 final String identifier = values.get(0).value().token();

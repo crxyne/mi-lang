@@ -46,8 +46,9 @@ public enum ByteCode {
     GREATER_THAN((byte) 0xAF),
     LESS_THAN_OR_EQUAL((byte) 0xB0),
     GREATER_THAN_OR_EQUAL((byte) 0xB1),
-    CAST((byte) 0xB2),
-    NATIVE_FUNCTION_DEFINITION_BEGIN((byte) 0xB3),
+    BIT_NOT((byte) 0xB2),
+    CAST((byte) 0xB3),
+    NATIVE_FUNCTION_DEFINITION_BEGIN((byte) 0xB4),
 
     DECLARE_VARIABLE((byte) 0xC0),
     DEFINE_VARIABLE((byte) 0xC1),

@@ -130,6 +130,7 @@ public enum NodeType {
     LPAREN("("),
     RPAREN(")"),
     TILDE("~"),
+    BIT_NOT(null),
     BIT_AND("&"),
     BIT_OR("|"),
     LSHIFT("<<"),

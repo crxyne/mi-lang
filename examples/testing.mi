@@ -1,7 +1,7 @@
 module testing {
 	
 	pub fn main {
-		int i = 1 == 0 ? 2 : 7 == 5 ? 6 : 3;
+		int i = ~5;
 	}
 	
 }

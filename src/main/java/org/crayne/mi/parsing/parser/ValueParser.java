@@ -168,6 +168,10 @@ public class ValueParser {
         return cannotUseOperator(fact, prev, Datatype.INT, Datatype.LONG, Datatype.DOUBLE, Datatype.FLOAT);
     }
 
+    private boolean cannotUseBitwiseOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
+        return cannotUseOperator(fact, prev, Datatype.INT, Datatype.LONG, Datatype.CHAR);
+    }
+
     private boolean cannotUseBooleanOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
         return cannotUseOperator(fact, prev, Datatype.BOOL);
     }
@@ -208,6 +212,15 @@ public class ValueParser {
         return cannotUseBooleanOperator(fact, prev) ? TypedNode.empty() : inverted;
     }
 
+    private TypedNode bitwiseInvertIntegerFactor(@NotNull final Token prev) {
+        if (expectValue(prev)) return TypedNode.empty();
+        nextPart();
+
+        final TypedNode fact = parseFactor();
+        final TypedNode inverted = embraceFactor(fact, NodeType.BIT_NOT);
+        return cannotUseBitwiseOperator(fact, prev) ? TypedNode.empty() : inverted;
+    }
+
     private TypedNode castFactor(@NotNull final Token prev) {
         final String datatype = prev.token();
         if (expectValue(prev)) return TypedNode.empty();
@@ -236,6 +249,7 @@ public class ValueParser {
             case ADD, INCREMENT_LITERAL, DECREMENT_LITERAL -> parseNumberFactor(prev); // +, ++ and -- as PREFIXES do not change a number, but they only make sense when used on any number datatype
             case SUBTRACT -> negateNumberFactor(prev);
             case EXCLAMATION_MARK -> invertBooleanFactor(prev);
+            case TILDE -> bitwiseInvertIntegerFactor(prev);
             default -> null;
         });
     }

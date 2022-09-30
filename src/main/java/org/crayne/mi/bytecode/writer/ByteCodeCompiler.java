@@ -42,7 +42,6 @@ public class ByteCodeCompiler {
     private final List<Integer> localScopeVariables;
     private int scope = -1;
 
-
     private final String mainFuncMod;
     private final String mainFunc;
     private boolean foundMainFunc = false;
@@ -174,10 +173,11 @@ public class ByteCodeCompiler {
     }
 
     private void deleteLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
-        final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
+        final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
-        //noinspection SuspiciousMethodCalls
-        Arrays.asList(localVariableStorage.keySet().toArray()).subList(0, vars).forEach(localVariableStorage.keySet()::remove);
+
+        final List<String> l = Arrays.asList(localVariableStorage.keySet().toArray(new String[0]));
+        l.subList(l.size() - vars, l.size()).forEach(localVariableStorage.keySet()::remove);
 
         localScopeVariables.remove(localScopeVariables.size() - 1);
         scope--;
@@ -437,7 +437,7 @@ public class ByteCodeCompiler {
 
     private void addLocalVariableToStorage(@NotNull final String name) {
         localVariableStorage.put(name, relativeAddress);
-        localScopeVariables.set(this.scope, localScopeVariables.get(this.scope) + 1);
+        localScopeVariables.set(scope, localScopeVariables.get(scope) + 1);
         relativeAddress++;
     }
 

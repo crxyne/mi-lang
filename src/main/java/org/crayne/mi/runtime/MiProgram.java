@@ -44,6 +44,7 @@ public class MiProgram {
                 tree.get().compile(file, mainFunctionModule, mainFunction);
             } catch (Throwable e) {
                 tree.get().error("Error encountered when trying to compile: " + e.getClass().getSimpleName() + " " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }

@@ -1,9 +1,9 @@
 module testing {
 	
 	pub fn main {
-		do {
-			int i = 5;
-		} while true;
+		for mut int i = 2, true, i++ {
+			int j = 5;
+		}
 	}
 	
 }

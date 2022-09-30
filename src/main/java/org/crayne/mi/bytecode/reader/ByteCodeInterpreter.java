@@ -129,6 +129,10 @@ public class ByteCodeInterpreter {
         localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset() + 1);
     }
 
+    private void decLocalAddrOffset() {
+        localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset() - 1);
+    }
+
     private void evalPre(@NotNull final ByteCodeInstruction instr) {
         if (localAddrOffset.isEmpty()) switch (instr.type().orElseThrow(() -> new ByteCodeException("Cannot read bytecode instruction " + instr))) {
             case PUSH -> evalPush(instr);
@@ -138,7 +142,7 @@ public class ByteCodeInterpreter {
             case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
             case VALUE_AT_ADDRESS -> evalValAtAddr();
             case MAIN_FUNCTION -> evalMainFunc(instr);
-            case MUTATE_VARIABLE -> popPushStack(2);
+            //case MUTATE_VARIABLE -> popPushStack(2);
             case PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> popPushStack(1);
         } else if (instr.type().orElse(null) == ByteCode.FUNCTION_DEFINITION_END) evalFuncEnd();
@@ -168,10 +172,10 @@ public class ByteCodeInterpreter {
             case FUNCTION_CALL -> evalFuncCall(instr);
             case JUMP -> evalJump(instr);
             case JUMP_IF -> evalJumpIf(instr);
-            case MUTATE_VARIABLE -> popPushStack(2); // TODO
+            //case MUTATE_VARIABLE -> popPushStack(2); // TODO
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
-            default -> System.out.println("ignored instr " + instr);
+          //  default -> System.out.println("ignored instr " + instr);
         }
         return false;
     }
@@ -187,6 +191,7 @@ public class ByteCodeInterpreter {
 
     private void popVarStack() {
         if (variableStack.isEmpty()) throw new ByteCodeException("Cannot perform pop, variable stack is empty");
+        if (!localAddrOffset.isEmpty()) decLocalAddrOffset();
         System.out.println("pop " + variableStack.remove(variableStack.size() - 1));
     }
 

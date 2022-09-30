@@ -957,7 +957,7 @@ public class ParserEvaluator {
         final ValueParser.TypedNode condition = parseExpression(exprs.get(1).subList(0, exprs.get(1).size() - 1));
 
         if (condition == null || condition.type() == null) return null;
-        if (condition.type() != Datatype.BOOL) {
+        if (!condition.type().equals(Datatype.BOOL)) {
             parser.parserError("Expected boolean condition", "Cast condition to 'bool' or change the condition to be a bool on its own");
             return null;
         }

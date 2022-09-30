@@ -95,7 +95,7 @@ public class ByteCodeReader {
     }
 
     private void readWithInteger(@NotNull final ByteCode code) {
-        final Byte[] num = code == ByteCode.POP ? readIntegerValue() : readLongIntegerValue();
+        final Byte[] num = code == ByteCode.POP || code == ByteCode.JUMP || code == ByteCode.JUMP_IF ? readIntegerValue() : readLongIntegerValue();
         instruction(code, (l) -> l.addAll(listOfByteArray(num)));
     }
 
@@ -156,12 +156,12 @@ public class ByteCodeReader {
         expectAny(valueType, ByteCode.ENUM_VALUE, ByteCode.FLOAT_VALUE, ByteCode.INTEGER_VALUE, ByteCode.LONG_INTEGER_VALUE, ByteCode.STRING_VALUE, ByteCode.DOUBLE_VALUE, ByteCode.BOOL_VALUE);
 
         return switch (valueType) {
-            case INTEGER_VALUE -> readIntegerValue();
+            case BOOL_VALUE, INTEGER_VALUE -> readIntegerValue();
             case LONG_INTEGER_VALUE -> readLongIntegerValue();
             case ENUM_VALUE -> readEnumValue();
             case FLOAT_VALUE -> readFloatValue();
             case DOUBLE_VALUE -> readDoubleValue();
-            case BOOL_VALUE, BYTE_VALUE -> readByteValue();
+            case BYTE_VALUE -> readByteValue();
             case STRING_VALUE -> readStringValue();
             default -> new Byte[0];
         };

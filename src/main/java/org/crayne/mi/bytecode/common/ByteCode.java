@@ -220,7 +220,7 @@ public enum ByteCode {
     public static ByteCodeInstruction boolValue(final boolean literal) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(BOOL_VALUE.code);
-            this.add(literal ? (byte) 1 : (byte) 0);
+            this.addAll(List.of(ArrayUtils.toObject(intToBytes(literal ? 1 : 0))));
         }});
     }
 
@@ -314,10 +314,10 @@ public enum ByteCode {
         );
     }
 
-    public static ByteCodeInstruction jumpIf(final long to) {
+    public static ByteCodeInstruction jumpIf(final int to) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(JUMP_IF.code);
-            this.addAll(List.of(ArrayUtils.toObject(longToBytes(to))));
+            this.addAll(List.of(ArrayUtils.toObject(intToBytes(to))));
         }});
     }
 
@@ -335,10 +335,10 @@ public enum ByteCode {
         }});
     }
 
-    public static ByteCodeInstruction jump(final long to) {
+    public static ByteCodeInstruction jump(final int to) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(JUMP.code);
-            this.addAll(List.of(ArrayUtils.toObject(longToBytes(to))));
+            this.addAll(List.of(ArrayUtils.toObject(intToBytes(to))));
         }});
     }
 

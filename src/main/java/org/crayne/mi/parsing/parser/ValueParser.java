@@ -79,12 +79,10 @@ public class ValueParser {
         if (ternaryIfElseNotEqual(z, y)) return TypedNode.empty();
         if (ternaryConditionNotBoolean(x)) return TypedNode.empty();
 
-        final int line = x.node.value().actualLine();
-
-        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, line,
-                new Node(NodeType.CONDITION, line, x.node),
-                new Node(NodeType.TERNARY_OPERATOR_IF, line, y.node),
-                new Node(NodeType.TERNARY_OPERATOR_ELSE, line, z.node)
+        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, -1,
+                new Node(NodeType.CONDITION, -1, x.node),
+                new Node(NodeType.TERNARY_OPERATOR_IF, -1, y.node),
+                new Node(NodeType.TERNARY_OPERATOR_ELSE, -1, z.node)
         ));
     }
 

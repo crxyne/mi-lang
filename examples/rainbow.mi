@@ -45,7 +45,8 @@ module testing {
 	}
 	
 	pub fn main {
-		executeRainbow(10L, "µ");
+		?wait = 10L;
+		executeRainbow(wait, "µ");
 	}
 	
 }

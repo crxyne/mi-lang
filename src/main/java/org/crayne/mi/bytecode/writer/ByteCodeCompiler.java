@@ -37,7 +37,7 @@ public class ByteCodeCompiler {
     private int absoluteAddress = 1;
     private int relativeAddress = -1;
     private long functionId = 0;
-    private long label = 1;
+    private int label = 1;
     private int enumId = 0;
     private final List<Integer> localScopeVariables;
     private int scope = -1;
@@ -194,18 +194,18 @@ public class ByteCodeCompiler {
         // then, after the if scope, jump to whenever the else scope ends
 
         final int elseJumpIndex = result.size(); // save the index in the result, to add the label later
+        label++;
         compileParent(ifScope, result); // normally parse the if scope
         final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
-        final long elseJumpLabel = label + 2; // then get the label of where the else scope starts (+ 2, because 2 jumps have to be added)
+        final int elseJumpLabel = label + 2; // then get the label of where the else scope starts (+ 2, because 2 jumps have to be added)
         if (hasElse) { // check if there even is an else scope
             final Node elseScope = instr.child(2).child(0);
+            label++;
             compileParent(elseScope, result); // parse the else scope like normal here
         }
-        result.add(elseJumpIndex, jumpIf(elseJumpLabel)); // add the jump statements using the saved labels, at their right positions
-        label++;
+        result.add(elseJumpIndex, jumpIf(elseJumpLabel - (hasElse ? 0 : 1))); // add the jump statements using the saved labels, at their right positions
         if (hasElse) { // to avoid unnecessary jumping, just check if theres an else at all
             result.add(afterElseJumpIndex, jump(label + 1));
-            label++;
         }
     }
 
@@ -213,14 +213,14 @@ public class ByteCodeCompiler {
         compileExpression(condition, result);
         rawInstruction(new ByteCodeInstruction(NOT.code()), result);
         final int elseJumpIndex = result.size();
+        label++;
         compileExpression(ifExpr, result);
         final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
-        final long elseJumpLabel = label + 2;
+        final int elseJumpLabel = label + 2;
+        label++;
         compileExpression(elseExpr, result);
         result.add(elseJumpIndex, jumpIf(elseJumpLabel)); // add the jump statements using the saved labels, at their right positions
-        label++;
         result.add(afterElseJumpIndex, jump(label + 1));
-        label++;
     }
 
     private void compileBreakStatement(@NotNull final List<ByteCodeInstruction> result) {
@@ -231,7 +231,7 @@ public class ByteCodeCompiler {
         push(result, ByteCode.integer(1).codes());
         // the way to implement break, is to push a literal "true" value, then jump to the condition check, right to the jump_if of the loop
         // this way, no crazy code is required and it still works as expected -> it jumps to after the loop end, always
-        final long beforeJumpIf = loopBounds.get(loopBounds.size() - 1).beforeJumpIfLabel() - 1;
+        final int beforeJumpIf = loopBounds.get(loopBounds.size() - 1).beforeJumpIfLabel() - 1;
         rawInstruction(ByteCode.jump(beforeJumpIf), result);
     }
 
@@ -247,15 +247,15 @@ public class ByteCodeCompiler {
         rawInstruction(ByteCode.jump(bound.beginLabel()), result);
     }
 
-    private long compileLoopStatement(@NotNull final Node condition, @NotNull final Node scope, final Node forLoopInstr, @NotNull final List<ByteCodeInstruction> result) {
-        final long loopBeginLabel = label;
+    private int compileLoopStatement(@NotNull final Node condition, @NotNull final Node scope, final Node forLoopInstr, @NotNull final List<ByteCodeInstruction> result) {
+        final int loopBeginLabel = label;
 
         compileExpression(condition, result);
         rawInstruction(new ByteCodeInstruction(NOT.code()), result); // while loops will work similarly like if statements
         // the plan is to jump out of the loop once the condition is false (once the inverted condition is true)
         // but if the condition is false, there will be an unconditional jump back to the condition check (after the entire loop "scope")
         final int afterLoopJumpIndex = result.size(); // save the current index for later, so we can add back the jump statement with the label (which we do not have yet)
-        final long labelBeforeJumpIf = label + 1;
+        final int labelBeforeJumpIf = label + 1;
 
         loopBounds.add(new ByteLoopBound(loopBeginLabel, labelBeforeJumpIf, forLoopInstr));
         compileParent(scope, result);
@@ -281,7 +281,7 @@ public class ByteCodeCompiler {
         // simply compile a while loop as usual BUT add a jump, that completely ignores the condition checking the first time.
         // this way, the loop scope will always be executed atleast once. after that, it jumps to the condition checking and loops like a normal while loop would
         label++;
-        final long loopLabel = compileLoopStatement(condition, scope, null, result);
+        final int loopLabel = compileLoopStatement(condition, scope, null, result);
         result.add(beforeLoopJumpIndex, ByteCode.jump(loopLabel));
     }
 
@@ -350,8 +350,14 @@ public class ByteCodeCompiler {
 
     private void compileFunctionCall(@NotNull final String identifier, @NotNull final List<Node> inputArgs, @NotNull final List<ByteCodeInstruction> result) {
         final long id = findFunctionId(identifier, inputArgs);
-        inputArgs.stream().map(n -> n.child(0)).toList().forEach(n -> compileExpression(n, result));
+        inputArgs.stream().toList().forEach(n -> {
+            compileExpression(n.child(0), result);
+            final String type = n.child(1).value().token();
+            final ByteDatatype datatype = ByteDatatype.of(type, findEnumId(type));
+            rawInstruction(ByteCode.defineVariable(datatype), result);
+        });
         rawInstruction(ByteCode.call(id), result);
+        rawInstruction(pop(inputArgs.size()), result);
     }
 
     private long findFunctionId(@NotNull final String fullName, @NotNull final List<Node> inputArgs) {
@@ -403,7 +409,7 @@ public class ByteCodeCompiler {
                 })
                 .collect(Collectors.toMap(Map.Entry::getKey,
                         Map.Entry::getValue,
-                        (v1,v2)->v1,
+                        (v1, v2) -> v1,
                         LinkedHashMap::new));
     }
 

@@ -27,7 +27,7 @@ public class ByteCodeInterpreter {
 
     private final Map<Long, ByteCodeRuntimeFunction> functionDefinitions = new ConcurrentHashMap<>();
     private long currentFunctionId = 0;
-    private int localAddrOffset = -1;
+    private final List<Integer> localAddrOffset = new ArrayList<>();
     private final List<ByteCodeValue> variableStack = new ArrayList<>();
     private final List<ByteCodeValue> pushStack = new ArrayList<>();
     private final List<Integer> returnStack = new ArrayList<>();
@@ -67,7 +67,7 @@ public class ByteCodeInterpreter {
 
     public void run() {
         preRead();
-        //read();
+        if (mainFunc != -1) read();
     }
 
     private void preRead() {
@@ -78,14 +78,19 @@ public class ByteCodeInterpreter {
     }
 
     private void read() {
-        for (label = 0; label < program.size(); label++) {
+        final ByteCodeRuntimeFunction mainFunction = functionDefinitions.get(mainFunc);
+        if (!(mainFunction instanceof final ByteCodeInternFunction mainInternFunc)) throw new ByteCodeException("The main function should be an intern function");
+
+        localAddrOffset.add(0);
+        for (label = mainInternFunc.label() + 1; label < program.size(); label++) {
             final ByteCodeInstruction instr = program.get(label);
-            eval(instr);
+            if (eval(instr)) return; // eval() returns true if the function should end
         }
     }
 
-    private void push(@NotNull final ByteDatatype type, @NotNull final Byte[] value) {
-        pushStack.add(new ByteCodeValue(type, value));
+    private void push(@NotNull final ByteDatatype type, @NotNull final Byte[] values) {
+        final ByteCodeValue value = new ByteCodeValue(type, values);
+        pushStack.add(value);
     }
 
     private void push(@NotNull final ByteCodeValue value) {
@@ -101,27 +106,42 @@ public class ByteCodeInterpreter {
     }
 
     private void defineVar() {
-        variableStack.add(pushTop().orElseThrow(() -> new ByteCodeException("Cannot define variable without any value on the push stack")));
-        if (localAddrOffset != -1) localAddrOffset++;
+        final ByteCodeValue val = pushTop().orElseThrow(() -> new ByteCodeException("Cannot define variable without any value on the push stack"));
+        variableStack.add(val);
+        if (!localAddrOffset.isEmpty()) incLocalAddrOffset();
         popPushStack();
     }
 
     private void declareVar(@NotNull final ByteDatatype type) {
         variableStack.add(new ByteCodeValue(type, new Byte[0]));
-        if (localAddrOffset != -1) localAddrOffset++;
+        if (!localAddrOffset.isEmpty()) incLocalAddrOffset();
+    }
+
+    private int localAddrOffsetIndex() {
+        return localAddrOffset.size() - 1;
+    }
+
+    private int localAddrOffset() {
+        return localAddrOffset.get(localAddrOffsetIndex());
+    }
+
+    private void incLocalAddrOffset() {
+        localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset() + 1);
     }
 
     private void evalPre(@NotNull final ByteCodeInstruction instr) {
-        switch (instr.type().orElseThrow(() -> new ByteCodeException("Cannot read bytecode instruction " + instr))) {
+        if (localAddrOffset.isEmpty()) switch (instr.type().orElseThrow(() -> new ByteCodeException("Cannot read bytecode instruction " + instr))) {
             case PUSH -> evalPush(instr);
             case DEFINE_VARIABLE -> defineVar();
             case DECLARE_VARIABLE -> evalVarDeclare(instr);
             case NATIVE_FUNCTION_DEFINITION_BEGIN -> evalNatFunc(instr);
             case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
-            case FUNCTION_DEFINITION_END -> evalFuncEnd();
             case VALUE_AT_ADDRESS -> evalValAtAddr();
             case MAIN_FUNCTION -> evalMainFunc(instr);
-        }
+            case MUTATE_VARIABLE -> popPushStack(2);
+            case PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
+                    EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> popPushStack(1);
+        } else if (instr.type().orElse(null) == ByteCode.FUNCTION_DEFINITION_END) evalFuncEnd();
     }
 
     private boolean eval(@NotNull final ByteCodeInstruction instr) {
@@ -135,21 +155,30 @@ public class ByteCodeInterpreter {
             case FUNCTION_DEFINITION_END -> {
                 evalFuncEnd();
                 if (returnStack.isEmpty()) return true;
+                label = returnStack.get(returnStack.size() - 1);
+                returnStack.remove(returnStack.size() - 1);
             }
             case RETURN_STATEMENT -> {
                 if (returnStack.isEmpty()) return true;
+                label = returnStack.get(returnStack.size() - 1);
+                returnStack.remove(returnStack.size() - 1);
             }
-            case VALUE_AT_RELATIVE_ADDRESS -> evalRelToAbsAddr();
+            case VALUE_AT_RELATIVE_ADDRESS -> evalValAtRelAddr();
             case VALUE_AT_ADDRESS -> evalValAtAddr();
+            case FUNCTION_CALL -> evalFuncCall(instr);
+            case JUMP -> evalJump(instr);
+            case JUMP_IF -> evalJumpIf(instr);
+            case MUTATE_VARIABLE -> popPushStack(2); // TODO
+            case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
+                    EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
+            default -> System.out.println("ignored instr " + instr);
         }
         return false;
     }
 
     private ByteCodeValue popPushStack() {
         if (pushStack.isEmpty()) throw new ByteCodeException("Cannot perform pop, push stack is empty");
-        final ByteCodeValue val = pushStack.get(pushStack.size() - 1);
-        pushStack.remove(pushStack.size() - 1);
-        return val;
+        return pushStack.remove(pushStack.size() - 1);
     }
 
     private void popPushStack(final int amount) {
@@ -158,7 +187,7 @@ public class ByteCodeInterpreter {
 
     private void popVarStack() {
         if (variableStack.isEmpty()) throw new ByteCodeException("Cannot perform pop, variable stack is empty");
-        variableStack.remove(variableStack.size() - 1);
+        System.out.println("pop " + variableStack.remove(variableStack.size() - 1));
     }
 
     private void popVarStack(final int amount) {
@@ -166,7 +195,7 @@ public class ByteCodeInterpreter {
     }
 
     private void evalFuncEnd() {
-        localAddrOffset = -1;
+        localAddrOffset.remove(localAddrOffsetIndex());
     }
 
     private void evalPush(@NotNull final ByteCodeInstruction instr) {
@@ -183,6 +212,54 @@ public class ByteCodeInterpreter {
             case BOOL_VALUE -> push(ByteDatatype.BOOL, pushValue);
             case ENUM_VALUE -> push(ByteDatatype.ENUM, pushValue);
         }
+    }
+
+    private void evalOperator(@NotNull final ByteCodeInstruction instr) {
+        final ByteCode type = instr.type().orElseThrow(() -> new ByteCodeException("Cannot find opcode type of " + instr));
+        final ByteCodeValue top = pushTop().orElseThrow(() -> new ByteCodeException("No value on top of push stack, cannot use any operators"));
+        ByteCodeValue newValue = null;
+
+        switch (type) {
+            case NOT -> newValue = popPushStack().not();
+            case EQUALS -> {
+                final ByteCodeValue y = popPushStack();
+                final ByteCodeValue x = popPushStack();
+                newValue = x.equal(y);
+            }
+        }
+        if (newValue == null) return;
+        push(newValue);
+    }
+
+    private void evalFuncCall(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        final long functionId = readLong(values, 1, values.length - 1);
+        final ByteCodeRuntimeFunction func = functionDefinitions.get(functionId);
+
+        if (func instanceof final ByteCodeInternFunction internFunc) {
+            localAddrOffset.add(0);
+            returnStack.add(label);
+            label = internFunc.label();
+        } else {
+            // TODO native function calls
+        }
+    }
+
+    private void evalJump(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        final int jumpTo = readInt(values, 1, values.length - 1);
+        label = jumpTo - 2;
+    }
+
+    private void evalJumpIf(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        final int jumpTo = readInt(values, 1, values.length - 1);
+        final ByteCodeValue condition = pushTop().orElseThrow(() -> new ByteCodeException("No condition at top of stack for jump-if to work"));
+        if (condition.type().id() != ByteDatatype.BOOL.id()) throw new ByteCodeException("Expected boolean value as condition for jump-if opcode");
+
+        final int condInt = Ints.fromByteArray(ArrayUtils.toPrimitive(condition.value()));
+        if (condInt != 0) label = jumpTo - 2;
+        popPushStack(); // pop condition since we dont need it anymore
     }
 
     private void evalMainFunc(@NotNull final ByteCodeInstruction instr) {
@@ -212,17 +289,20 @@ public class ByteCodeInterpreter {
         push(value);
     }
 
-    private void evalRelToAbsAddr() {
+    private void evalValAtRelAddr() {
         final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for relative addr to absolut addr opcode"));
+        if (localAddrOffset.isEmpty()) throw new ByteCodeException("Relative address evaluation outside of function");
         final int addr = readInt(addrBytes.value());
         final int currentAbs = variableStack.size() - 1;
-        final int abs = currentAbs - localAddrOffset + addr;
+        final int abs = currentAbs - localAddrOffset() + addr;
+        final ByteCodeValue val = variableStack.get(abs);
+
         popPushStack();
-        push(ByteDatatype.INT, ArrayUtils.toObject(Ints.toByteArray(abs)));
+        push(val);
     }
 
     private void evalInternFunc() {
-        localAddrOffset = 0;
+        localAddrOffset.add(0);
         functionDefinitions.put(currentFunctionId, new ByteCodeInternFunction(label));
         currentFunctionId++;
     }

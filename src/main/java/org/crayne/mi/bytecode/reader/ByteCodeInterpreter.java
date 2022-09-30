@@ -237,19 +237,39 @@ public class ByteCodeInterpreter {
         ByteCodeValue newValue = null;
 
         switch (type) {
-            case NOT -> newValue = popPushStack().not();
-            case BIT_NOT -> newValue = popPushStack().bit_not();
-            case EQUALS -> {
-                final ByteCodeValue y = popPushStack();
-                final ByteCodeValue x = popPushStack();
-                newValue = x.equal(y);
+            case NOT -> {
+                newValue = popPushStack().not();
+                push(newValue);
+                return;
             }
-            case PLUS -> {
-                final ByteCodeValue y = popPushStack();
-                final ByteCodeValue x = popPushStack();
-                newValue = x.plus(y);
+            case BIT_NOT -> {
+                newValue = popPushStack().bit_not();
+                push(newValue);
+                return;
             }
         }
+        final ByteCodeValue y = popPushStack();
+        final ByteCodeValue x = popPushStack();
+        newValue = switch (type) {
+            case EQUALS -> x.equal(y);
+            case PLUS -> x.plus(y);
+            case MINUS -> x.minus(y);
+            case MULTIPLY -> x.multiply(y);
+            case DIVIDE -> x.divide(y);
+            case MODULO -> x.modulo(y);
+            case BIT_AND -> x.bit_and(y);
+            case BIT_OR -> x.bit_or(y);
+            case BIT_XOR -> x.bit_xor(y);
+            case BITSHIFT_LEFT -> x.bit_shift_left(y);
+            case BITSHIFT_RIGHT -> x.bit_shift_right(y);
+            case LOGICAL_AND -> x.logical_and(y);
+            case LOGICAL_OR -> x.logical_or(y);
+            case LESS_THAN -> x.less_than(y);
+            case LESS_THAN_OR_EQUAL -> x.less_than_or_equal(y);
+            case GREATER_THAN -> x.greater_than(y);
+            case GREATER_THAN_OR_EQUAL -> x.greater_than_or_equal(y);
+            default -> null;
+        };
         if (newValue == null) return;
         push(newValue);
     }

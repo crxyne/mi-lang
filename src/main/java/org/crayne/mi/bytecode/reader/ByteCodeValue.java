@@ -123,6 +123,241 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         };
     }
 
+    public ByteCodeValue minus(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'minus' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) - intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) - intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) - longValue(safeCastY.value));
+            case 0x04 -> floatValue(floatValue(safeCastX.value) - floatValue(safeCastY.value));
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) - doubleValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue multiply(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'multiply' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) * intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) * intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) * longValue(safeCastY.value));
+            case 0x04 -> floatValue(floatValue(safeCastX.value) * floatValue(safeCastY.value));
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) * doubleValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue divide(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'divide' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) / intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) / intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) / longValue(safeCastY.value));
+            case 0x04 -> floatValue(floatValue(safeCastX.value) / floatValue(safeCastY.value));
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) / doubleValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue modulo(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'modulo' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) % intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) % intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) % longValue(safeCastY.value));
+            case 0x04 -> floatValue(floatValue(safeCastX.value) % floatValue(safeCastY.value));
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) % doubleValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue bit_and(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-and' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) & intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) & intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) & longValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue bit_or(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-or' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) | intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) | intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) | longValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue bit_xor(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-xor' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) ^ intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) ^ intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) ^ longValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue bit_shift_left(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-shift-left' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) << intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) << intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) << longValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue bit_shift_right(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-shift-right' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) >> intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) >> intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) >> longValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue logical_and(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.noneMatchType(ByteDatatype.BOOL)) throw new ByteCodeException("Expected boolean value for 'logical-and' operator");
+
+        return safeCastX.type.id() == 0x00 ? boolValue(boolValue(safeCastX.value) && boolValue(safeCastY.value)) : this;
+    }
+
+    public ByteCodeValue logical_or(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.noneMatchType(ByteDatatype.BOOL)) throw new ByteCodeException("Expected boolean value for 'logical-or' operator");
+
+        return safeCastX.type.id() == 0x00 ? boolValue(boolValue(safeCastX.value) || boolValue(safeCastY.value)) : this;
+    }
+
+    public ByteCodeValue less_than(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
+            throw new ByteCodeException("Expected string or number value for 'less-than' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) < intValue(safeCastY.value));
+            case 0x03 -> boolValue(longValue(safeCastX.value) < longValue(safeCastY.value));
+            case 0x04 -> boolValue(floatValue(safeCastX.value) < floatValue(safeCastY.value));
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) < doubleValue(safeCastY.value));
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() < stringValue(safeCastY.value).length());
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue less_than_or_equal(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
+            throw new ByteCodeException("Expected string or number value for 'less-than-or-equal' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) <= intValue(safeCastY.value));
+            case 0x03 -> boolValue(longValue(safeCastX.value) <= longValue(safeCastY.value));
+            case 0x04 -> boolValue(floatValue(safeCastX.value) <= floatValue(safeCastY.value));
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) <= doubleValue(safeCastY.value));
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() <= stringValue(safeCastY.value).length());
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue greater_than(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
+            throw new ByteCodeException("Expected string or number value for 'greater-than' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) > intValue(safeCastY.value));
+            case 0x03 -> boolValue(longValue(safeCastX.value) > longValue(safeCastY.value));
+            case 0x04 -> boolValue(floatValue(safeCastX.value) > floatValue(safeCastY.value));
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) > doubleValue(safeCastY.value));
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() > stringValue(safeCastY.value).length());
+            default -> this;
+        };
+    }
+
+    public ByteCodeValue greater_than_or_equal(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
+            throw new ByteCodeException("Expected string or number value for 'greater-than-or-equal' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) >= intValue(safeCastY.value));
+            case 0x03 -> boolValue(longValue(safeCastX.value) >= longValue(safeCastY.value));
+            case 0x04 -> boolValue(floatValue(safeCastX.value) >= floatValue(safeCastY.value));
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) >= doubleValue(safeCastY.value));
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() >= stringValue(safeCastY.value).length());
+            default -> this;
+        };
+    }
+
     public String asString() {
         return type.name() + ":" + switch (type.id()) {
             case 0x00, 0x01, 0x02 -> "" + intValue(value);

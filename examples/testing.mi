@@ -1,10 +1,12 @@
 module testing {
 	
 	pub fn main {
-		string s1 = "hello ";
-		char s2 = 'µ';
-		string s3 = "!";
-		string s4 = s1 + s2 + s3;
+		?b1 = 4 < 5; // true
+		?b2 = 5 <= 5; // true
+		?b3 = 9 > 10; // false
+		?b4 = "hi" < "hello"; // false
+		?i1 = 15 << 5; // no fucking idea
+		?b5 = true && true || (false && true); // true
 	}
 	
 }

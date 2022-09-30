@@ -94,7 +94,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     }
 
     private static final Map<Integer, Integer> datatypeRanking = new HashMap<>() {{
-        //this.put(PrimitiveDatatype.NULL.name(), 0); TODO null values
+        this.put(ByteDatatype.NULL.id(), 0);
         this.put(ByteDatatype.DOUBLE.id(), 3);
         this.put(ByteDatatype.FLOAT.id(), 4);
         this.put(ByteDatatype.LONG.id(), 5);

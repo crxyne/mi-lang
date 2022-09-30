@@ -155,12 +155,12 @@ public class ByteCodeInterpreter {
             case FUNCTION_DEFINITION_END -> {
                 evalFuncEnd();
                 if (returnStack.isEmpty()) return true;
-                label = returnStack.get(returnStack.size() - 1);
+                label = returnStack.get(returnStack.size() - 1) - 1;
                 returnStack.remove(returnStack.size() - 1);
             }
             case RETURN_STATEMENT -> {
                 if (returnStack.isEmpty()) return true;
-                label = returnStack.get(returnStack.size() - 1);
+                label = returnStack.get(returnStack.size() - 1) - 1;
                 returnStack.remove(returnStack.size() - 1);
             }
             case VALUE_AT_RELATIVE_ADDRESS -> evalValAtRelAddr();
@@ -216,7 +216,6 @@ public class ByteCodeInterpreter {
 
     private void evalOperator(@NotNull final ByteCodeInstruction instr) {
         final ByteCode type = instr.type().orElseThrow(() -> new ByteCodeException("Cannot find opcode type of " + instr));
-        final ByteCodeValue top = pushTop().orElseThrow(() -> new ByteCodeException("No value on top of push stack, cannot use any operators"));
         ByteCodeValue newValue = null;
 
         switch (type) {
@@ -239,7 +238,7 @@ public class ByteCodeInterpreter {
         if (func instanceof final ByteCodeInternFunction internFunc) {
             localAddrOffset.add(0);
             returnStack.add(label);
-            label = internFunc.label();
+            label = internFunc.label() - 2;
         } else {
             // TODO native function calls
         }

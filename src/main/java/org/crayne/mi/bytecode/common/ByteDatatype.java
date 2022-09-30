@@ -8,13 +8,13 @@ import java.util.List;
 
 public class ByteDatatype {
 
-    public static final ByteDatatype BOOL = new ByteDatatype((byte) 0x00, "bool");
-    public static final ByteDatatype CHAR = new ByteDatatype((byte) 0x01, "char");
-    public static final ByteDatatype INT = new ByteDatatype((byte) 0x02, "int");
-    public static final ByteDatatype LONG = new ByteDatatype((byte) 0x03, "long");
-    public static final ByteDatatype FLOAT = new ByteDatatype((byte) 0x04, "float");
-    public static final ByteDatatype DOUBLE = new ByteDatatype((byte) 0x05, "double");
-    public static final ByteDatatype STRING = new ByteDatatype((byte) 0x06, "string");
+    public static final ByteDatatype BOOL = new ByteDatatype((byte) 0x00, (byte) 0x00, "bool");
+    public static final ByteDatatype CHAR = new ByteDatatype((byte) 0x01, (byte) 0x01, "char");
+    public static final ByteDatatype INT = new ByteDatatype((byte) 0x02, (byte) 0x02, "int");
+    public static final ByteDatatype LONG = new ByteDatatype((byte) 0x03, (byte) 0x03, "long");
+    public static final ByteDatatype FLOAT = new ByteDatatype((byte) 0x04, (byte) 0x04, "float");
+    public static final ByteDatatype DOUBLE = new ByteDatatype((byte) 0x05, (byte) 0x05, "double");
+    public static final ByteDatatype STRING = new ByteDatatype((byte) 0x06, (byte) 0x06, "string");
     public static final ByteDatatype ENUM = new ByteDatatype((byte) 0x07, "enum");
     public static final ByteDatatype UNKNOWN = new ByteDatatype((byte) -1, "");
 
@@ -82,7 +82,7 @@ public class ByteDatatype {
     }
 
     public Byte[] bytes() {
-        if (id == -1) return new Byte[] {code};
+        if (id != 7) return new Byte[] {code};
         return new ArrayList<Byte>() {{
             this.add(code);
             this.addAll(List.of(ArrayUtils.toObject(ByteCode.intToBytes(id))));

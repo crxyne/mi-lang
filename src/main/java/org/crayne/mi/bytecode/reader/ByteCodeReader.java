@@ -161,7 +161,6 @@ public class ByteCodeReader {
             case ENUM_VALUE -> readEnumValue();
             case FLOAT_VALUE -> readFloatValue();
             case DOUBLE_VALUE -> readDoubleValue();
-            case BYTE_VALUE -> readByteValue();
             case STRING_VALUE -> readStringValue();
             default -> new Byte[0];
         };

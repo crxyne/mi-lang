@@ -172,6 +172,14 @@ public class ByteCodeCompiler {
         localScopeVariables.add(0);
     }
 
+    private void deleteAllLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
+        final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
+        if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
+
+        localVariableStorage.clear();
+        localScopeVariables.remove(localScopeVariables.size() - 1);
+    }
+
     private void deleteLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
         final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
@@ -300,6 +308,7 @@ public class ByteCodeCompiler {
     }
 
     private void compileReturnStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        deleteAllLocalScopeVars(result);
         if (instr.children().isEmpty()) {
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
             return;
@@ -522,6 +531,7 @@ public class ByteCodeCompiler {
             case "long" -> push(result, longInteger(value));
             case "int" -> push(result, integer(value));
             case "char" -> push(result, character(value));
+            case "null" -> push(result, nullValue());
             default -> panic("Unexpected datatype '" + type + "'");
         }
     }

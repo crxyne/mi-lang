@@ -18,8 +18,8 @@ public enum PrimitiveDatatype {
         public boolean multiplyDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean divideDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean modDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
         public boolean bitxorDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
         public boolean bitandDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
         public boolean bitorDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
@@ -36,8 +36,8 @@ public enum PrimitiveDatatype {
         public boolean multiplyDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean divideDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean modDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
         public boolean bitxorDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
         public boolean bitandDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
         public boolean bitorDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
@@ -54,8 +54,8 @@ public enum PrimitiveDatatype {
         public boolean multiplyDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean divideDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean modDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
         public boolean lessthanDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean greaterthanDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean lessequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
@@ -67,16 +67,16 @@ public enum PrimitiveDatatype {
         public boolean multiplyDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean divideDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean modDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
         public boolean lessthanDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean greaterthanDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean lessequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean greaterequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
     },
     BOOL("Boolean") {
-        public boolean equalDefined(final PrimitiveDatatype y) {return y == BOOL;}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y == BOOL;}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y == BOOL || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y == BOOL || y == NULL;}
         public boolean andDefined(final PrimitiveDatatype y) {return y == BOOL;}
         public boolean orDefined(final PrimitiveDatatype y) {return y == BOOL;}
         public boolean bitxorDefined(final PrimitiveDatatype y) {return y == BOOL;}
@@ -85,8 +85,8 @@ public enum PrimitiveDatatype {
     },
     STRING("String") {
         public boolean addDefined(final PrimitiveDatatype y) {return true;}
-        public boolean equalDefined(final PrimitiveDatatype y) {return y == STRING;}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y == STRING;}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y == STRING || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y == STRING || y == NULL;}
     },
     CHAR("Character") {
         public boolean addDefined(final PrimitiveDatatype y) {return y.isNumber() || y == STRING;}
@@ -94,8 +94,8 @@ public enum PrimitiveDatatype {
         public boolean multiplyDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean divideDefined(final PrimitiveDatatype y) {return y.isNumber();}
         public boolean modDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber();}
-        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber();}
+        public boolean equalDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
+        public boolean notequalsDefined(final PrimitiveDatatype y) {return y.isNumber() || y == NULL;}
         public boolean bitxorDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
         public boolean bitandDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}
         public boolean bitorDefined(final PrimitiveDatatype y) {return y == INT || y == LONG;}

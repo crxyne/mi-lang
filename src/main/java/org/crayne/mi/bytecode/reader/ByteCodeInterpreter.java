@@ -142,6 +142,7 @@ public class ByteCodeInterpreter {
             case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
             case VALUE_AT_ADDRESS -> evalValAtAddr();
             case MAIN_FUNCTION -> evalMainFunc(instr);
+            case CAST -> evalCast(instr);
             //case MUTATE_VARIABLE -> popPushStack(2);
             case PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> popPushStack(1);
@@ -172,10 +173,11 @@ public class ByteCodeInterpreter {
             case FUNCTION_CALL -> evalFuncCall(instr);
             case JUMP -> evalJump(instr);
             case JUMP_IF -> evalJumpIf(instr);
+            case CAST -> evalCast(instr);
             //case MUTATE_VARIABLE -> popPushStack(2); // TODO
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
-          //  default -> System.out.println("ignored instr " + instr);
+            default -> System.out.println("ignored instr " + instr);
         }
         return false;
     }
@@ -192,7 +194,7 @@ public class ByteCodeInterpreter {
     private void popVarStack() {
         if (variableStack.isEmpty()) throw new ByteCodeException("Cannot perform pop, variable stack is empty");
         if (!localAddrOffset.isEmpty()) decLocalAddrOffset();
-        System.out.println("pop " + variableStack.remove(variableStack.size() - 1));
+        System.out.println("pop " + variableStack.remove(variableStack.size() - 1).asString());
     }
 
     private void popVarStack(final int amount) {
@@ -216,7 +218,17 @@ public class ByteCodeInterpreter {
             case LONG_INTEGER_VALUE -> push(ByteDatatype.LONG, pushValue);
             case BOOL_VALUE -> push(ByteDatatype.BOOL, pushValue);
             case ENUM_VALUE -> push(ByteDatatype.ENUM, pushValue);
+            case NULL_VALUE -> push(ByteDatatype.NULL, new Byte[0]);
         }
+    }
+
+    private void evalCast(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        final ByteDatatype type = ByteDatatype.ofId(values[1]);
+        final ByteCodeValue top = pushTop().orElseThrow(() -> new ByteCodeException("Cannot cast value; no value on push stack"));
+        final ByteCodeValue cast = top.cast(type);
+        popPushStack();
+        push(cast);
     }
 
     private void evalOperator(@NotNull final ByteCodeInstruction instr) {
@@ -225,6 +237,7 @@ public class ByteCodeInterpreter {
 
         switch (type) {
             case NOT -> newValue = popPushStack().not();
+            case BIT_NOT -> newValue = popPushStack().bit_not();
             case EQUALS -> {
                 final ByteCodeValue y = popPushStack();
                 final ByteCodeValue x = popPushStack();
@@ -297,7 +310,7 @@ public class ByteCodeInterpreter {
         final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for relative addr to absolut addr opcode"));
         if (localAddrOffset.isEmpty()) throw new ByteCodeException("Relative address evaluation outside of function");
         final int addr = readInt(addrBytes.value());
-        final int currentAbs = variableStack.size() - 1;
+        final int currentAbs = variableStack.size();
         final int abs = currentAbs - localAddrOffset() + addr;
         final ByteCodeValue val = variableStack.get(abs);
 

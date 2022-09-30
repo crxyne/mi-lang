@@ -154,7 +154,7 @@ public class ByteCodeReader {
 
     private Byte[] readValue() throws Throwable {
         final ByteCode valueType = byteCodeOfByte(currentByte);
-        expectAny(valueType, ByteCode.ENUM_VALUE, ByteCode.FLOAT_VALUE, ByteCode.INTEGER_VALUE, ByteCode.LONG_INTEGER_VALUE, ByteCode.STRING_VALUE, ByteCode.DOUBLE_VALUE, ByteCode.BOOL_VALUE);
+        expectAny(valueType, ByteCode.ENUM_VALUE, ByteCode.FLOAT_VALUE, ByteCode.INTEGER_VALUE, ByteCode.LONG_INTEGER_VALUE, ByteCode.STRING_VALUE, ByteCode.DOUBLE_VALUE, ByteCode.BOOL_VALUE, ByteCode.NULL_VALUE);
 
         return switch (valueType) {
             case BOOL_VALUE, INTEGER_VALUE -> readIntegerValue();

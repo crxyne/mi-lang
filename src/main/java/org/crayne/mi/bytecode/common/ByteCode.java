@@ -70,7 +70,8 @@ public enum ByteCode {
     DOUBLE_VALUE((byte) 0xD0),
     BYTE_VALUE((byte) 0xD1),
     BOOL_VALUE((byte) 0xD2),
-    ENUM_VALUE((byte) 0xD3);
+    ENUM_VALUE((byte) 0xD3),
+    NULL_VALUE((byte) 0xD4);
 
     public static final byte BYTECODE_VERSION = 1;
 
@@ -169,6 +170,10 @@ public enum ByteCode {
                 this.add(new ByteCodeInstruction(ENUM_DEFINITION_END.code));
             }
         };
+    }
+
+    public static ByteCodeInstruction nullValue() {
+        return new ByteCodeInstruction(NULL_VALUE.code);
     }
 
     public static ByteCodeInstruction floating(final float literal) {

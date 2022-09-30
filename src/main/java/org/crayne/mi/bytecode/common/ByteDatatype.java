@@ -16,6 +16,7 @@ public class ByteDatatype {
     public static final ByteDatatype DOUBLE = new ByteDatatype((byte) 0x05, (byte) 0x05, "double");
     public static final ByteDatatype STRING = new ByteDatatype((byte) 0x06, (byte) 0x06, "string");
     public static final ByteDatatype ENUM = new ByteDatatype((byte) 0x07, "enum");
+    public static final ByteDatatype NULL = new ByteDatatype((byte) 0x08, "null");
     public static final ByteDatatype UNKNOWN = new ByteDatatype((byte) -1, "");
 
     private final byte code;
@@ -51,6 +52,7 @@ public class ByteDatatype {
             case "float" -> FLOAT;
             case "double" -> DOUBLE;
             case "string" -> STRING;
+            case "null" -> NULL;
             default -> ofEnum(name, id);
         };
     }
@@ -65,6 +67,7 @@ public class ByteDatatype {
             case 5 -> DOUBLE;
             case 6 -> STRING;
             case 7 -> ENUM;
+            case 8 -> NULL;
             default -> UNKNOWN;
         };
     }

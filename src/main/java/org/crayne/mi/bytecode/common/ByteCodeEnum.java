@@ -35,6 +35,9 @@ public class ByteCodeEnum {
     public int ordinalMember(@NotNull final String member) {
         return members.indexOf(member);
     }
+    public String nameof(final int ordinal) {
+        return members.get(ordinal);
+    }
 
     public int id() {
         return id;

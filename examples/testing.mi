@@ -1,9 +1,9 @@
 module testing {
 	
 	pub fn main {
-		for mut int i = 2, true, i++ {
-			int j = 5;
-		}
+		int s = null;
+		?b = s == null;
+		std.println(s);
 	}
 	
 }

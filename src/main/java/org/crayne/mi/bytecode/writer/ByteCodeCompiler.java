@@ -84,6 +84,7 @@ public class ByteCodeCompiler {
 
     public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
+        System.out.println(ast);
         if (ast.type() == NodeType.PARENT) {
             compileParent(ast, result);
         } else {

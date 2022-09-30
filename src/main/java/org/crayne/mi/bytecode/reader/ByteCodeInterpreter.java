@@ -62,7 +62,7 @@ public class ByteCodeInterpreter {
     }
 
     protected static String readString(@NotNull final Byte[] arr, final int subBegin, final int subEnd) {
-        return ByteCode.ofString(primitiveByteArray(arr, subBegin, subEnd));
+        return ByteCode.bytesToString(primitiveByteArray(arr, subBegin, subEnd));
     }
 
     public void run() {
@@ -213,6 +213,7 @@ public class ByteCodeInterpreter {
         switch (valueType) {
             case STRING_VALUE -> push(ByteDatatype.STRING, pushValue);
             case INTEGER_VALUE -> push(ByteDatatype.INT, pushValue);
+            case CHARACTER_VALUE -> push(ByteDatatype.CHAR, pushValue);
             case FLOAT_VALUE -> push(ByteDatatype.FLOAT, pushValue);
             case DOUBLE_VALUE -> push(ByteDatatype.DOUBLE, pushValue);
             case LONG_INTEGER_VALUE -> push(ByteDatatype.LONG, pushValue);
@@ -242,6 +243,11 @@ public class ByteCodeInterpreter {
                 final ByteCodeValue y = popPushStack();
                 final ByteCodeValue x = popPushStack();
                 newValue = x.equal(y);
+            }
+            case PLUS -> {
+                final ByteCodeValue y = popPushStack();
+                final ByteCodeValue x = popPushStack();
+                newValue = x.plus(y);
             }
         }
         if (newValue == null) return;

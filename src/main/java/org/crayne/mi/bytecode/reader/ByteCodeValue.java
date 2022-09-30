@@ -17,6 +17,10 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         return new ByteCodeValue(ByteDatatype.BOOL, ArrayUtils.toObject(ByteCode.intToBytes(b ? 1 : 0)));
     }
 
+    private static boolean boolValue(final Byte[] val) {
+        return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val)) != 0;
+    }
+
     private static ByteCodeValue charValue(final int c) {
         return new ByteCodeValue(ByteDatatype.CHAR, ArrayUtils.toObject(ByteCode.intToBytes(c)));
     }
@@ -25,25 +29,53 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         return new ByteCodeValue(ByteDatatype.INT, ArrayUtils.toObject(ByteCode.intToBytes(i)));
     }
 
+    private static int intValue(final Byte[] val) {
+        return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
+    }
+
     private static ByteCodeValue longValue(final long l) {
         return new ByteCodeValue(ByteDatatype.LONG, ArrayUtils.toObject(ByteCode.longToBytes(l)));
+    }
+
+    private static long longValue(final Byte[] val) {
+        return ByteCode.bytesToLong(ArrayUtils.toPrimitive(val));
     }
 
     private static ByteCodeValue floatValue(final float f) {
         return new ByteCodeValue(ByteDatatype.FLOAT, ArrayUtils.toObject(ByteCode.floatToBytes(f)));
     }
 
+    private static float floatValue(final Byte[] val) {
+        return ByteCode.bytesToFloat(ArrayUtils.toPrimitive(val));
+    }
+
     private static ByteCodeValue doubleValue(final double d) {
         return new ByteCodeValue(ByteDatatype.DOUBLE, ArrayUtils.toObject(ByteCode.doubleToBytes(d)));
     }
 
+    private static double doubleValue(final Byte[] val) {
+        return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
+    }
+
     private static ByteCodeValue stringValue(@NotNull final String s) {
         final Byte[] codes = ByteCode.string(s).codes();
-        return new ByteCodeValue(ByteDatatype.STRING, Arrays.stream(codes).toList().subList(0, codes.length - 1).toArray(new Byte[0]));
+        return new ByteCodeValue(ByteDatatype.STRING, Arrays.stream(codes).toList().subList(1, codes.length - 1).toArray(new Byte[0]));
+    }
+
+    private static String stringValue(final Byte[] val) {
+        return ByteCode.bytesToString(ArrayUtils.toPrimitive(val), true);
     }
 
     public boolean noneMatchType(@NotNull final ByteDatatype... types) {
         return !Stream.of(types).map(ByteDatatype::id).toList().contains(type.id());
+    }
+
+    public boolean notANumber() {
+        return noneMatchType(ByteDatatype.INT, ByteDatatype.LONG, ByteDatatype.CHAR, ByteDatatype.FLOAT, ByteDatatype.DOUBLE);
+    }
+
+    public boolean notAnInteger() {
+        return noneMatchType(ByteDatatype.INT, ByteDatatype.LONG, ByteDatatype.CHAR);
     }
 
     public ByteCodeValue not() {
@@ -53,22 +85,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     }
 
     public ByteCodeValue bit_not() {
-        if (noneMatchType(ByteDatatype.INT, ByteDatatype.LONG, ByteDatatype.CHAR)) throw new ByteCodeException("Expected integer value for 'bit-not' operator");
-        switch (type.id()) {
-            case 0x02 -> {
-                final int val = ByteCode.bytesToInt(ArrayUtils.toPrimitive(value));
-                return intValue(~val);
-            }
-            case 0x01 -> {
-                final int val = ByteCode.bytesToInt(ArrayUtils.toPrimitive(value));
-                return charValue(~val);
-            }
-            case 0x03 -> {
-                final long val = ByteCode.bytesToLong(ArrayUtils.toPrimitive(value));
-                return longValue(~val);
-            }
-        }
-        return this;
+        if (notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-not' operator");
+        return switch (type.id()) {
+            case 0x02 -> intValue(~intValue(value));
+            case 0x01 -> charValue(~intValue(value));
+            case 0x03 -> longValue(~longValue(value));
+            default -> this;
+        };
     }
 
     public ByteCodeValue equal(@NotNull final ByteCodeValue other) {
@@ -81,13 +104,32 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         return boolValue(Arrays.equals(safeCastX.value, safeCastY.value));
     }
 
+    public ByteCodeValue plus(@NotNull final ByteCodeValue other) {
+        final ByteDatatype heavier = heavier(type, other.type);
+        if (heavier == null) return this;
+        final ByteCodeValue safeCastX = cast(heavier);
+        final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
+            throw new ByteCodeException("Expected string or number value for 'plus' operator");
+
+        return switch (safeCastX.type.id()) {
+            case 0x02 -> intValue(intValue(safeCastX.value) + intValue(safeCastY.value));
+            case 0x01 -> charValue(intValue(safeCastX.value) + intValue(safeCastY.value));
+            case 0x03 -> longValue(longValue(safeCastX.value) + longValue(safeCastY.value));
+            case 0x04 -> floatValue(floatValue(safeCastX.value) + floatValue(safeCastY.value));
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) + doubleValue(safeCastY.value));
+            case 0x06 -> stringValue(stringValue(safeCastX.value) + stringValue(safeCastY.value));
+            default -> this;
+        };
+    }
+
     public String asString() {
         return type.name() + ":" + switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> "" + ByteCode.bytesToInt(ArrayUtils.toPrimitive(value));
-            case 0x03 -> "" + ByteCode.bytesToLong(ArrayUtils.toPrimitive(value));
-            case 0x04 -> "" + ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value));
-            case 0x05 -> "" + ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value));
-            case 0x06 -> ByteCode.ofString(ArrayUtils.toPrimitive(value));
+            case 0x00, 0x01, 0x02 -> "" + intValue(value);
+            case 0x03 -> "" + longValue(value);
+            case 0x04 -> "" + floatValue(value);
+            case 0x05 -> "" + doubleValue(value);
+            case 0x06 -> stringValue(value);
             case 0x07 -> "unimplemented";
             default -> null;
         };
@@ -130,11 +172,11 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     public ByteCodeValue castToBool() {
         return switch (type.id()) {
             case 0x00 -> this;
-            case 0x01, 0x02 -> boolValue(ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)) != 0);
-            case 0x03 -> boolValue(ByteCode.bytesToLong(ArrayUtils.toPrimitive(value)) != 0L);
-            case 0x04 -> boolValue(ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value)) != 0.0f);
-            case 0x05 -> boolValue(ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value)) != 0.0d);
-            case 0x06 -> boolValue(!ByteCode.ofString(ArrayUtils.toPrimitive(value)).isEmpty());
+            case 0x01, 0x02 -> boolValue(intValue(value) != 0);
+            case 0x03 -> boolValue(longValue(value) != 0L);
+            case 0x04 -> boolValue(floatValue(value) != 0.0f);
+            case 0x05 -> boolValue(doubleValue(value) != 0.0d);
+            case 0x06 -> boolValue(!stringValue(value).isEmpty());
             case 0x07 -> boolValue(false);
             default -> null;
         };
@@ -142,13 +184,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public ByteCodeValue castToChar() {
         return switch (type.id()) {
-            case 0x00, 0x02 -> charValue(ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
+            case 0x00, 0x02 -> charValue(intValue(value));
             case 0x01 -> this;
-            case 0x03 -> charValue((int) ByteCode.bytesToLong(ArrayUtils.toPrimitive(value)));
-            case 0x04 -> charValue((int) ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value)));
-            case 0x05 -> charValue((int) ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value)));
+            case 0x03 -> charValue((int) longValue(value));
+            case 0x04 -> charValue((int) floatValue(value));
+            case 0x05 -> charValue((int) doubleValue(value));
             case 0x06 -> {
-                final String val = ByteCode.ofString(ArrayUtils.toPrimitive(value));
+                final String val = stringValue(value);
                 yield charValue(val.length() == 1 ? val.charAt(0) : 0);
             }
             case 0x07 -> charValue(0);
@@ -158,13 +200,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public ByteCodeValue castToInt() {
         return switch (type.id()) {
-            case 0x00, 0x01 -> intValue(ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
+            case 0x00, 0x01 -> intValue(intValue(value));
             case 0x02 -> this;
-            case 0x03 -> intValue((int) ByteCode.bytesToLong(ArrayUtils.toPrimitive(value)));
-            case 0x04 -> intValue((int) ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value)));
-            case 0x05 -> intValue((int) ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value)));
+            case 0x03 -> intValue((int) longValue(value));
+            case 0x04 -> intValue((int) floatValue(value));
+            case 0x05 -> intValue((int) doubleValue(value));
             case 0x06 -> {
-                final String val = ByteCode.ofString(ArrayUtils.toPrimitive(value));
+                final String val = stringValue(value);
                 try {
                     yield intValue(Integer.parseInt(val));
                 } catch (final NumberFormatException e) {
@@ -178,12 +220,12 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public ByteCodeValue castToLong() {
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> longValue(ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
+            case 0x00, 0x01, 0x02 -> longValue(longValue(value));
             case 0x03 -> this;
-            case 0x04 -> longValue((long) ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value)));
-            case 0x05 -> longValue((long) ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value)));
+            case 0x04 -> longValue((long) floatValue(value));
+            case 0x05 -> longValue((long) doubleValue(value));
             case 0x06 -> {
-                final String val = ByteCode.ofString(ArrayUtils.toPrimitive(value));
+                final String val = stringValue(value);
                 try {
                     yield longValue(Long.parseLong(val));
                 } catch (final NumberFormatException e) {
@@ -197,12 +239,12 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public ByteCodeValue castToFloat() {
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> floatValue(ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
-            case 0x03 -> floatValue(ByteCode.bytesToLong(ArrayUtils.toPrimitive(value)));
+            case 0x00, 0x01, 0x02 -> floatValue(intValue(value));
+            case 0x03 -> floatValue(longValue(value));
             case 0x04 -> this;
-            case 0x05 -> floatValue((float) ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value)));
+            case 0x05 -> floatValue((float) doubleValue(value));
             case 0x06 -> {
-                final String val = ByteCode.ofString(ArrayUtils.toPrimitive(value));
+                final String val = stringValue(value);
                 try {
                     yield doubleValue(Float.parseFloat(val));
                 } catch (final NumberFormatException e) {
@@ -216,12 +258,12 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public ByteCodeValue castToDouble() {
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> doubleValue(ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
-            case 0x03 -> doubleValue(ByteCode.bytesToLong(ArrayUtils.toPrimitive(value)));
-            case 0x04 -> doubleValue(ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value)));
+            case 0x00, 0x01, 0x02 -> doubleValue(intValue(value));
+            case 0x03 -> doubleValue(longValue(value));
+            case 0x04 -> doubleValue(floatValue(value));
             case 0x05 -> this;
             case 0x06 -> {
-                final String val = ByteCode.ofString(ArrayUtils.toPrimitive(value));
+                final String val = stringValue(value);
                 try {
                     yield doubleValue(Double.parseDouble(val));
                 } catch (final NumberFormatException e) {
@@ -235,11 +277,11 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public ByteCodeValue castToString() {
         return switch (type.id()) {
-            case 0x00, 0x02 -> stringValue("" + ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
-            case 0x01 -> stringValue("" + (char) ByteCode.bytesToInt(ArrayUtils.toPrimitive(value)));
-            case 0x03 -> stringValue("" + ByteCode.bytesToLong(ArrayUtils.toPrimitive(value)));
-            case 0x04 -> stringValue("" + ByteCode.bytesToFloat(ArrayUtils.toPrimitive(value)));
-            case 0x05 -> stringValue("" + ByteCode.bytesToDouble(ArrayUtils.toPrimitive(value)));
+            case 0x00, 0x02 -> stringValue("" + intValue(value));
+            case 0x01 -> stringValue(Character.toString((char) intValue(value)));
+            case 0x03 -> stringValue("" + longValue(value));
+            case 0x04 -> stringValue("" + floatValue(value));
+            case 0x05 -> stringValue("" + doubleValue(value));
             case 0x06 -> this;
             case 0x07 -> stringValue(""); // TODO converting enums into other datatypes
             default -> null;

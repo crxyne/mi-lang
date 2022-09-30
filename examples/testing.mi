@@ -1,9 +1,10 @@
 module testing {
 	
 	pub fn main {
-		int s = null;
-		?b = s == null;
-		std.println(s);
+		string s1 = "hello ";
+		char s2 = 'µ';
+		string s3 = "!";
+		string s4 = s1 + s2 + s3;
 	}
 	
 }

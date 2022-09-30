@@ -71,7 +71,8 @@ public enum ByteCode {
     BYTE_VALUE((byte) 0xD1),
     BOOL_VALUE((byte) 0xD2),
     ENUM_VALUE((byte) 0xD3),
-    NULL_VALUE((byte) 0xD4);
+    NULL_VALUE((byte) 0xD4),
+    CHARACTER_VALUE((byte) 0xD5);
 
     public static final byte BYTECODE_VERSION = 1;
 
@@ -216,6 +217,13 @@ public enum ByteCode {
         }});
     }
 
+    public static ByteCodeInstruction character(final int literal) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(CHARACTER_VALUE.code);
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(literal))).toList());
+        }});
+    }
+
     public static ByteCodeInstruction byteValue(final byte literal) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(BYTE_VALUE.code);
@@ -239,7 +247,7 @@ public enum ByteCode {
     }
 
     public static Byte[] character(@NotNull final String value) {
-        return integer((value.startsWith("'") ? value.charAt(1) : Integer.parseInt(value))).codes(); // integer, because characters support unicode
+        return character((value.startsWith("'") ? value.charAt(1) : Integer.parseInt(value))).codes(); // integer, because characters support unicode
     }
 
     public static Byte[] bool(@NotNull final String value) {
@@ -255,14 +263,17 @@ public enum ByteCode {
         }});
     }
 
-    public static String ofString(@NotNull final ByteCodeInstruction instr) {                     // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
+    public static String bytesToString(@NotNull final ByteCodeInstruction instr) { // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
         // but remove last byte, since that will be the INSTRUCTION_FINISH code
         return new String(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(5, instr.codes().length - 1).toArray(new Byte[0])), StandardCharsets.ISO_8859_1);
     }
 
-    public static String ofString(final byte[] arr) {                     // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
-        // but remove last byte, since that will be the INSTRUCTION_FINISH code
+    public static String bytesToString(final byte[] arr) {
         return new String(arr, StandardCharsets.ISO_8859_1);
+    }
+
+    public static String bytesToString(final byte[] arr, final boolean removeLengthBytes) {
+        return new String(ArrayUtils.toPrimitive(Arrays.stream(ArrayUtils.toObject(arr)).toList().subList(4, arr.length).toArray(new Byte[0])), StandardCharsets.ISO_8859_1);
     }
 
     public static ByteCodeInstruction call(final long id) {

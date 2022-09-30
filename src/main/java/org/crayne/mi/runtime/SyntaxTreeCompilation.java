@@ -64,6 +64,7 @@ public class SyntaxTreeCompilation {
         final ByteCodeCompiler compiler = new ByteCodeCompiler(this, mainFunctionModule, mainFunction);
         out.infoMsg("Compiling " + inputFile.getName() + "...");
         final List<ByteCodeInstruction> compiled = compiler.compile();
+        System.out.println(compiler);
         ByteCodeCompiler.compileToFile(compiled, file);
         if (compiled.isEmpty()) {
             out.errorMsg("Could not compile " + inputFile.getName() + ". See error output above.");

@@ -1,7 +1,9 @@
 module testing {
 	
 	pub fn main {
-		int i = ~5;
+		do {
+			int i = 5;
+		} while true;
 	}
 	
 }

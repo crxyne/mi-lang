@@ -195,13 +195,13 @@ public class ByteCodeCompiler {
 
         final int elseJumpIndex = result.size(); // save the index in the result, to add the label later
         label++;
-        compileParent(ifScope, result); // normally parse the if scope
+        compileLocalScope(ifScope, result); // normally parse the if scope
         final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
         final int elseJumpLabel = label + 2; // then get the label of where the else scope starts (+ 2, because 2 jumps have to be added)
         if (hasElse) { // check if there even is an else scope
             final Node elseScope = instr.child(2).child(0);
             label++;
-            compileParent(elseScope, result); // parse the else scope like normal here
+            compileLocalScope(elseScope, result); // parse the else scope like normal here
         }
         result.add(elseJumpIndex, jumpIf(elseJumpLabel - (hasElse ? 0 : 1))); // add the jump statements using the saved labels, at their right positions
         if (hasElse) { // to avoid unnecessary jumping, just check if theres an else at all
@@ -248,7 +248,7 @@ public class ByteCodeCompiler {
     }
 
     private int compileLoopStatement(@NotNull final Node condition, @NotNull final Node scope, final Node forLoopInstr, @NotNull final List<ByteCodeInstruction> result) {
-        final int loopBeginLabel = label;
+        final int loopBeginLabel = label + 1;
 
         compileExpression(condition, result);
         rawInstruction(new ByteCodeInstruction(NOT.code()), result); // while loops will work similarly like if statements
@@ -258,12 +258,12 @@ public class ByteCodeCompiler {
         final int labelBeforeJumpIf = label + 1;
 
         loopBounds.add(new ByteLoopBound(loopBeginLabel, labelBeforeJumpIf, forLoopInstr));
-        compileParent(scope, result);
+        compileLocalScope(scope, result);
         loopBounds.remove(loopBounds.size() - 1);
 
         if (forLoopInstr != null) compileInstruction(forLoopInstr, result); // for loops -- one difference between them and while loops is obviously the instruction executed at every iteration
         rawInstruction(ByteCode.jump(loopBeginLabel), result); // the unconditional jump mentioned earlier (this goes back to the condition check)
-        result.add(afterLoopJumpIndex, ByteCode.jumpIf(label++ + 1)); // add the condition jump, which exits the loop once the condition is false
+        result.add(afterLoopJumpIndex, ByteCode.jumpIf(label++ + 2)); // add the condition jump, which exits the loop once the condition is false
         return labelBeforeJumpIf; // this is only useful for do {} while cond;
     }
 
@@ -282,7 +282,7 @@ public class ByteCodeCompiler {
         // this way, the loop scope will always be executed atleast once. after that, it jumps to the condition checking and loops like a normal while loop would
         label++;
         final int loopLabel = compileLoopStatement(condition, scope, null, result);
-        result.add(beforeLoopJumpIndex, ByteCode.jump(loopLabel));
+        result.add(beforeLoopJumpIndex, ByteCode.jump(loopLabel + 1));
     }
 
     private void compileForStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {

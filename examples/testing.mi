@@ -1,12 +1,16 @@
 module testing {
 	
+	fn test {
+		if true {
+				?d = 2.7182818284;
+				std.println(d);
+		}
+	}
+	
 	pub fn main {
-		?b1 = 4 < 5; // true
-		?b2 = 5 <= 5; // true
-		?b3 = 9 > 10; // false
-		?b4 = "hi" < "hello"; // false
-		?i1 = 15 << 5; // no fucking idea
-		?b5 = true && true || (false && true); // true
+		while true {
+			test();
+		}
 	}
 	
 }

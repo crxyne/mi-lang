@@ -57,6 +57,20 @@ public class ByteDatatype {
         };
     }
 
+    public static ByteDatatype of(@NotNull final String name) {
+        return switch (name) {
+            case "bool" -> BOOL;
+            case "char" -> CHAR;
+            case "int" -> INT;
+            case "long" -> LONG;
+            case "float" -> FLOAT;
+            case "double" -> DOUBLE;
+            case "string" -> STRING;
+            case "null" -> NULL;
+            default -> null;
+        };
+    }
+
     public static ByteDatatype ofId(final int id) {
         return switch (id) {
             case 0 -> BOOL;

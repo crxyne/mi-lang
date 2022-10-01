@@ -4,7 +4,7 @@ module testing {
 	mut? g = 0;
 	mut? b = 0;
 	
-	pub? moveCursorHome = "\u001b[H";
+	pub? moveCursorHome = "";//"\u001b[H";
 	
 	pub fn rainbow {
 		if (r == 255 && g < 255 && b == 0) {

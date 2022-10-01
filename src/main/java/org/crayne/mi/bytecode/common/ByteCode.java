@@ -263,6 +263,11 @@ public enum ByteCode {
         }});
     }
 
+    public static Byte[] stringToBytes(@NotNull final String literal) {
+        final Byte[] codes = string(literal).codes();
+        return Arrays.stream(codes).toList().subList(1, codes.length - 1).toArray(new Byte[0]);
+    }
+
     public static String bytesToString(@NotNull final ByteCodeInstruction instr) { // 32 bit int length = 4 bytes + 1 byte for the STRING_LITERAL code = 5 bytes offset until the actual string
         // but remove last byte, since that will be the INSTRUCTION_FINISH code
         return new String(ArrayUtils.toPrimitive(Arrays.stream(instr.codes()).toList().subList(5, instr.codes().length - 1).toArray(new Byte[0])), StandardCharsets.ISO_8859_1);

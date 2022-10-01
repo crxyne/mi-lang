@@ -176,9 +176,6 @@ public class ByteCodeCompiler {
     private void deleteAllLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
         final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
-
-        localVariableStorage.clear();
-        localScopeVariables.remove(localScopeVariables.size() - 1);
     }
 
     private void deleteLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
@@ -186,7 +183,7 @@ public class ByteCodeCompiler {
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
 
         final List<String> l = Arrays.asList(localVariableStorage.keySet().toArray(new String[0]));
-        l.subList(l.size() - vars, l.size()).forEach(localVariableStorage.keySet()::remove);
+        if (!l.isEmpty()) l.subList(l.size() - vars, l.size()).forEach(localVariableStorage.keySet()::remove);
 
         localScopeVariables.remove(localScopeVariables.size() - 1);
         scope--;
@@ -264,6 +261,7 @@ public class ByteCodeCompiler {
         // the plan is to jump out of the loop once the condition is false (once the inverted condition is true)
         // but if the condition is false, there will be an unconditional jump back to the condition check (after the entire loop "scope")
         final int afterLoopJumpIndex = result.size(); // save the current index for later, so we can add back the jump statement with the label (which we do not have yet)
+        label++;
         final int labelBeforeJumpIf = label + 1;
 
         loopBounds.add(new ByteLoopBound(loopBeginLabel, labelBeforeJumpIf, forLoopInstr));
@@ -272,7 +270,7 @@ public class ByteCodeCompiler {
 
         if (forLoopInstr != null) compileInstruction(forLoopInstr, result); // for loops -- one difference between them and while loops is obviously the instruction executed at every iteration
         rawInstruction(ByteCode.jump(loopBeginLabel), result); // the unconditional jump mentioned earlier (this goes back to the condition check)
-        result.add(afterLoopJumpIndex, ByteCode.jumpIf(label++ + 2)); // add the condition jump, which exits the loop once the condition is false
+        result.add(afterLoopJumpIndex, ByteCode.jumpIf(label + 1)); // add the condition jump, which exits the loop once the condition is false
         return labelBeforeJumpIf; // this is only useful for do {} while cond;
     }
 
@@ -360,14 +358,8 @@ public class ByteCodeCompiler {
 
     private void compileFunctionCall(@NotNull final String identifier, @NotNull final List<Node> inputArgs, @NotNull final List<ByteCodeInstruction> result) {
         final long id = findFunctionId(identifier, inputArgs);
-        inputArgs.stream().toList().forEach(n -> {
-            compileExpression(n.child(0), result);
-            final String type = n.child(1).value().token();
-            final ByteDatatype datatype = ByteDatatype.of(type, findEnumId(type));
-            rawInstruction(ByteCode.defineVariable(datatype), result);
-        });
+        inputArgs.stream().toList().forEach(n -> compileExpression(n.child(0), result));
         rawInstruction(ByteCode.call(id), result);
-        rawInstruction(pop(inputArgs.size()), result);
     }
 
     private long findFunctionId(@NotNull final String fullName, @NotNull final List<Node> inputArgs) {
@@ -454,12 +446,19 @@ public class ByteCodeCompiler {
     private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final Map<String, ByteDatatype> args, final String javaMethod, final Node scope) {
         functionStorage.add(new ByteCodeFunctionDefinition(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args.values(), functionId));
         if (javaMethod == null) {
-            relativeAddress = 0;
             this.scope = 0;
             localScopeVariables.add(0);
+            relativeAddress = 0;
 
             args.forEach((s, d) -> addLocalVariableToStorage(s));
             functionDefinitions.add(function());
+
+            final List<ByteDatatype> defineArgs = new ArrayList<>(args.values().stream().toList());
+            Collections.reverse(defineArgs);
+            defineArgs.forEach(d -> rawInstruction(ByteCode.defineVariable(d), functionDefinitions));
+
+            relativeAddress = defineArgs.size();
+
             label++;
             if (scope == null) {
                 panic("The function scope of '" + name + "' is null");

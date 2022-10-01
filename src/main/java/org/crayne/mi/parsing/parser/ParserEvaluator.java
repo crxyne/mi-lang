@@ -878,6 +878,10 @@ public class ParserEvaluator {
                         "Native functions cannot use primitive types like 'int'. Use the class java.lang.Integer instead of 'int' for example, to allow for nullable types");
                 return null;
             }
+            if (!java.lang.reflect.Modifier.isStatic(invokeMethod.getModifiers())) {
+                parser.parserError("Native methods must be static", at);
+                return null;
+            }
             final MiCallable annotationTest = invokeMethod.getAnnotation(MiCallable.class);
             if (annotationTest == null) {
                 parser.parserError("May only use java methods annotated with org.crayne.mi.lang.MiCallable as native functions", at, "Annotate the java method with org.crayne.mi.lang.MiCallable");

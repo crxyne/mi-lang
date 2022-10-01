@@ -54,7 +54,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     }
 
     private static double doubleValue(final Byte[] val) {
-        return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
+        return ByteCode.bytesToDouble(ArrayUtils.toPrimitive(val));
     }
 
     private static ByteCodeValue stringValue(@NotNull final String s) {
@@ -359,13 +359,16 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     }
 
     public String asString() {
-        return type.name() + ":" + switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> "" + intValue(value);
-            case 0x03 -> "" + longValue(value);
-            case 0x04 -> "" + floatValue(value);
-            case 0x05 -> "" + doubleValue(value);
+        return type.name() + ":" + asObject();
+    }
+
+    public Object asObject() {
+        return switch (type.id()) {
+            case 0x00, 0x01, 0x02 -> intValue(value);
+            case 0x03 -> longValue(value);
+            case 0x04 -> floatValue(value);
+            case 0x05 -> doubleValue(value);
             case 0x06 -> stringValue(value);
-            case 0x07 -> "unimplemented";
             default -> null;
         };
     }

@@ -14,6 +14,7 @@ import org.crayne.mi.bytecode.reader.function.ByteCodeRuntimeFunction;
 import org.crayne.mi.log.MessageHandler;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -101,6 +102,10 @@ public class ByteCodeInterpreter {
         return pushStack.size() - offset - 1 >= pushStack.size() ? Optional.empty() : Optional.of(pushStack.get(pushStack.size() - offset - 1));
     }
 
+    private Optional<ByteCodeValue> varTop(final int offset) {
+        return variableStack.size() - offset - 1 >= variableStack.size() ? Optional.empty() : Optional.of(variableStack.get(variableStack.size() - offset - 1));
+    }
+
     private Optional<ByteCodeValue> pushTop() {
         return pushTop(0);
     }
@@ -121,16 +126,16 @@ public class ByteCodeInterpreter {
         return localAddrOffset.size() - 1;
     }
 
-    private int localAddrOffset() {
-        return localAddrOffset.get(localAddrOffsetIndex());
+    private int localAddrOffset(final int offset) {
+        return localAddrOffset.get(offset);
     }
 
     private void incLocalAddrOffset() {
-        localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset() + 1);
+        localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset(localAddrOffsetIndex()) + 1);
     }
 
     private void decLocalAddrOffset() {
-        localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset() - 1);
+        localAddrOffset.set(localAddrOffsetIndex(), localAddrOffset(localAddrOffsetIndex()) - 1);
     }
 
     private void evalPre(@NotNull final ByteCodeInstruction instr) {
@@ -157,13 +162,8 @@ public class ByteCodeInterpreter {
             case DECLARE_VARIABLE -> evalVarDeclare(instr);
             case NATIVE_FUNCTION_DEFINITION_BEGIN -> evalNatFunc(instr);
             case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
-            case FUNCTION_DEFINITION_END -> {
+            case FUNCTION_DEFINITION_END, RETURN_STATEMENT -> {
                 evalFuncEnd();
-                if (returnStack.isEmpty()) return true;
-                label = returnStack.get(returnStack.size() - 1) - 1;
-                returnStack.remove(returnStack.size() - 1);
-            }
-            case RETURN_STATEMENT -> {
                 if (returnStack.isEmpty()) return true;
                 label = returnStack.get(returnStack.size() - 1) - 1;
                 returnStack.remove(returnStack.size() - 1);
@@ -177,7 +177,7 @@ public class ByteCodeInterpreter {
             //case MUTATE_VARIABLE -> popPushStack(2); // TODO
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
-            default -> System.out.println("ignored instr " + instr);
+           // default -> System.out.println("ignored instr " + instr);
         }
         return false;
     }
@@ -191,10 +191,10 @@ public class ByteCodeInterpreter {
         for (int i = 0; i < amount; i++) popPushStack();
     }
 
-    private void popVarStack() {
+    private ByteCodeValue popVarStack() {
         if (variableStack.isEmpty()) throw new ByteCodeException("Cannot perform pop, variable stack is empty");
         if (!localAddrOffset.isEmpty()) decLocalAddrOffset();
-        System.out.println("pop " + variableStack.remove(variableStack.size() - 1).asString());
+        return variableStack.remove(variableStack.size() - 1);
     }
 
     private void popVarStack(final int amount) {
@@ -202,7 +202,7 @@ public class ByteCodeInterpreter {
     }
 
     private void evalFuncEnd() {
-        localAddrOffset.remove(localAddrOffsetIndex());
+        if (!localAddrOffset.isEmpty()) localAddrOffset.remove(localAddrOffsetIndex());
     }
 
     private void evalPush(@NotNull final ByteCodeInstruction instr) {
@@ -234,21 +234,19 @@ public class ByteCodeInterpreter {
 
     private void evalOperator(@NotNull final ByteCodeInstruction instr) {
         final ByteCode type = instr.type().orElseThrow(() -> new ByteCodeException("Cannot find opcode type of " + instr));
-        ByteCodeValue newValue = null;
+        final ByteCodeValue newValue;
 
+        final ByteCodeValue y = popPushStack();
         switch (type) {
             case NOT -> {
-                newValue = popPushStack().not();
-                push(newValue);
+                push(y.not());
                 return;
             }
             case BIT_NOT -> {
-                newValue = popPushStack().bit_not();
-                push(newValue);
+                push(y.bit_not());
                 return;
             }
         }
-        final ByteCodeValue y = popPushStack();
         final ByteCodeValue x = popPushStack();
         newValue = switch (type) {
             case EQUALS -> x.equal(y);
@@ -281,10 +279,39 @@ public class ByteCodeInterpreter {
 
         if (func instanceof final ByteCodeInternFunction internFunc) {
             localAddrOffset.add(0);
-            returnStack.add(label);
-            label = internFunc.label() - 2;
-        } else {
-            // TODO native function calls
+            returnStack.add(label + 1);
+            label = internFunc.label();
+        } else if (func instanceof final ByteCodeNativeFunction nativeFunc) {
+            invokeNativeFuncCall(nativeFunc);
+        }
+    }
+
+    private void invokeNativeFuncCall(@NotNull final ByteCodeNativeFunction nativeFunc) {
+        final Method method = nativeFunc.method();
+        final List<ByteCodeValue> args = new ArrayList<>();
+        for (int i = 0; i < method.getParameterCount(); i++) {
+            args.add(popPushStack());
+        }
+        Collections.reverse(args);
+
+        final List<Object> params = new ArrayList<>(args.stream().map(ByteCodeValue::asObject).toList());
+        try {
+            final Object res = method.invoke(null, params.toArray(new Object[0]));
+            if (res != null) {
+                final ByteDatatype retType = ByteDatatype.of(argClassToArgString(res.getClass()));
+                final Byte[] bytes = switch (retType.id()) {
+                    case 0x00 -> ArrayUtils.toObject(ByteCode.intToBytes(((boolean) res) ? 1 : 0));
+                    case 0x01, 0x02 -> ArrayUtils.toObject(ByteCode.intToBytes((int) res));
+                    case 0x03 -> ArrayUtils.toObject(ByteCode.longToBytes((long) res));
+                    case 0x04 -> ArrayUtils.toObject(ByteCode.floatToBytes((float) res));
+                    case 0x05 -> ArrayUtils.toObject(ByteCode.doubleToBytes((double) res));
+                    case 0x06 -> ByteCode.stringToBytes(String.valueOf(res));
+                    default -> throw new ByteCodeException("Cannot use " + retType + " as a native function return datatype");
+                };
+                push(retType, bytes);
+            }
+        } catch (final IllegalAccessException | InvocationTargetException e) {
+            throw new ByteCodeException("Cannot invoke native function method: " + e.getMessage());
         }
     }
 
@@ -336,12 +363,18 @@ public class ByteCodeInterpreter {
         final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for relative addr to absolut addr opcode"));
         if (localAddrOffset.isEmpty()) throw new ByteCodeException("Relative address evaluation outside of function");
         final int addr = readInt(addrBytes.value());
-        final int currentAbs = variableStack.size();
-        final int abs = currentAbs - localAddrOffset() + addr;
-        final ByteCodeValue val = variableStack.get(abs);
+        final ByteCodeValue val = atRelativeAddress(addr);
 
         popPushStack();
         push(val);
+    }
+
+    private ByteCodeValue atRelativeAddress(final int addr) {
+        final int currentRelAddr = localAddrOffset(localAddrOffsetIndex());
+        if (currentRelAddr == 0) throw new ByteCodeException("Cannot get variable at relative address, no variables have been defined in this function");
+        final int currentAbs = variableStack.size();
+        int abs = currentAbs - currentRelAddr + addr;
+        return variableStack.get(abs);
     }
 
     private void evalInternFunc() {
@@ -359,7 +392,20 @@ public class ByteCodeInterpreter {
             case "float" -> Float.class;
             case "double" -> Double.class;
             case "string" -> String.class;
-            default -> throw new ByteCodeException("Cannot use '" + argType + "' as a native function parameter type");
+            default -> throw new ByteCodeException("Cannot use '" + argType + "' as a native function variable type");
+        };
+    }
+
+    private static String argClassToArgString(@NotNull final Class<?> argType) {
+        return switch (argType.getName()) {
+            case "java.lang.Integer" -> "int";
+            case "java.lang.Character" -> "char";
+            case "java.lang.Boolean" -> "bool";
+            case "java.lang.Long" -> "long";
+            case "java.lang.Float" -> "float";
+            case "java.lang.Double" -> "double";
+            case "java.lang.String" -> "string";
+            default -> throw new ByteCodeException("Cannot use '" + argType + "' as a native function variable type");
         };
     }
 

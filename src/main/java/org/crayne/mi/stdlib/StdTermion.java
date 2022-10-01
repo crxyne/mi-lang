@@ -26,4 +26,9 @@ public class StdTermion {
         return TerminalColor.background(hex);
     }
 
+    @MiCallable
+    public static String color_reset() {
+        return TerminalColor.reset();
+    }
+
 }

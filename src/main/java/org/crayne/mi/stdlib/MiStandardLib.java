@@ -41,6 +41,8 @@ module termion {
 	pub nat fn color_fg :: string (string hex) -> "$stdtermion";
 	pub nat fn color_bg :: string (string hex) -> "$stdtermion";
 	
+	pub nat fn color_reset :: string () -> "$stdtermion";
+	
 }
 
 STANDARDLIB_MI_FINISH_CODE;"""

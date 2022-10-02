@@ -3,6 +3,9 @@
 
 Scripting language designed to communicate with java, to allow for easy plugins, addons, etc in any project, all without having to create an entire programming language for it. Plugin / Addon developers don't need to create an entire java project for small things either, making life easier for both sides. Syntactically inspired by rust (pretty much only the keywords) but structure-wise it feels like simply writing java code with less code for same output.
 
+## Wiki
+To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
+
 #### Barebones version is finished, but to have some more high level language features it will take some more time. Still in BETA, so if you find any bugs, report them.
 
 ## NOTE

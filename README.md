@@ -6,6 +6,17 @@ Scripting language designed to communicate with java, to allow for easy plugins,
 ## Wiki
 To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
 
+## Usage
+Make sure you have java 17 or higher installed.
+Download the mi-lang.jar from the releases tab. To compile a .mi file, use your terminal in the directory of your code file. Alternatively, create a script that does the same for you. Command:
+```sh
+java -Xmx2G -Xms2G -jar mi-lang.jar compile main=yourmodule.main file='yourfile.mi'
+```
+To execute your newly generated .mib binary, type the following into your terminal (or again, your script):
+```sh
+java -Xmx2G -Xms2G -jar mi-lang.jar run file='yourfile.mib'
+```
+
 ## Java usage
 ```java
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
@@ -71,10 +82,11 @@ module helloworld {
 ```
 
 #### FEATURES:
-- basic strongly typed programming language features (types, functions, namespaces / modules / packages whatever you call them, etc)
+- basic strongly typed programming language features
 - (currently one sided) communication with java for easy scripting in any java project
 
 #### TODOS:
+- first and most important todo for now, fix the parser code, its absolutely horrible
 - structs and impls similar to rust
 - macros, to insert code in front of a function
 - assert, typedef and their combination for fast easy types

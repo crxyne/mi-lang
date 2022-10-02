@@ -91,7 +91,7 @@ public class ByteDatatype {
     }
 
     public boolean equals(@NotNull final ByteDatatype other) {
-        return name.equals(other.name) && code == other.code && id == other.id;
+        return id == NULL.id || other.id == NULL.id || (name.equals(other.name) && code == other.code && id == other.id);
     }
 
     public int id() {

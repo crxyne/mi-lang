@@ -161,7 +161,7 @@ public class Datatype {
     }
 
     public boolean equals(@NotNull final Datatype y) {
-        return getName().equals(y.getName());
+        return getName().equals("null") || y.getName().equals("null") || getName().equals(y.getName());
     }
 
     public boolean operatorDefined(final NodeType op, final Datatype y) {

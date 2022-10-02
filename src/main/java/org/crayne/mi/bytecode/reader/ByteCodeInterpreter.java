@@ -174,7 +174,7 @@ public class ByteCodeInterpreter {
             case JUMP -> evalJump(instr);
             case JUMP_IF -> evalJumpIf(instr);
             case CAST -> evalCast(instr);
-            //case MUTATE_VARIABLE -> popPushStack(2); // TODO
+            case MUTATE_VARIABLE -> popPushStack(2); // TODO
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
            // default -> System.out.println("ignored instr " + instr);

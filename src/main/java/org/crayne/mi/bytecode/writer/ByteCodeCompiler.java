@@ -450,7 +450,9 @@ public class ByteCodeCompiler {
             localScopeVariables.add(0);
             relativeAddress = 0;
 
-            args.forEach((s, d) -> addLocalVariableToStorage(s));
+            final List<String> storageArgs = new ArrayList<>(args.keySet().stream().toList());
+            Collections.reverse(storageArgs);
+            storageArgs.forEach(this::addLocalVariableToStorage);
             functionDefinitions.add(function());
 
             final List<ByteDatatype> defineArgs = new ArrayList<>(args.values().stream().toList());

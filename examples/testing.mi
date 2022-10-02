@@ -1,16 +1,7 @@
 module testing {
 	
-	fn test {
-		if true {
-				?d = 2.7182818284;
-				std.println(d);
-		}
-	}
-	
 	pub fn main {
-		while true {
-			test();
-		}
+		
 	}
 	
 }

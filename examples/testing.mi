@@ -1,4 +1,18 @@
 module testing {
+
+	pub struct Test {
+		
+		pub mut int i;
+
+	}
+	
+	pub enum Result {
+		Ok, Err
+	}
+	
+	pub fn test ~ (Test t) {
+	
+	}
 	
 	pub fn main {
 		for mut int i = 0, i .. 10 {

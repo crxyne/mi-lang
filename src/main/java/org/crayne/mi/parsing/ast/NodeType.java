@@ -102,7 +102,7 @@ public enum NodeType {
     USE_STATEMENT(null),
     RETURN_VALUE(null),
     CAST_VALUE(null),
-    CREATE_CLASS(null),
+    CREATE_STRUCT(null),
     CREATE_CONSTRUCTOR(null),
     NEGATE(null),
     BOOL_NOT(null),

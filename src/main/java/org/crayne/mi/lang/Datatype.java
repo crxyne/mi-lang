@@ -16,6 +16,7 @@ public class Datatype {
     private final boolean primitive;
     private final PrimitiveDatatype primitiveDatatype;
     private final Enum enumDatatype;
+    private final Struct structDatatype;
     private final boolean nullable;
 
     public static final Datatype BOOL = new Datatype(PrimitiveDatatype.BOOL, false);
@@ -33,6 +34,7 @@ public class Datatype {
         primitive = true;
         this.primitiveDatatype = primitiveDatatype;
         enumDatatype = null;
+        structDatatype = null;
         this.nullable = nullable;
     }
 
@@ -40,6 +42,7 @@ public class Datatype {
         primitive = false;
         primitiveDatatype = null;
         this.enumDatatype = enumDatatype;
+        structDatatype = null;
         this.nullable = nullable;
     }
 
@@ -75,27 +78,59 @@ public class Datatype {
         return foundEnum;
     }
 
-    public Datatype(@NotNull final Parser parser, @NotNull final Token enumDatatype, final boolean nullable) {
+    public static Struct findStructByIdentifier(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token identifier, final boolean panic) {
+        final String structNameStr = identifier.token();
+        final Optional<Module> module = parser.findModuleFromIdentifier(structNameStr, identifier, panic);
+        for (final String using : usingMods) {
+            final Token findOther = new Token(using + "." + identifier.token(), identifier.actualLine(), identifier.line(), identifier.column());
+
+            final Struct findUsing = findStructByIdentifier(parser, Collections.emptyList(), findOther, false);
+            if (findUsing != null) return findUsing;
+        }
+        if (module.isEmpty()) return null;
+        final String enumIdent = ParserEvaluator.identOf(structNameStr);
+
+        Struct foundStruct = module.get().findStructByName(enumIdent)
+                .orElse(parser.parentModule().findStructByName(enumIdent).orElse(null));
+
+        if (foundStruct == null && parser.currentParsingModule() != null) foundStruct = parser.currentParsingModule().findStructByName(enumIdent).orElse(null);
+
+        if (foundStruct == null) {
+            if (panic) parser.parserError("Cannot find struct '" + structNameStr + "'", identifier);
+            return null;
+        }
+
+        parser.checkAccessValidity(module.get(), IdentifierType.STRUCT, identifier, foundStruct.modifiers());
+        return foundStruct;
+    }
+
+    public Datatype(@NotNull final Parser parser, @NotNull final Token identifier, final boolean nullable) {
         primitive = false;
         primitiveDatatype = null;
         this.nullable = nullable;
         final Optional<Scope> currentScope = parser.scope();
         if (currentScope.isPresent() && currentScope.get() instanceof final FunctionScope functionScope) {
-            this.enumDatatype = findEnumByIdentifier(parser, functionScope.using(), enumDatatype, true);
+            this.enumDatatype = findEnumByIdentifier(parser, functionScope.using(), identifier, false);
+            if (this.enumDatatype == null) this.structDatatype = findStructByIdentifier(parser, functionScope.using(), identifier, true);
+            else this.structDatatype = null;
             return;
         }
-        this.enumDatatype = findEnumByIdentifier(parser, Collections.emptyList(), enumDatatype, true);
+        this.enumDatatype = findEnumByIdentifier(parser, Collections.emptyList(), identifier, false);
+        if (this.enumDatatype == null) this.structDatatype = findStructByIdentifier(parser, Collections.emptyList(), identifier, true);
+        else this.structDatatype = null;
     }
 
-    public Datatype(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token enumDatatype, final boolean nullable) {
+    public Datatype(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token identifier, final boolean nullable) {
         primitive = false;
         primitiveDatatype = null;
         this.nullable = nullable;
-        this.enumDatatype = findEnumByIdentifier(parser, usingMods, enumDatatype, true);
+        this.enumDatatype = findEnumByIdentifier(parser, usingMods, identifier, false);
+        if (this.enumDatatype == null) this.structDatatype = findStructByIdentifier(parser, usingMods, identifier, true);
+        else this.structDatatype = null;
     }
 
     public boolean valid() {
-        return primitiveDatatype != null || enumDatatype != null;
+        return primitiveDatatype != null || enumDatatype != null || structDatatype != null;
     }
 
     public boolean notPrimitive() {

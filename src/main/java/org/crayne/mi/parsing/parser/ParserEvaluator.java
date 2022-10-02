@@ -30,7 +30,16 @@ public class ParserEvaluator {
 
     private boolean handleRestrictedName(@NotNull final Token name) {
         final String tok = name.token();
-        if (!restrictedName(tok)) return false;
+        if (!restrictedName(tok)) {
+            if (parser.skimming) {
+                final Optional<Module> existingModule = parser.findModuleFromIdentifier(tok + ".a", name, false);
+                if (existingModule.isPresent() && !existingModule.get().name().equals("!PARENT") && existingModule.get() != parser.currentParsingModule && existingModule.get() != parser.lastModule()) {
+                    parser.parserWarning("An accessible module with the same name was found. Using '" + tok + "' as a name will likely cause conflicts", name,
+                            "Change the name or rename the module");
+                }
+            }
+            return false;
+        }
 
         parser.parserError("Cannot use restricted name '" + tok + "'", name,
                 "'.' characters are only allowed when searching for submodules or functions inside of modules");
@@ -57,8 +66,8 @@ public class ParserEvaluator {
                 init ? result.child(3) : null
         );
 
-        if (current.isPresent() && current.get() instanceof final ClassScope classScope) {
-            classScope.addVar(parser, var, ident);
+        if (current.isPresent() && current.get() instanceof final StructScope structScope) {
+            structScope.addVar(parser, var, ident);
             return;
         }
 
@@ -94,16 +103,16 @@ public class ParserEvaluator {
         functionScope.addLocalVariable(parser, var, ident);
     }
 
-    protected void addClassFromResult(@NotNull final Node result) {
+    protected void addStructFromResult(@NotNull final Node result) {
         if (!parser.skimming) return;
         final Module module = parser.lastModule();
         final Token nameToken = result.child(0).value();
-        final ClassScope currentClass = parser.currentClass;
+        final StructScope currentClass = parser.currentStruct;
         if (currentClass == null) {
-            parser.parserError("Unexpected parsing error, class without class scope", nameToken);
+            parser.parserError("Unexpected parsing error, struct without struct scope", nameToken);
             return;
         }
-        module.addClass(parser, currentClass.createClass(), nameToken);
+        module.addStruct(parser, currentClass.createStruct(), nameToken);
     }
 
     protected void addFunctionFromResult(@NotNull final Node result) {
@@ -129,29 +138,6 @@ public class ParserEvaluator {
 
             final Datatype datatype = Datatype.of(parser, result.child(1).value(), modifiers.contains(Modifier.NULLABLE));
             if (datatype == null) throw new NullPointerException();
-
-            final Optional<Scope> current = parser.scope();
-            if (current.isPresent() && current.get() instanceof final ClassScope classScope) {
-                if (result.children().size() == 5) {
-                    classScope.addMethod(parser, nameToken, new FunctionDefinition(
-                            nameToken.token(),
-                            datatype,
-                            params,
-                            modifiers,
-                            module,
-                            result.child(4)
-                    ));
-                    return;
-                }
-                classScope.addMethod(parser, nameToken, new FunctionDefinition(
-                        nameToken.token(),
-                        datatype,
-                        params,
-                        modifiers,
-                        module,
-                        false
-                ));
-            }
 
             if (result.children().size() == 5) {
                 module.addFunction(parser, nameToken, new FunctionDefinition(
@@ -621,11 +607,11 @@ public class ParserEvaluator {
             addedNode = false;
             if (type.isModifier()) {
                 if (parsedIdentifier || parsedDatatype) {
-                    parser.parserError("Unexpected token '" + token.token() + "' while parsing function parameters, expected modifiers before datatype before identifier");
+                    parser.parserError("Unexpected token '" + token.token() + "' while parsing function parameters, expected modifiers before datatype before identifier", token);
                     return new ArrayList<>();
                 }
                 if (type.isVisibilityModifier()) {
-                    parser.parserError("Unexpected token '" + token.token() + "', cannot use visibility modifiers (pub, priv, own) for function parameters");
+                    parser.parserError("Unexpected token '" + token.token() + "', cannot use visibility modifiers (pub, priv, own) for function parameters", token);
                 }
                 if (parser.findConflictingModifiers(currentNodeModifiers, type, token)) return new ArrayList<>();
                 currentNodeModifiers.add(type);
@@ -638,14 +624,14 @@ public class ParserEvaluator {
             }
             if (asDatatype == null || !asDatatype.valid()) {
                 if (!parsedDatatype) {
-                    parser.parserError("Unexpected token '" + token.token() + "' while parsing function parameters, expected datatype before identifier");
+                    parser.parserError("Unexpected token '" + token.token() + "' while parsing function parameters, expected datatype before identifier", token);
                     return new ArrayList<>();
                 }
                 parsedIdentifier = true;
                 currentNode.addChildren(asNode);
                 continue;
             }
-            parser.parserError("Could not parse function argument, unexpected token '" + token.token() + "'");
+            parser.parserError("Could not parse function argument, unexpected token '" + token.token() + "'", token);
             return new ArrayList<>();
         }
         if (!addedNode) {
@@ -711,15 +697,15 @@ public class ParserEvaluator {
                 return null;
             }
             final ScopeType currentType = current.get().type();
-            if (!parser.stdlib ? currentType != ScopeType.MODULE && currentType != ScopeType.CLASS : currentType != ScopeType.PARENT && currentType != ScopeType.MODULE && currentType != ScopeType.CLASS) {
+            if (!parser.stdlib ? currentType != ScopeType.MODULE : currentType != ScopeType.PARENT && currentType != ScopeType.MODULE) {
                 if (parser.stdlib) {
-                    parser.parserError("Expected function definition to be inside of a module or at root level",
-                            "Cannot define functions inside of other functions");
+                    parser.parserError("Expected function definition to be inside of a module or at root level", identifier,
+                            "Functions inside of other functions are not allowed either");
                     return null;
                 }
-                parser.parserError("Expected function definition to be inside of a module",
-                        "Cannot define functions at root level, create a module for your function or move it to an existing module",
-                        "Cannot define functions inside of other functions either");
+                parser.parserError("Expected function definition to be inside of a module", identifier,
+                        "Create a module for your function or move it to an existing module",
+                        "Functions inside of other functions are not allowed either");
                 return null;
             }
         }
@@ -1202,99 +1188,43 @@ public class ParserEvaluator {
         return enumScope;
     }
 
-    public Node evalClassDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+    public Node evalStructDefinition(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
         final Token lbrace = parser.getAndExpect(tokens, 2, NodeType.LBRACE);
         if (Parser.anyNull(lbrace, identifier)) return null;
 
-        if (expectModuleOrRoot(IdentifierType.CLASS)) return null;
+        if (expectModuleOrRoot(IdentifierType.STRUCT)) return null;
         final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
         if (firstMutabilityModif.isPresent()) {
-            parser.parserError("Cannot declare classes as own, const or mut, they are automatically constant because they cannot be redefined",
+            parser.parserError("Cannot declare structs as own, const or mut, they are automatically constant because they cannot be redefined",
                     firstMutabilityModif.get().value());
             return null;
         }
         final Optional<Scope> oldScope = parser.scope();
         if (oldScope.isEmpty()) {
-            parser.parserError("Unexpected parsing error, null scope before adding a class", identifier);
+            parser.parserError("Unexpected parsing error, null scope before adding a struct", identifier);
             return null;
         }
         if (parser.skimming && !parser.stdlib && (oldScope.get().type() != ScopeType.MODULE)) {
-            parser.parserError("Cannot define classes at root level", identifier,
-                    "Move your class into a module or create a new module for it");
+            parser.parserError("Cannot define structs at root level", identifier,
+                    "Move your struct into a module or create a new module for it");
             return null;
         }
 
-        parser.scope(ScopeType.CLASS);
+        parser.scope(ScopeType.STRUCT);
         final Optional<Scope> newScope = parser.scope();
-        if (newScope.isEmpty() || !(newScope.get() instanceof final ClassScope classScope)) {
-            parser.parserError("Unexpected parsing error, invalid scope after adding a class", identifier);
+        if (newScope.isEmpty() || !(newScope.get() instanceof final StructScope structScope)) {
+            parser.parserError("Unexpected parsing error, invalid scope after adding a struct", identifier);
             return null;
         }
-        classScope.module(parser.lastModule());
-        classScope.name(identifier.token());
-        parser.currentClass = classScope;
+        structScope.module(parser.lastModule());
+        structScope.modifiers(modifiers.stream().map(n -> Modifier.of(n.type())).collect(Collectors.toList()));
+        structScope.name(identifier.token());
+        parser.currentStruct = structScope;
 
-        return new Node(NodeType.CREATE_CLASS, identifier.actualLine(),
+        return new Node(NodeType.CREATE_STRUCT, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier),
                 new Node(NodeType.MODIFIERS, modifiers)
-        );
-    }
-
-    public Node evalNewStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        final Token newToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_NEW);
-        final Token parenOpen = parser.getAndExpect(tokens, 1, NodeType.LPAREN);
-        if (Parser.anyNull(newToken, parenOpen)) return null;
-
-        final Optional<Scope> current = parser.scope();
-        if (current.isEmpty() || !(current.get() instanceof final ClassScope classScope)) {
-            parser.parserError("Expected constructor to be inside of a class", newToken);
-            return null;
-        }
-
-        final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
-        if (firstMutabilityModif.isPresent()) {
-            parser.parserError("Cannot declare classes as own, const or mut, they are automatically constant because they cannot be redefined",
-                    firstMutabilityModif.get().value());
-            return null;
-        }
-        final List<Node> paramNodes = parseParametersDefineFunction(tokens.subList(2, tokens.size() - 2));
-        parser.scope(ScopeType.FUNCTION);
-        final Optional<Scope> funcScope = parser.scope();
-        if (funcScope.isPresent() && funcScope.get() instanceof final FunctionScope functionScope) {
-            for (final Node param : paramNodes) {
-                final List<Modifier> modifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
-                final Datatype pType = Datatype.of(parser, param.child(0).value(), modifs.contains(Modifier.NULLABLE));
-                if (pType == null) return null;
-                final String ident = param.child(1).value().token();
-                functionScope.addLocalVariable(parser, new LocalVariable(
-                        new Variable(
-                                ident, pType, modifs, null, true, null
-                        ), functionScope
-                ), param.child(0).value());
-            }
-            parser.currentFuncReturnType = Datatype.VOID;
-        }
-        if (!parser.skimming) {
-            final List<Modifier> modifiersNew = modifiers.stream().map(n -> Modifier.of(n.type())).toList();
-
-            final List<FunctionParameter> params = paramNodes.stream().map(n -> {
-                final List<Modifier> modifs = n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList();
-                final Datatype datatype = Datatype.of(parser, n.child(0).value(), modifs.contains(Modifier.NULLABLE));
-                if (datatype == null) throw new NullPointerException();
-                return new FunctionParameter(
-                        datatype,
-                        n.child(1).value().token(),
-                        modifs
-                );
-            }).toList();
-
-            final FunctionDefinition def = new FunctionDefinition("new", Datatype.VOID, params, modifiersNew, parser.currentParsingModule, false);
-            classScope.constructor(parser, def, newToken);
-        }
-        return new Node(NodeType.CREATE_CONSTRUCTOR, newToken.actualLine(),
-                new Node(NodeType.MODIFIERS, modifiers),
-                new Node(NodeType.PARAMETERS, paramNodes)
         );
     }
 

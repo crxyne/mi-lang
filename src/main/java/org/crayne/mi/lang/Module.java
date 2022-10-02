@@ -14,7 +14,7 @@ public class Module {
     private final String name;
     private final int scopeIndent;
     private final List<Variable> globalModuleVariables;
-    private final List<MClass> classes;
+    private final List<Struct> structs;
     private final List<Module> subModules; // these HAVE TO be Lists, or else there could be runtime errors with illegal forward referencing
     private final HashSet<Enum> enums;
     private final HashSet<FunctionConcept> functionConcepts; // here the order would not matter
@@ -28,7 +28,7 @@ public class Module {
         this.subModules = new ArrayList<>();
         this.functionConcepts = new HashSet<>();
         this.enums = new HashSet<>();
-        this.classes = new ArrayList<>();
+        this.structs = new ArrayList<>();
     }
 
     public int scopeIndent() {
@@ -48,13 +48,20 @@ public class Module {
         return result.toString();
     }
 
-    public void addClass(@NotNull final Parser parser, @NotNull final MClass mClass, @NotNull final Token at) {
-        final Optional<MClass> alreadyExisting = classes.stream().filter(c -> c.name().equals(mClass.name())).findFirst();
+    public void addStruct(@NotNull final Parser parser, @NotNull final Struct struct, @NotNull final Token at) {
+        final Optional<Struct> alreadyExisting = structs.stream().filter(c -> c.name().equals(struct.name())).findFirst();
         if (alreadyExisting.isPresent()) {
-            parser.parserError("Class '" + mClass.name() + "' already exists in this module", "Rename your class or move either of the two to another module");
+            parser.parserError("Struct '" + struct.name() + "' already exists in this module", at,
+                    "Rename your struct or enum or move either of the two to another module");
             return;
         }
-        classes.add(mClass);
+        final Optional<Enum> alreadyExistingEnum = enums.stream().filter(c -> c.name().equals(struct.name())).findFirst();
+        if (alreadyExistingEnum.isPresent()) {
+            parser.parserError("An enum with the same name '" + struct.name() + "' as the new struct already exists in this module", at,
+                    "Rename your struct or enum or move either of the two to another module");
+            return;
+        }
+        structs.add(struct);
     }
 
     public Module parent() {
@@ -85,12 +92,28 @@ public class Module {
     public void addSubmodule(@NotNull final Module mod) {
         subModules.add(mod);
     }
-    public void addEnum(@NotNull final Enum _enum) {
-        enums.add(_enum);
+    public void addEnum(@NotNull final Parser parser, @NotNull final Enum enumDef) {
+        final Optional<Struct> alreadyExisting = structs.stream().filter(c -> c.name().equals(enumDef.name())).findFirst();
+        if (alreadyExisting.isPresent()) {
+            parser.parserError("A Struct with the same name '" + enumDef.name() + "' as the new enum already exists in this module",
+                    "Rename your enum or struct or move either of the two to another module");
+            return;
+        }
+        final Optional<Enum> alreadyExistingEnum = enums.stream().filter(c -> c.name().equals(enumDef.name())).findFirst();
+        if (alreadyExistingEnum.isPresent()) {
+            parser.parserError("An enum with the name '" + enumDef.name() + "' already exists in this module",
+                    "Rename your enum or struct or move either of the two to another module");
+            return;
+        }
+        enums.add(enumDef);
     }
 
-    public Optional<Enum> findEnumByName(@NotNull final String en) {
-        return Enum.findEnumByName(enums, en);
+    public Optional<Enum> findEnumByName(@NotNull final String enumName) {
+        return Enum.findEnumByName(enums, enumName);
+    }
+
+    public Optional<Struct> findStructByName(@NotNull final String struct) {
+        return Struct.findStructByName(structs, struct);
     }
 
     public boolean findSubmoduleByName(@NotNull final String mod) {
@@ -159,7 +182,7 @@ public class Module {
                 "name='" + name + '\'' +
                 ", scopeIndent=" + scopeIndent +
                 ", globalModuleVariables=" + globalModuleVariables +
-                ", classes=" + classes +
+                ", classes=" + structs +
                 ", subModules=" + subModules +
                 ", enums=" + enums +
                 ", functionConcepts=" + functionConcepts +

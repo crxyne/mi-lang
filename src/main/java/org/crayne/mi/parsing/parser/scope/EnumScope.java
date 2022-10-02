@@ -67,7 +67,7 @@ public class EnumScope extends Scope {
             return;
         }
         final Module module = parser.lastModule();
-        module.addEnum(Enum.of(this));
+        module.addEnum(parser, Enum.of(this));
     }
 
 }

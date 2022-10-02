@@ -24,6 +24,12 @@ public class ByteCodeEnum {
         this.members = new ArrayList<>(members);
     }
 
+    public ByteCodeEnum(final int id) {
+        this.name = null;
+        this.id = id;
+        this.members = new ArrayList<>();
+    }
+
     public String name() {
         return name;
     }
@@ -37,6 +43,10 @@ public class ByteCodeEnum {
     }
     public String nameof(final int ordinal) {
         return members.get(ordinal);
+    }
+
+    public void addMember(@NotNull final String member) {
+        members.add(member);
     }
 
     public int id() {

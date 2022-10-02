@@ -4,14 +4,13 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.crayne.mi.bytecode.common.ByteCode;
-import org.crayne.mi.bytecode.common.ByteCodeException;
-import org.crayne.mi.bytecode.common.ByteCodeInstruction;
-import org.crayne.mi.bytecode.common.ByteDatatype;
+import org.crayne.mi.bytecode.common.*;
 import org.crayne.mi.bytecode.reader.function.ByteCodeInternFunction;
 import org.crayne.mi.bytecode.reader.function.ByteCodeNativeFunction;
 import org.crayne.mi.bytecode.reader.function.ByteCodeRuntimeFunction;
 import org.crayne.mi.log.MessageHandler;
+import org.crayne.mi.util.errorhandler.Traceback;
+import org.crayne.mi.util.errorhandler.TracebackElement;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
@@ -28,15 +27,33 @@ public class ByteCodeInterpreter {
     private int label;
 
     private final Map<Long, ByteCodeRuntimeFunction> functionDefinitions = new ConcurrentHashMap<>();
+    private final Map<Integer, ByteCodeEnum> enumDefinitions = new ConcurrentHashMap<>();
     private long currentFunctionId = 0;
+    private int currentEnumId = 0;
     private final List<Integer> localAddrOffset = new ArrayList<>();
     private final List<ByteCodeValue> variableStack = new ArrayList<>();
     private final List<ByteCodeValue> pushStack = new ArrayList<>();
     private final List<Integer> returnStack = new ArrayList<>();
 
+    private final Traceback traceback;
+    private int stdlibFinishLine;
+
+    public int getStdlibFinishLine() {
+        return stdlibFinishLine;
+    }
+
+    public TracebackElement newTracebackElement(final int line) {
+        return new TracebackElement(this, line + 1);
+    }
+
+    public void traceback(final int... lines) {
+        for (final int line : lines) traceback.add(newTracebackElement(line));
+    }
+
     public ByteCodeInterpreter(@NotNull final List<ByteCodeInstruction> program, @NotNull final MessageHandler messageHandler) {
         this.program = new ArrayList<>(program);
         this.messageHandler = messageHandler;
+        this.traceback = new Traceback();
     }
 
     protected static byte[] primitiveByteArray(@NotNull final Byte[] arr, final int begin, final int end) {
@@ -68,8 +85,13 @@ public class ByteCodeInterpreter {
     }
 
     public void run() {
-        preRead();
-        if (mainFunc != -1) read();
+        try {
+            preRead();
+            if (mainFunc != -1) read();
+        } catch (final ByteCodeException e) {
+            messageHandler.errorMsg("Runtime µ error: " + e.getMessage());
+            messageHandler.errorMsg(traceback.toString());
+        }
     }
 
     private void preRead() {
@@ -91,7 +113,11 @@ public class ByteCodeInterpreter {
     }
 
     private void push(@NotNull final ByteDatatype type, @NotNull final Byte[] values) {
-        final ByteCodeValue value = new ByteCodeValue(type, values);
+        final ByteCodeValue value;
+        if (type == ByteDatatype.ENUM) {
+            final int enumId = readInt(values, 0, 4);
+            value = new ByteCodeValue(ByteDatatype.ofEnum("", enumId), values, this);
+        } else value = new ByteCodeValue(type, values, this);
         pushStack.add(value);
     }
 
@@ -101,10 +127,6 @@ public class ByteCodeInterpreter {
 
     private Optional<ByteCodeValue> pushTop(final int offset) {
         return pushStack.size() - offset - 1 >= pushStack.size() ? Optional.empty() : Optional.of(pushStack.get(pushStack.size() - offset - 1));
-    }
-
-    private Optional<ByteCodeValue> varTop(final int offset) {
-        return variableStack.size() - offset - 1 >= variableStack.size() ? Optional.empty() : Optional.of(variableStack.get(variableStack.size() - offset - 1));
     }
 
     private Optional<ByteCodeValue> pushTop() {
@@ -119,7 +141,7 @@ public class ByteCodeInterpreter {
     }
 
     private void declareVar(@NotNull final ByteDatatype type) {
-        variableStack.add(new ByteCodeValue(type, new Byte[0]));
+        variableStack.add(new ByteCodeValue(type, new Byte[0], this));
         if (!localAddrOffset.isEmpty()) incLocalAddrOffset();
     }
 
@@ -146,11 +168,15 @@ public class ByteCodeInterpreter {
             case DECLARE_VARIABLE -> evalVarDeclare(instr);
             case NATIVE_FUNCTION_DEFINITION_BEGIN -> evalNatFunc(instr);
             case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
+            case ENUM_DEFINITION_BEGIN -> evalEnumDefBegin();
+            case ENUM_DEFINITION_END -> evalEnumDefEnd();
+            case ENUM_MEMBER_DEFINITION -> evalEnumMemberDef(instr);
             case VALUE_AT_ADDRESS -> evalValAtAddr();
             case MAIN_FUNCTION -> evalMainFunc(instr);
             case CAST -> evalCast(instr);
             case MUTATE_VARIABLE -> evalVariableMut(false);
             case MUTATE_VARIABLE_AND_PUSH -> evalVariableMut(true);
+            case STDLIB_FINISH_LINE -> evalStdlibFinishLine(instr);
             case PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> popPushStack(1);
         } else if (instr.type().orElse(null) == ByteCode.FUNCTION_DEFINITION_END) evalFuncEnd();
@@ -179,11 +205,22 @@ public class ByteCodeInterpreter {
             case RELATIVE_TO_ABSOLUTE_ADDRESS -> evalRelToAbsAddr();
             case MUTATE_VARIABLE -> evalVariableMut(false);
             case MUTATE_VARIABLE_AND_PUSH -> evalVariableMut(true);
+            case TRACEBACK -> evalTraceback(instr);
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
            // default -> System.out.println("ignored instr " + instr);
         }
         return false;
+    }
+
+    private void evalStdlibFinishLine(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        stdlibFinishLine = readInt(values, 1, values.length - 1);
+    }
+
+    private void evalTraceback(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        traceback(readInt(values, 1, values.length - 1));
     }
 
     private ByteCodeValue popPushStack() {
@@ -195,14 +232,42 @@ public class ByteCodeInterpreter {
         for (int i = 0; i < amount; i++) popPushStack();
     }
 
-    private ByteCodeValue popVarStack() {
+    private void popVarStack() {
         if (variableStack.isEmpty()) throw new ByteCodeException("Cannot perform pop, variable stack is empty");
         if (!localAddrOffset.isEmpty()) decLocalAddrOffset();
-        return variableStack.remove(variableStack.size() - 1);
+        variableStack.remove(variableStack.size() - 1);
     }
 
     private void popVarStack(final int amount) {
         for (int i = 0; i < amount; i++) popVarStack();
+    }
+
+    private void evalEnumDefBegin() {
+        enumDefinitions.put(currentEnumId, new ByteCodeEnum(currentEnumId));
+        currentEnumId++;
+    }
+
+    private void evalEnumDefEnd() {
+        currentEnumId = -1;
+    }
+
+    private void evalEnumMemberDef(@NotNull final ByteCodeInstruction instr) {
+        if (currentEnumId == -1) throw new ByteCodeException("Enum member definition outside of enum");
+        final ByteCodeEnum currentEnum = enumDefinitions.get(currentEnumId - 1);
+        final String name = readString(instr.codes(), 6, instr.codes().length - 1);
+        currentEnum.addMember(name);
+    }
+
+    protected String nameOfEnumMember(@NotNull final ByteCodeValue val) {
+        final int enumId = val.type().id();
+        final ByteCodeEnum foundEnum = enumDefinitions.get(enumId);
+        return foundEnum.nameof(readInt(val.value(), 4, 8));
+    }
+
+    protected int ordinalOfEnumMember(@NotNull final ByteCodeValue val) {
+        final int enumId = val.type().id();
+        enumDefinitions.get(enumId); // make sure the enum exists
+        return readInt(val.value(), 4, 8);
     }
 
     private void evalFuncEnd() {

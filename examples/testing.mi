@@ -1,15 +1,16 @@
 module testing {
 
-	pub nonnull fn to_nonnull :: int (nullable int i) {
-		ret i == null ? 0 : i + 0;
+	pub enum Result {
+		Ok, Err
 	}
 	
-	pub fn test ~ (int i) {}
+	pub enum Result2 {
+		Ok, Err
+	}
 	
 	pub fn main {
-		int i = 2;
-		nullable int i2 = i;
-		to_nonnull(i);
+		?r = Result::Err;
+		std.println(string(r));
 	}
 	
 }

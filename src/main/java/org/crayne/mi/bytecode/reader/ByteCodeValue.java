@@ -11,63 +11,67 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
-public record ByteCodeValue(ByteDatatype type, Byte[] value) {
+public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter runtime) {
 
-    private static ByteCodeValue boolValue(final boolean b) {
-        return new ByteCodeValue(ByteDatatype.BOOL, ArrayUtils.toObject(ByteCode.intToBytes(b ? 1 : 0)));
+    private static ByteCodeValue boolValue(final boolean b, @NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.BOOL, ArrayUtils.toObject(ByteCode.intToBytes(b ? 1 : 0)), runtime);
     }
 
     private static boolean boolValue(final Byte[] val) {
         return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val)) != 0;
     }
 
-    private static ByteCodeValue charValue(final int c) {
-        return new ByteCodeValue(ByteDatatype.CHAR, ArrayUtils.toObject(ByteCode.intToBytes(c)));
+    private static char charValue(final Byte[] val) {
+        return (char) ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue intValue(final int i) {
-        return new ByteCodeValue(ByteDatatype.INT, ArrayUtils.toObject(ByteCode.intToBytes(i)));
+    private static ByteCodeValue charValue(final int c, @NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.CHAR, ArrayUtils.toObject(ByteCode.intToBytes(c)), runtime);
+    }
+
+    private static ByteCodeValue intValue(final int i, @NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.INT, ArrayUtils.toObject(ByteCode.intToBytes(i)), runtime);
     }
 
     private static int intValue(final Byte[] val) {
         return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue longValue(final long l) {
-        return new ByteCodeValue(ByteDatatype.LONG, ArrayUtils.toObject(ByteCode.longToBytes(l)));
+    private static ByteCodeValue longValue(final long l, @NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.LONG, ArrayUtils.toObject(ByteCode.longToBytes(l)), runtime);
     }
 
     private static long longValue(final Byte[] val) {
         return ByteCode.bytesToLong(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue floatValue(final float f) {
-        return new ByteCodeValue(ByteDatatype.FLOAT, ArrayUtils.toObject(ByteCode.floatToBytes(f)));
+    private static ByteCodeValue floatValue(final float f, @NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.FLOAT, ArrayUtils.toObject(ByteCode.floatToBytes(f)), runtime);
     }
 
     private static float floatValue(final Byte[] val) {
         return ByteCode.bytesToFloat(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue doubleValue(final double d) {
-        return new ByteCodeValue(ByteDatatype.DOUBLE, ArrayUtils.toObject(ByteCode.doubleToBytes(d)));
+    private static ByteCodeValue doubleValue(final double d, @NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.DOUBLE, ArrayUtils.toObject(ByteCode.doubleToBytes(d)), runtime);
     }
 
     private static double doubleValue(final Byte[] val) {
         return ByteCode.bytesToDouble(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue stringValue(@NotNull final String s) {
+    private static ByteCodeValue stringValue(@NotNull final String s, @NotNull final ByteCodeInterpreter runtime) {
         final Byte[] codes = ByteCode.string(s).codes();
-        return new ByteCodeValue(ByteDatatype.STRING, Arrays.stream(codes).toList().subList(1, codes.length - 1).toArray(new Byte[0]));
+        return new ByteCodeValue(ByteDatatype.STRING, Arrays.stream(codes).toList().subList(1, codes.length - 1).toArray(new Byte[0]), runtime);
     }
 
     private static String stringValue(final Byte[] val) {
         return ByteCode.bytesToString(ArrayUtils.toPrimitive(val), true);
     }
 
-    private static ByteCodeValue nullValue() {
-        return new ByteCodeValue(ByteDatatype.NULL, new Byte[0]);
+    private static ByteCodeValue nullValue(@NotNull final ByteCodeInterpreter runtime) {
+        return new ByteCodeValue(ByteDatatype.NULL, new Byte[0], runtime);
     }
 
     public boolean noneMatchType(@NotNull final ByteDatatype... types) {
@@ -83,17 +87,23 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     }
 
     public ByteCodeValue not() {
+        if (isnull()) throw new ByteCodeException("Expected nonnull value for 'not' operator");
         if (noneMatchType(ByteDatatype.BOOL)) throw new ByteCodeException("Expected boolean value for 'not' operator");
         final int val = ByteCode.bytesToInt(ArrayUtils.toPrimitive(value));
-        return boolValue(val == 0);
+        return boolValue(val == 0, runtime);
+    }
+
+    public boolean isnull() {
+        return type == ByteDatatype.NULL;
     }
 
     public ByteCodeValue bit_not() {
+        if (isnull()) throw new ByteCodeException("Expected nonnull value for 'bit-not' operator");
         if (notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-not' operator");
         return switch (type.id()) {
-            case 0x02 -> intValue(~intValue(value));
-            case 0x01 -> charValue(~intValue(value));
-            case 0x03 -> longValue(~longValue(value));
+            case 0x02 -> intValue(~intValue(value), runtime);
+            case 0x01 -> charValue(~intValue(value), runtime);
+            case 0x03 -> longValue(~longValue(value), runtime);
             default -> this;
         };
     }
@@ -101,12 +111,11 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     public ByteCodeValue equal(@NotNull final ByteCodeValue other) {
         final ByteDatatype heavier = heavier(type, other.type);
         final boolean comparingEnums = type.id() == ByteDatatype.ENUM.id() && other.type.id() == ByteDatatype.ENUM.id();
-        if (comparingEnums) return boolValue(Arrays.equals(value, other.value));
-        if (heavier == null) return boolValue(false);
-        System.out.println("CHECK EQUAL " + this + " " + other + " heavier " + heavier);
+        if (comparingEnums) return boolValue(Arrays.equals(value, other.value), runtime);
+        if (heavier == null) return boolValue(false, runtime);
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
-        return boolValue(Arrays.equals(safeCastX.value, safeCastY.value));
+        return boolValue(Arrays.equals(safeCastX.value, safeCastY.value), runtime);
     }
 
     public ByteCodeValue plus(@NotNull final ByteCodeValue other) {
@@ -114,16 +123,17 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'plus' operator");
         if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
             throw new ByteCodeException("Expected string or number value for 'plus' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) + intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) + intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) + longValue(safeCastY.value));
-            case 0x04 -> floatValue(floatValue(safeCastX.value) + floatValue(safeCastY.value));
-            case 0x05 -> doubleValue(doubleValue(safeCastX.value) + doubleValue(safeCastY.value));
-            case 0x06 -> stringValue(stringValue(safeCastX.value) + stringValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) + intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) + intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) + longValue(safeCastY.value), runtime);
+            case 0x04 -> floatValue(floatValue(safeCastX.value) + floatValue(safeCastY.value), runtime);
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) + doubleValue(safeCastY.value), runtime);
+            case 0x06 -> stringValue(stringValue(safeCastX.value) + stringValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -133,14 +143,15 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'minus' operator");
         if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'minus' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) - intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) - intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) - longValue(safeCastY.value));
-            case 0x04 -> floatValue(floatValue(safeCastX.value) - floatValue(safeCastY.value));
-            case 0x05 -> doubleValue(doubleValue(safeCastX.value) - doubleValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) - intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) - intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) - longValue(safeCastY.value), runtime);
+            case 0x04 -> floatValue(floatValue(safeCastX.value) - floatValue(safeCastY.value), runtime);
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) - doubleValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -150,14 +161,15 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'multiply' operator");
         if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'multiply' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) * intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) * intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) * longValue(safeCastY.value));
-            case 0x04 -> floatValue(floatValue(safeCastX.value) * floatValue(safeCastY.value));
-            case 0x05 -> doubleValue(doubleValue(safeCastX.value) * doubleValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) * intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) * intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) * longValue(safeCastY.value), runtime);
+            case 0x04 -> floatValue(floatValue(safeCastX.value) * floatValue(safeCastY.value), runtime);
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) * doubleValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -167,14 +179,15 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'divide' operator");
         if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'divide' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) / intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) / intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) / longValue(safeCastY.value));
-            case 0x04 -> floatValue(floatValue(safeCastX.value) / floatValue(safeCastY.value));
-            case 0x05 -> doubleValue(doubleValue(safeCastX.value) / doubleValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) / intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) / intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) / longValue(safeCastY.value), runtime);
+            case 0x04 -> floatValue(floatValue(safeCastX.value) / floatValue(safeCastY.value), runtime);
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) / doubleValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -184,14 +197,15 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'modulo' operator");
         if (safeCastX.notANumber()) throw new ByteCodeException("Expected number value for 'modulo' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) % intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) % intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) % longValue(safeCastY.value));
-            case 0x04 -> floatValue(floatValue(safeCastX.value) % floatValue(safeCastY.value));
-            case 0x05 -> doubleValue(doubleValue(safeCastX.value) % doubleValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) % intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) % intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) % longValue(safeCastY.value), runtime);
+            case 0x04 -> floatValue(floatValue(safeCastX.value) % floatValue(safeCastY.value), runtime);
+            case 0x05 -> doubleValue(doubleValue(safeCastX.value) % doubleValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -201,12 +215,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'bit-and' operator");
         if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-and' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) & intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) & intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) & longValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) & intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) & intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) & longValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -216,12 +231,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'bit-or' operator");
         if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-or' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) | intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) | intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) | longValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) | intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) | intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) | longValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -231,12 +247,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'bit-xor' operator");
         if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-xor' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) ^ intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) ^ intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) ^ longValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) ^ intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) ^ intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) ^ longValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -246,12 +263,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'bit-shift-left' operator");
         if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-shift-left' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) << intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) << intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) << longValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) << intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) << intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) << longValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -261,12 +279,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'bit-shift-right' operator");
         if (safeCastX.notAnInteger()) throw new ByteCodeException("Expected integer value for 'bit-shift-right' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02 -> intValue(intValue(safeCastX.value) >> intValue(safeCastY.value));
-            case 0x01 -> charValue(intValue(safeCastX.value) >> intValue(safeCastY.value));
-            case 0x03 -> longValue(longValue(safeCastX.value) >> longValue(safeCastY.value));
+            case 0x02 -> intValue(intValue(safeCastX.value) >> intValue(safeCastY.value), runtime);
+            case 0x01 -> charValue(intValue(safeCastX.value) >> intValue(safeCastY.value), runtime);
+            case 0x03 -> longValue(longValue(safeCastX.value) >> longValue(safeCastY.value), runtime);
             default -> this;
         };
     }
@@ -276,9 +295,10 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'logical-and' operator");
         if (safeCastX.noneMatchType(ByteDatatype.BOOL)) throw new ByteCodeException("Expected boolean value for 'logical-and' operator");
 
-        return safeCastX.type.id() == 0x00 ? boolValue(boolValue(safeCastX.value) && boolValue(safeCastY.value)) : this;
+        return safeCastX.type.id() == 0x00 ? boolValue(boolValue(safeCastX.value) && boolValue(safeCastY.value), runtime) : this;
     }
 
     public ByteCodeValue logical_or(@NotNull final ByteCodeValue other) {
@@ -286,9 +306,10 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'logical-or' operator");
         if (safeCastX.noneMatchType(ByteDatatype.BOOL)) throw new ByteCodeException("Expected boolean value for 'logical-or' operator");
 
-        return safeCastX.type.id() == 0x00 ? boolValue(boolValue(safeCastX.value) || boolValue(safeCastY.value)) : this;
+        return safeCastX.type.id() == 0x00 ? boolValue(boolValue(safeCastX.value) || boolValue(safeCastY.value), runtime) : this;
     }
 
     public ByteCodeValue less_than(@NotNull final ByteCodeValue other) {
@@ -296,15 +317,16 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'less-than' operator");
         if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
             throw new ByteCodeException("Expected string or number value for 'less-than' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) < intValue(safeCastY.value));
-            case 0x03 -> boolValue(longValue(safeCastX.value) < longValue(safeCastY.value));
-            case 0x04 -> boolValue(floatValue(safeCastX.value) < floatValue(safeCastY.value));
-            case 0x05 -> boolValue(doubleValue(safeCastX.value) < doubleValue(safeCastY.value));
-            case 0x06 -> boolValue(stringValue(safeCastX.value).length() < stringValue(safeCastY.value).length());
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) < intValue(safeCastY.value), runtime);
+            case 0x03 -> boolValue(longValue(safeCastX.value) < longValue(safeCastY.value), runtime);
+            case 0x04 -> boolValue(floatValue(safeCastX.value) < floatValue(safeCastY.value), runtime);
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) < doubleValue(safeCastY.value), runtime);
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() < stringValue(safeCastY.value).length(), runtime);
             default -> this;
         };
     }
@@ -314,15 +336,16 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'less-than-or-equal' operator");
         if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
             throw new ByteCodeException("Expected string or number value for 'less-than-or-equal' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) <= intValue(safeCastY.value));
-            case 0x03 -> boolValue(longValue(safeCastX.value) <= longValue(safeCastY.value));
-            case 0x04 -> boolValue(floatValue(safeCastX.value) <= floatValue(safeCastY.value));
-            case 0x05 -> boolValue(doubleValue(safeCastX.value) <= doubleValue(safeCastY.value));
-            case 0x06 -> boolValue(stringValue(safeCastX.value).length() <= stringValue(safeCastY.value).length());
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) <= intValue(safeCastY.value), runtime);
+            case 0x03 -> boolValue(longValue(safeCastX.value) <= longValue(safeCastY.value), runtime);
+            case 0x04 -> boolValue(floatValue(safeCastX.value) <= floatValue(safeCastY.value), runtime);
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) <= doubleValue(safeCastY.value), runtime);
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() <= stringValue(safeCastY.value).length(), runtime);
             default -> this;
         };
     }
@@ -332,15 +355,16 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'greater-than' operator");
         if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
             throw new ByteCodeException("Expected string or number value for 'greater-than' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) > intValue(safeCastY.value));
-            case 0x03 -> boolValue(longValue(safeCastX.value) > longValue(safeCastY.value));
-            case 0x04 -> boolValue(floatValue(safeCastX.value) > floatValue(safeCastY.value));
-            case 0x05 -> boolValue(doubleValue(safeCastX.value) > doubleValue(safeCastY.value));
-            case 0x06 -> boolValue(stringValue(safeCastX.value).length() > stringValue(safeCastY.value).length());
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) > intValue(safeCastY.value), runtime);
+            case 0x03 -> boolValue(longValue(safeCastX.value) > longValue(safeCastY.value), runtime);
+            case 0x04 -> boolValue(floatValue(safeCastX.value) > floatValue(safeCastY.value), runtime);
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) > doubleValue(safeCastY.value), runtime);
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() > stringValue(safeCastY.value).length(), runtime);
             default -> this;
         };
     }
@@ -350,15 +374,16 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         if (heavier == null) return this;
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+        if (safeCastX.isnull()) throw new ByteCodeException("Expected nonnull value for 'greater-than-or-equal' operator");
         if (safeCastX.notANumber() && safeCastX.noneMatchType(ByteDatatype.STRING))
             throw new ByteCodeException("Expected string or number value for 'greater-than-or-equal' operator");
 
         return switch (safeCastX.type.id()) {
-            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) >= intValue(safeCastY.value));
-            case 0x03 -> boolValue(longValue(safeCastX.value) >= longValue(safeCastY.value));
-            case 0x04 -> boolValue(floatValue(safeCastX.value) >= floatValue(safeCastY.value));
-            case 0x05 -> boolValue(doubleValue(safeCastX.value) >= doubleValue(safeCastY.value));
-            case 0x06 -> boolValue(stringValue(safeCastX.value).length() >= stringValue(safeCastY.value).length());
+            case 0x02, 0x01 -> boolValue(intValue(safeCastX.value) >= intValue(safeCastY.value), runtime);
+            case 0x03 -> boolValue(longValue(safeCastX.value) >= longValue(safeCastY.value), runtime);
+            case 0x04 -> boolValue(floatValue(safeCastX.value) >= floatValue(safeCastY.value), runtime);
+            case 0x05 -> boolValue(doubleValue(safeCastX.value) >= doubleValue(safeCastY.value), runtime);
+            case 0x06 -> boolValue(stringValue(safeCastX.value).length() >= stringValue(safeCastY.value).length(), runtime);
             default -> this;
         };
     }
@@ -369,7 +394,9 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
 
     public Object asObject() {
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> intValue(value);
+            case 0x00 -> boolValue(value);
+            case 0x01 -> charValue(value);
+            case 0x02 -> intValue(value);
             case 0x03 -> longValue(value);
             case 0x04 -> floatValue(value);
             case 0x05 -> doubleValue(value);
@@ -408,6 +435,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
             case 0x04 -> castToFloat();
             case 0x05 -> castToDouble();
             case 0x06 -> castToString();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
@@ -415,125 +443,125 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     public ByteCodeValue castToBool() {
         return switch (type.id()) {
             case 0x00 -> this;
-            case 0x01, 0x02 -> boolValue(intValue(value) != 0);
-            case 0x03 -> boolValue(longValue(value) != 0L);
-            case 0x04 -> boolValue(floatValue(value) != 0.0f);
-            case 0x05 -> boolValue(doubleValue(value) != 0.0d);
-            case 0x06 -> boolValue(!stringValue(value).isEmpty());
-            case 0x07 -> boolValue(false);
-            case 0x08 -> nullValue();
+            case 0x01, 0x02 -> boolValue(intValue(value) != 0, runtime);
+            case 0x03 -> boolValue(longValue(value) != 0L, runtime);
+            case 0x04 -> boolValue(floatValue(value) != 0.0f, runtime);
+            case 0x05 -> boolValue(doubleValue(value) != 0.0d, runtime);
+            case 0x06 -> boolValue(!stringValue(value).isEmpty(), runtime);
+            case 0x07 -> boolValue(false, runtime);
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
 
     public ByteCodeValue castToChar() {
+        if (type.code() == ByteDatatype.ENUM.code()) return charValue(runtime.ordinalOfEnumMember(this), runtime);
         return switch (type.id()) {
-            case 0x00, 0x02 -> charValue(intValue(value));
+            case 0x00, 0x02 -> charValue(intValue(value), runtime);
             case 0x01 -> this;
-            case 0x03 -> charValue((int) longValue(value));
-            case 0x04 -> charValue((int) floatValue(value));
-            case 0x05 -> charValue((int) doubleValue(value));
+            case 0x03 -> charValue((int) longValue(value), runtime);
+            case 0x04 -> charValue((int) floatValue(value), runtime);
+            case 0x05 -> charValue((int) doubleValue(value), runtime);
             case 0x06 -> {
                 final String val = stringValue(value);
-                yield charValue(val.length() == 1 ? val.charAt(0) : 0);
+                yield charValue(val.length() == 1 ? val.charAt(0) : 0, runtime);
             }
-            case 0x07 -> charValue(0);
-            case 0x08 -> nullValue();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
 
     public ByteCodeValue castToInt() {
+        if (type.code() == ByteDatatype.ENUM.code()) return intValue(runtime.ordinalOfEnumMember(this), runtime);
         return switch (type.id()) {
-            case 0x00, 0x01 -> intValue(intValue(value));
+            case 0x00, 0x01 -> intValue(intValue(value), runtime);
             case 0x02 -> this;
-            case 0x03 -> intValue((int) longValue(value));
-            case 0x04 -> intValue((int) floatValue(value));
-            case 0x05 -> intValue((int) doubleValue(value));
+            case 0x03 -> intValue((int) longValue(value), runtime);
+            case 0x04 -> intValue((int) floatValue(value), runtime);
+            case 0x05 -> intValue((int) doubleValue(value), runtime);
             case 0x06 -> {
                 final String val = stringValue(value);
                 try {
-                    yield intValue(Integer.parseInt(val));
+                    yield intValue(Integer.parseInt(val), runtime);
                 } catch (final NumberFormatException e) {
-                    yield intValue(Integer.MIN_VALUE);
+                    yield intValue(Integer.MIN_VALUE, runtime);
                 }
             }
-            case 0x07 -> intValue(0); // TODO converting enums into other datatypes, TODO make enums work at all
-            case 0x08 -> nullValue();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
 
     public ByteCodeValue castToLong() {
+        if (type.code() == ByteDatatype.ENUM.code()) return longValue(runtime.ordinalOfEnumMember(this), runtime);
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> longValue(longValue(value));
+            case 0x00, 0x01, 0x02 -> longValue(longValue(value), runtime);
             case 0x03 -> this;
-            case 0x04 -> longValue((long) floatValue(value));
-            case 0x05 -> longValue((long) doubleValue(value));
+            case 0x04 -> longValue((long) floatValue(value), runtime);
+            case 0x05 -> longValue((long) doubleValue(value), runtime);
             case 0x06 -> {
                 final String val = stringValue(value);
                 try {
-                    yield longValue(Long.parseLong(val));
+                    yield longValue(Long.parseLong(val), runtime);
                 } catch (final NumberFormatException e) {
-                    yield longValue(Long.MIN_VALUE);
+                    yield longValue(Long.MIN_VALUE, runtime);
                 }
             }
-            case 0x07 -> longValue(0); // TODO converting enums into other datatypes (ordinal indices & member name strings)
-            case 0x08 -> nullValue();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
 
     public ByteCodeValue castToFloat() {
+        if (type.code() == ByteDatatype.ENUM.code()) return floatValue(runtime.ordinalOfEnumMember(this), runtime);
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> floatValue(intValue(value));
-            case 0x03 -> floatValue(longValue(value));
+            case 0x00, 0x01, 0x02 -> floatValue(intValue(value), runtime);
+            case 0x03 -> floatValue(longValue(value), runtime);
             case 0x04 -> this;
-            case 0x05 -> floatValue((float) doubleValue(value));
+            case 0x05 -> floatValue((float) doubleValue(value), runtime);
             case 0x06 -> {
                 final String val = stringValue(value);
                 try {
-                    yield doubleValue(Float.parseFloat(val));
+                    yield doubleValue(Float.parseFloat(val), runtime);
                 } catch (final NumberFormatException e) {
-                    yield doubleValue(Float.NaN);
+                    yield doubleValue(Float.NaN, runtime);
                 }
             }
-            case 0x07 -> floatValue(0); // TODO converting enums into other datatypes
-            case 0x08 -> nullValue();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
 
     public ByteCodeValue castToDouble() {
+        if (type.code() == ByteDatatype.ENUM.code()) return doubleValue(runtime.ordinalOfEnumMember(this), runtime);
         return switch (type.id()) {
-            case 0x00, 0x01, 0x02 -> doubleValue(intValue(value));
-            case 0x03 -> doubleValue(longValue(value));
-            case 0x04 -> doubleValue(floatValue(value));
+            case 0x00, 0x01, 0x02 -> doubleValue(intValue(value), runtime);
+            case 0x03 -> doubleValue(longValue(value), runtime);
+            case 0x04 -> doubleValue(floatValue(value), runtime);
             case 0x05 -> this;
             case 0x06 -> {
                 final String val = stringValue(value);
                 try {
-                    yield doubleValue(Double.parseDouble(val));
+                    yield doubleValue(Double.parseDouble(val), runtime);
                 } catch (final NumberFormatException e) {
-                    yield doubleValue(Double.NaN);
+                    yield doubleValue(Double.NaN, runtime);
                 }
             }
-            case 0x07 -> doubleValue(0); // TODO converting enums into other datatypes
-            case 0x08 -> nullValue();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }
 
     public ByteCodeValue castToString() {
+        if (type.code() == ByteDatatype.ENUM.code()) return stringValue(runtime.nameOfEnumMember(this), runtime);
         return switch (type.id()) {
-            case 0x00, 0x02 -> stringValue("" + intValue(value));
-            case 0x01 -> stringValue(Character.toString((char) intValue(value)));
-            case 0x03 -> stringValue("" + longValue(value));
-            case 0x04 -> stringValue("" + floatValue(value));
-            case 0x05 -> stringValue("" + doubleValue(value));
+            case 0x00, 0x02 -> stringValue("" + intValue(value), runtime);
+            case 0x01 -> stringValue(Character.toString((char) intValue(value)), runtime);
+            case 0x03 -> stringValue("" + longValue(value), runtime);
+            case 0x04 -> stringValue("" + floatValue(value), runtime);
+            case 0x05 -> stringValue("" + doubleValue(value), runtime);
             case 0x06 -> this;
-            case 0x07 -> stringValue(""); // TODO converting enums into other datatypes
-            case 0x08 -> nullValue();
+            case 0x08 -> nullValue(runtime);
             default -> null;
         };
     }

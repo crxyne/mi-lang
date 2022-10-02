@@ -1,5 +1,6 @@
 package org.crayne.mi.util.errorhandler;
 
+import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mi.runtime.SyntaxTreeCompilation;
 import org.jetbrains.annotations.NotNull;
@@ -24,8 +25,14 @@ public class TracebackElement {
         this.lineStr = getline == null ? null : "\"" + getline.trim() + "\"";
     }
 
+    public TracebackElement(@NotNull final ByteCodeInterpreter runtime, final int line) {
+        this.line = line;
+        this.lineNoStandardLib = line - runtime.getStdlibFinishLine();
+        this.lineStr = null;
+    }
+
     public String toString() {
-        if (lineStr == null) return null;
+        if (lineStr == null) return lineNoStandardLib <= 0 ? "standard library line " + line : "line " + lineNoStandardLib;
         if (lineNoStandardLib <= 0) return lineStr.replace("STANDARDLIB_MI_FINISH_CODE;", "") + "  :   @ line " + line;
         return lineStr + "  :   @ line " + lineNoStandardLib;
     }

@@ -12,9 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -53,13 +51,12 @@ public class ByteCodeReader {
                 switch (code) {
                     case PUSH -> readPushInstruction(code);
                     case DEFINE_VARIABLE, DECLARE_VARIABLE, CAST -> readVariablar(code);
-                    case JUMP, JUMP_IF, POP, FUNCTION_CALL, MAIN_FUNCTION -> readWithInteger(code);
+                    case JUMP, JUMP_IF, POP, FUNCTION_CALL, MAIN_FUNCTION, STDLIB_FINISH_LINE, TRACEBACK -> readWithInteger(code);
                     case NATIVE_FUNCTION_DEFINITION_BEGIN -> readNativeFunctionBegin(code);
-                    case ENUM_DEFINITION_BEGIN -> readEnumDefinitionBegin(code);
                     case ENUM_MEMBER_DEFINITION -> readEnumMemberDefinition(code);
                     case FUNCTION_DEFINITION_BEGIN, FUNCTION_DEFINITION_END, VALUE_AT_ADDRESS, EQUALS, NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
                             BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, LOGICAL_AND, LOGICAL_OR, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL,
-                            MUTATE_VARIABLE, MUTATE_VARIABLE_AND_PUSH, BITSHIFT_LEFT, BITSHIFT_RIGHT, VALUE_AT_RELATIVE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END
+                            MUTATE_VARIABLE, MUTATE_VARIABLE_AND_PUSH, BITSHIFT_LEFT, BITSHIFT_RIGHT, VALUE_AT_RELATIVE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END, ENUM_DEFINITION_BEGIN
                         // any of the instructions that dont pass any arguments in should just be added to instruction set
                             -> instruction(code, (l) -> {});
                     default -> throw new ByteCodeException("Unhandled bytecode instruction " + code);
@@ -95,8 +92,10 @@ public class ByteCodeReader {
         instruction(code, (l) -> l.add(datatype));
     }
 
+    private static final Set<ByteCode> normalIntegerNeeded = new HashSet<>(Arrays.asList(ByteCode.POP, ByteCode.JUMP, ByteCode.JUMP_IF, ByteCode.TRACEBACK, ByteCode.STDLIB_FINISH_LINE));
+
     private void readWithInteger(@NotNull final ByteCode code) {
-        final Byte[] num = code == ByteCode.POP || code == ByteCode.JUMP || code == ByteCode.JUMP_IF ? readIntegerValue() : readLongIntegerValue();
+        final Byte[] num = normalIntegerNeeded.contains(code) ? readIntegerValue() : readLongIntegerValue();
         instruction(code, (l) -> l.addAll(listOfByteArray(num)));
     }
 
@@ -113,17 +112,10 @@ public class ByteCodeReader {
         });
     }
 
-    private void readEnumDefinitionBegin(@NotNull final ByteCode code) {
-        final Byte[] enumId = readIntegerValue();
-        instruction(code, (l) -> l.addAll(listOfByteArray(enumId)));
-    }
-
     private void readEnumMemberDefinition(@NotNull final ByteCode code) {
-        final Byte[] memberOrdinal = readIntegerValue();
         expect(ByteCode.STRING_VALUE);
         final Byte[] memberName = readStringValue();
         instruction(code, (l) -> {
-            l.addAll(listOfByteArray(memberOrdinal));
             l.add(ByteCode.STRING_VALUE.code());
             l.addAll(listOfByteArray(memberName));
         });

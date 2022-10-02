@@ -49,6 +49,8 @@ public enum ByteCode {
     BIT_NOT((byte) 0xB2),
     CAST((byte) 0xB3),
     NATIVE_FUNCTION_DEFINITION_BEGIN((byte) 0xB4),
+    TRACEBACK((byte) 0xB5),
+    STDLIB_FINISH_LINE((byte) 0xB6),
 
     DECLARE_VARIABLE((byte) 0xC0),
     DEFINE_VARIABLE((byte) 0xC1),
@@ -156,16 +158,12 @@ public enum ByteCode {
     public static List<ByteCodeInstruction> defineEnum(@NotNull final ByteCodeEnum enumDef) {
         return new ArrayList<>() {
             {
-                this.add(new ByteCodeInstruction(new ArrayList<>() {{
-                    this.add(ENUM_DEFINITION_BEGIN.code);
-                    this.addAll(List.of(ArrayUtils.toObject(intToBytes(enumDef.id()))));
-                }}));
+                this.add(new ByteCodeInstruction(ENUM_DEFINITION_BEGIN.code));
                 this.addAll(enumDef
                         .members()
                         .stream()
                         .map(m -> new ByteCodeInstruction(new ArrayList<>() {{
                             this.add(ENUM_MEMBER_DEFINITION.code);
-                            this.addAll(List.of(ArrayUtils.toObject(intToBytes(enumDef.ordinalMember(m)))));
                             final List<Byte> memberName = List.of(string(m).codes());
                             this.addAll(memberName.subList(0, memberName.size() - 1));
                         }}))
@@ -216,6 +214,20 @@ public enum ByteCode {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(INTEGER_VALUE.code);
             this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(literal))).toList());
+        }});
+    }
+
+    public static ByteCodeInstruction stdlibFinishLine(final int line) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(STDLIB_FINISH_LINE.code);
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(line))).toList());
+        }});
+    }
+
+    public static ByteCodeInstruction traceback(final int line) {
+        return new ByteCodeInstruction(new ArrayList<>() {{
+            this.add(TRACEBACK.code);
+            this.addAll(Arrays.stream(ArrayUtils.toObject(intToBytes(line))).toList());
         }});
     }
 

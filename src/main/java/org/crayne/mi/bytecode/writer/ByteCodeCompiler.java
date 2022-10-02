@@ -82,7 +82,6 @@ public class ByteCodeCompiler {
 
     public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
-        System.out.println(ast);
         if (ast.type() == NodeType.PARENT) {
             compileParent(ast, result);
         } else {
@@ -96,6 +95,7 @@ public class ByteCodeCompiler {
         result.addAll(0, functionDefinitions);
         result.addAll(0, enumDefinitions);
         result.addAll(0, globalVariables);
+        result.add(0, ByteCode.stdlibFinishLine(tree.getStdlibFinishLine()));
         result.add(0, header());
         return result;
     }
@@ -111,9 +111,18 @@ public class ByteCodeCompiler {
         }
     }
 
+    private int prevTraceback = -1;
+
+    private void traceback(final int line, @NotNull final List<ByteCodeInstruction> result) {
+        tree.traceback(line);
+        if (line != -1 && currentModuleName.size() > 1 && relativeAddress != -1) {
+            if (prevTraceback != line) rawInstruction(ByteCode.traceback(line), result);
+            prevTraceback = line;
+        }
+    }
+
     private void compileInstruction(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
-        tree.traceback(instr.lineDebugging());
-        System.out.println("COMPILE " + instr.type());
+        traceback(instr.lineDebugging(), result);
         switch (instr.type()) {
             case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instr, result);
             case VAR_DEFINITION -> compileVariableDeclaration(instr, result);
@@ -175,13 +184,11 @@ public class ByteCodeCompiler {
     private void deleteAllLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
         final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
-        System.out.println("DELETE LOCAL SCOPE VARS RETURN STATEMENT");
     }
 
     private void deleteLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
         final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
-        System.out.println("DELETE LOCAL SCOPE VARS");
 
         final List<String> l = Arrays.asList(localVariableStorage.keySet().toArray(new String[0]));
         if (!l.isEmpty()) l.subList(l.size() - vars, l.size()).forEach(localVariableStorage.keySet()::remove);
@@ -471,7 +478,6 @@ public class ByteCodeCompiler {
             compileParent(scope, functionDefinitions);
             final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
             if (vars > 0) rawInstruction(ByteCode.pop(vars), functionDefinitions);
-            System.out.println("POP FUNC VARS");
             localVariableStorage.clear();
             localScopeVariables.clear();
             relativeAddress = -1;
@@ -506,7 +512,7 @@ public class ByteCodeCompiler {
 
     private void compileExpression(final Node node, @NotNull final List<ByteCodeInstruction> result) {
         if (node == null) return;
-        tree.traceback(node.lineDebugging());
+        traceback(node.lineDebugging(), result);
         if (node.children().size() == 1 && node.type() == NodeType.VALUE && node.child(0).type().getAsDataType() != null) {
             ofLiteral(node.child(0), result);
             return;
@@ -584,7 +590,7 @@ public class ByteCodeCompiler {
                     panic("Cannot find enum '" + identifier + "'");
                     return;
                 }
-                rawInstruction(ByteCode.enumMember(new ByteCodeEnumMember(enumDef.id(), enumDef.ordinalMember(member))), result);
+                push(result, ByteCode.enumMember(new ByteCodeEnumMember(enumDef.id(), enumDef.ordinalMember(member))));
             }
             case TERNARY_OPERATOR -> {
                 final Node condition = values.get(0).child(0);

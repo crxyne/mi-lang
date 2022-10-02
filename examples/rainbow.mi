@@ -38,7 +38,7 @@ module testing {
 		
 		while true {
 			print(moveCursorHome);
-			println(color_fg(r, g, b) + text);
+			print(color_fg(r, g, b) + text);
 			rainbow();
 			sleep(wait_long);
 		}

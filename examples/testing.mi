@@ -1,7 +1,15 @@
 module testing {
+
+	pub nonnull fn to_nonnull :: int (nullable int i) {
+		ret i == null ? 0 : i + 0;
+	}
+	
+	pub fn test ~ (int i) {}
 	
 	pub fn main {
-	
+		int i = 2;
+		nullable int i2 = i;
+		to_nonnull(i);
 	}
 	
 }

@@ -66,6 +66,10 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         return ByteCode.bytesToString(ArrayUtils.toPrimitive(val), true);
     }
 
+    private static ByteCodeValue nullValue() {
+        return new ByteCodeValue(ByteDatatype.NULL, new Byte[0]);
+    }
+
     public boolean noneMatchType(@NotNull final ByteDatatype... types) {
         return !Stream.of(types).map(ByteDatatype::id).toList().contains(type.id());
     }
@@ -99,6 +103,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         final boolean comparingEnums = type.id() == ByteDatatype.ENUM.id() && other.type.id() == ByteDatatype.ENUM.id();
         if (comparingEnums) return boolValue(Arrays.equals(value, other.value));
         if (heavier == null) return boolValue(false);
+        System.out.println("CHECK EQUAL " + this + " " + other + " heavier " + heavier);
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
         return boolValue(Arrays.equals(safeCastX.value, safeCastY.value));
@@ -374,7 +379,6 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
     }
 
     private static final Map<Integer, Integer> datatypeRanking = new HashMap<>() {{
-        this.put(ByteDatatype.NULL.id(), 0);
         this.put(ByteDatatype.DOUBLE.id(), 3);
         this.put(ByteDatatype.FLOAT.id(), 4);
         this.put(ByteDatatype.LONG.id(), 5);
@@ -382,6 +386,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
         this.put(ByteDatatype.CHAR.id(), 6);
         this.put(ByteDatatype.BOOL.id(), 7);
         this.put(ByteDatatype.STRING.id(), 8);
+        this.put(ByteDatatype.NULL.id(), 9);
     }};
 
     public static ByteDatatype heavier(@NotNull final ByteDatatype d1, @NotNull final ByteDatatype d2) {
@@ -416,6 +421,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
             case 0x05 -> boolValue(doubleValue(value) != 0.0d);
             case 0x06 -> boolValue(!stringValue(value).isEmpty());
             case 0x07 -> boolValue(false);
+            case 0x08 -> nullValue();
             default -> null;
         };
     }
@@ -432,6 +438,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
                 yield charValue(val.length() == 1 ? val.charAt(0) : 0);
             }
             case 0x07 -> charValue(0);
+            case 0x08 -> nullValue();
             default -> null;
         };
     }
@@ -452,6 +459,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
                 }
             }
             case 0x07 -> intValue(0); // TODO converting enums into other datatypes, TODO make enums work at all
+            case 0x08 -> nullValue();
             default -> null;
         };
     }
@@ -471,6 +479,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
                 }
             }
             case 0x07 -> longValue(0); // TODO converting enums into other datatypes (ordinal indices & member name strings)
+            case 0x08 -> nullValue();
             default -> null;
         };
     }
@@ -490,6 +499,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
                 }
             }
             case 0x07 -> floatValue(0); // TODO converting enums into other datatypes
+            case 0x08 -> nullValue();
             default -> null;
         };
     }
@@ -509,6 +519,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
                 }
             }
             case 0x07 -> doubleValue(0); // TODO converting enums into other datatypes
+            case 0x08 -> nullValue();
             default -> null;
         };
     }
@@ -522,6 +533,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value) {
             case 0x05 -> stringValue("" + doubleValue(value));
             case 0x06 -> this;
             case 0x07 -> stringValue(""); // TODO converting enums into other datatypes
+            case 0x08 -> nullValue();
             default -> null;
         };
     }

@@ -148,8 +148,8 @@ public class FunctionScope extends Scope {
         }
 
         if (immutable(parser, var, identifierTok)) return false;
-        if (!value.type().equals(var.type())) {
-            parser.parserError("Cannot assign value of type " + value.type().getName() + " to variable with type " + var.type().getName(), identifierTok);
+        if (!Datatype.equal(value.type(), var.type())) {
+            parser.parserError("Cannot assign value of type " + value.type() + " to variable with type " + var.type(), identifierTok);
             return false;
         }
         final FunctionScope searchNotNormal = anyAbnormal();

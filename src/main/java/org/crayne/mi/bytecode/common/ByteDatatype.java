@@ -16,7 +16,7 @@ public class ByteDatatype {
     public static final ByteDatatype DOUBLE = new ByteDatatype((byte) 0x05, (byte) 0x05, "double");
     public static final ByteDatatype STRING = new ByteDatatype((byte) 0x06, (byte) 0x06, "string");
     public static final ByteDatatype ENUM = new ByteDatatype((byte) 0x07, "enum");
-    public static final ByteDatatype NULL = new ByteDatatype((byte) 0x08, "null");
+    public static final ByteDatatype NULL = new ByteDatatype((byte) 0x08, (byte) 0x08, "null");
     public static final ByteDatatype VOID = new ByteDatatype((byte) -1, "void");
     public static final ByteDatatype UNKNOWN = new ByteDatatype((byte) -1, "");
 

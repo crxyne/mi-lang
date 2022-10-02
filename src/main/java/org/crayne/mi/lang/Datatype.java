@@ -132,7 +132,7 @@ public class Datatype {
 
     public static boolean equal(@NotNull final Datatype newType, @NotNull final Datatype oldType) {
         if (newType == oldType) return true;
-        if (newType.primitiveDatatype == PrimitiveDatatype.NULL) return oldType.nullable;
+        if (newType.primitiveDatatype == PrimitiveDatatype.NULL || newType.nullable) return oldType.nullable;
 
         if ((newType.primitive && !oldType.primitive) || (!newType.primitive && oldType.primitive)) return false;
         if (newType.primitiveDatatype == null) return newType.enumDatatype.equals(oldType.enumDatatype);
@@ -171,7 +171,7 @@ public class Datatype {
     }
 
     public boolean equals(@NotNull final Datatype y) {
-        return (y.nullable && getName().equals("null")) || (nullable && y.getName().equals("null")) || (nullable == y.nullable && getName().equals(y.getName()));
+        return (nullable && (y.getName().equals("null") || y.nullable)) || (nullable == y.nullable && getName().equals(y.getName()));
     }
 
     public boolean operatorDefined(final NodeType op, final Datatype y) {

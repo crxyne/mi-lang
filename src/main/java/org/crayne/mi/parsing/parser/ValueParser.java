@@ -56,7 +56,7 @@ public class ValueParser {
     private boolean ternaryIfElseNotEqual(@NotNull final TypedNode z, @NotNull final TypedNode y) {
         if (!z.type.equals(y.type)) {
             parserParent.parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator", z.node.value(),
-                    "'if' part is of type " + y.type.getName() + ", while 'else' part is " + z.type.getName());
+                    "'if' part is of type " + y.type + ", while 'else' part is " + z.type + ". Use std.to_nonnull() to explicitely convert nullable types into nonnull types");
             return true;
         }
         return false;
@@ -64,7 +64,7 @@ public class ValueParser {
 
     private boolean ternaryConditionNotBoolean(@NotNull final TypedNode x) {
         if (x.type.notPrimitive() || !x.type.getPrimitive().equals(PrimitiveDatatype.BOOL)) {
-            parserParent.parserError("Ternary operator condition should be of type 'bool' but is instead '" + x.type.getName() + "'", x.node.value());
+            parserParent.parserError("Ternary operator condition should be of type 'nonnull bool' but is instead '" + x.type + "'", x.node.value());
             return true;
         }
         return false;
@@ -97,10 +97,10 @@ public class ValueParser {
 
         if (!operatorDefined) {
             if (x.type.equals(y.type)) {
-                parserParent.parserError("Operator '" + op.token() + "' is not defined for operand type " + x.type.getName(), op);
+                parserParent.parserError("Operator '" + op.token() + "' is not defined for operand type " + x.type, op);
                 return TypedNode.empty();
             }
-            parserParent.parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type.getName() + " and right operand " + y.type.getName(), op);
+            parserParent.parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type + " and right operand " + y.type, op);
             return TypedNode.empty();
         }
         return new TypedNode(

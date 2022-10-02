@@ -53,7 +53,7 @@ public class FunctionConcept {
                 final ValueParser.TypedNode callParam = parameters.get(i);
                 if (callParam.type() == null) return Optional.empty();
 
-                if (!callParam.type().equals(defParam.type())) {
+                if (!Datatype.equal(callParam.type(), defParam.type())) {
                     equalParams = false;
                     break;
                 }

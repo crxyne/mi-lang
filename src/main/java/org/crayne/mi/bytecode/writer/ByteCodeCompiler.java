@@ -113,6 +113,7 @@ public class ByteCodeCompiler {
 
     private void compileInstruction(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
         tree.traceback(instr.lineDebugging());
+        System.out.println("COMPILE " + instr.type());
         switch (instr.type()) {
             case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instr, result);
             case VAR_DEFINITION -> compileVariableDeclaration(instr, result);
@@ -174,11 +175,13 @@ public class ByteCodeCompiler {
     private void deleteAllLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
         final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
+        System.out.println("DELETE LOCAL SCOPE VARS RETURN STATEMENT");
     }
 
     private void deleteLocalScopeVars(@NotNull final List<ByteCodeInstruction> result) {
         final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(scope) : 0;
         if (vars > 0) rawInstruction(ByteCode.pop(vars), result);
+        System.out.println("DELETE LOCAL SCOPE VARS");
 
         final List<String> l = Arrays.asList(localVariableStorage.keySet().toArray(new String[0]));
         if (!l.isEmpty()) l.subList(l.size() - vars, l.size()).forEach(localVariableStorage.keySet()::remove);
@@ -305,12 +308,13 @@ public class ByteCodeCompiler {
     }
 
     private void compileReturnStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
-        deleteAllLocalScopeVars(result);
         if (instr.children().isEmpty()) {
+            deleteAllLocalScopeVars(result);
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
             return;
         }
         compileExpression(instr.child(0), result);
+        deleteAllLocalScopeVars(result);
         rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
     }
 
@@ -467,6 +471,7 @@ public class ByteCodeCompiler {
             compileParent(scope, functionDefinitions);
             final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
             if (vars > 0) rawInstruction(ByteCode.pop(vars), functionDefinitions);
+            System.out.println("POP FUNC VARS");
             localVariableStorage.clear();
             localScopeVariables.clear();
             relativeAddress = -1;

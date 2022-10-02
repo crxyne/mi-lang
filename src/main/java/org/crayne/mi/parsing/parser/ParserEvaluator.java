@@ -360,7 +360,7 @@ public class ParserEvaluator {
             return null;
         }
         if (eq != EqualOperation.EQUAL && !var.type().operatorDefined(NodeType.of(equal.token().substring(0, 1)), var.type())) {
-            parser.parserError("Undefined operator '" + equal.token() + "' for datatype '" + var.type().getName() + "'", equal);
+            parser.parserError("Undefined operator '" + equal.token() + "' for datatype '" + var.type() + "'", equal);
             return null;
         }
 

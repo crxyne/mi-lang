@@ -26,10 +26,9 @@ module helloworld {
 - (currently one sided) communication with java for easy scripting in any java project
 
 #### TODOS:
-- bytecode generator & parser, for faster startup times (especially needed since this is designed for plugin systems or similar)
-- classes, inheritance, polymorphism
-- generics, for stuff like Option<T>, List<T>, Map<K, V>, Result<T>, etc
-- macros / impls, something to insert code in front of a function
+- bytecode vm
+- structs and impls similar to rust
+- macros, to insert code in front of a function
 - assert, typedef and their combination for fast easy types
 - operator overloading as an option for already defined functions
 - calling mi functions from java, to allow for eventhandlers, etc

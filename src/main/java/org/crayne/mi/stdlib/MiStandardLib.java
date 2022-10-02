@@ -3,6 +3,7 @@ package org.crayne.mi.stdlib;
 import org.crayne.mi.lang.MiCallable;
 import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
 import java.util.UUID;
 
 public class MiStandardLib {
@@ -29,7 +30,7 @@ module std {
     pub nat fn println~ (char c) -> "$stdclass";
     pub nat fn print~ (char c) -> "$stdclass";
     pub nat fn sleep~ (long millis) -> "$stdclass";
-    pub nat fn random_uuid_long :: long () -> "$stdclass";
+    pub nullable nat fn random_uuid_long :: long () -> "$stdclass";
 
 }
 
@@ -37,7 +38,7 @@ module termion {
 
 	pub nat fn color_fg :: string (int r, int g, int b) -> "$stdtermion";
 	pub nat fn color_bg :: string (int r, int g, int b) -> "$stdtermion";
-	
+
 	pub nat fn color_fg :: string (string hex) -> "$stdtermion";
 	pub nat fn color_bg :: string (string hex) -> "$stdtermion";
 	
@@ -126,6 +127,7 @@ STANDARDLIB_MI_FINISH_CODE;"""
     }
 
     @MiCallable
+    @Nonnull
     public static Long random_uuid_long() {
         return UUID.randomUUID().getMostSignificantBits();
     }

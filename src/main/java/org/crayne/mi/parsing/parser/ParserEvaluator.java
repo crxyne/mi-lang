@@ -9,9 +9,12 @@ import org.crayne.mi.parsing.lexer.Token;
 import org.crayne.mi.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ParserEvaluator {
 
@@ -41,7 +44,7 @@ public class ParserEvaluator {
         final Token ident = result.child(1).value();
         final Optional<Scope> current = parser.scope();
 
-        final Datatype datatype = Datatype.of(parser, Collections.emptyList(), result.child(2).value());
+        final Datatype datatype = Datatype.of(parser, Collections.emptyList(), result.child(2).value(), modifiers.contains(Modifier.NULLABLE));
         if (datatype == null) return;
         final boolean init = result.children().size() == 4;
 
@@ -74,7 +77,7 @@ public class ParserEvaluator {
         final Token ident = result.child(1).value();
         final FunctionScope functionScope = expectFunctionScope(ident);
 
-        final Datatype datatype = Datatype.of(parser, result.child(2).value());
+        final Datatype datatype = Datatype.of(parser, result.child(2).value(), modifiers.contains(Modifier.NULLABLE));
         if (functionScope == null || datatype == null) return;
 
         final LocalVariable var = new LocalVariable(new Variable(
@@ -108,23 +111,23 @@ public class ParserEvaluator {
         final Module module = parser.lastModule();
         try {
             final List<Modifier> modifiers = result.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
-
             final List<Node> paramNodes = result.child(3).children().stream().toList();
 
             final List<FunctionParameter> params = paramNodes.stream().map(n -> {
-                final Datatype datatype = Datatype.of(parser, n.child(0).value());
+                final List<Modifier> modifs = n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList();
+                final Datatype datatype = Datatype.of(parser, n.child(0).value(), modifs.contains(Modifier.NULLABLE));
                 if (datatype == null) throw new NullPointerException();
                 return new FunctionParameter(
                         datatype,
                         n.child(1).value().token(),
-                        n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                        modifs
                 );
             }).toList();
 
             final Token nameToken = result.child(0).value();
             if (handleRestrictedName(nameToken)) return;
 
-            final Datatype datatype = Datatype.of(parser, result.child(1).value());
+            final Datatype datatype = Datatype.of(parser, result.child(1).value(), modifiers.contains(Modifier.NULLABLE));
             if (datatype == null) throw new NullPointerException();
 
             final Optional<Scope> current = parser.scope();
@@ -184,19 +187,20 @@ public class ParserEvaluator {
             final List<Node> paramNodes = result.child(3).children().stream().toList();
 
             final List<FunctionParameter> params = paramNodes.stream().map(n -> {
-                final Datatype datatype = Datatype.of(parser, n.child(0).value());
+                final List<Modifier> modifs = n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList();
+                final Datatype datatype = Datatype.of(parser, n.child(0).value(), modifs.contains(Modifier.NULLABLE));
                 if (datatype == null) throw new NullPointerException();
                 return new FunctionParameter(
                         datatype,
                         n.child(1).value().token(),
-                        n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                        modifs
                 );
             }).toList();
 
             final Token nameToken = result.child(0).value();
             if (handleRestrictedName(nameToken)) return;
 
-            final Datatype datatype = Datatype.of(parser, result.child(1).value());
+            final Datatype datatype = Datatype.of(parser, result.child(1).value(), modifiers.contains(Modifier.NULLABLE));
             if (datatype == null) throw new NullPointerException();
 
             if (result.children().size() == 5) {
@@ -243,7 +247,7 @@ public class ParserEvaluator {
         }
         if (tokens.size() == 2) { // ret ; are two tokens
             if (expectedType != Datatype.VOID) {
-                parser.parserError("Expected datatype of return value to be " + expectedType.getName() + ", but got Void instead", tokens.get(1));
+                parser.parserError("Expected datatype of return value to be " + expectedType + ", but got void instead", tokens.get(1));
                 return null;
             }
             functionScope.reachedEnd();
@@ -254,7 +258,7 @@ public class ParserEvaluator {
         if (retVal == null || retVal.type() == null || retVal.node() == null) return null;
 
         if (!retVal.type().equals(expectedType)) {
-            parser.parserError("Expected datatype of return value to be " + expectedType.getName() + ", but got " + retVal.type().getName() + " instead", tokens.get(1));
+            parser.parserError("Expected datatype of return value to be " + expectedType + ", but got " + retVal.type() + " instead", tokens.get(1));
             return null;
         }
         functionScope.reachedEnd();
@@ -503,7 +507,7 @@ public class ParserEvaluator {
     }
 
     private String callArgsToString(@NotNull final List<ValueParser.TypedNode> params) {
-        return String.join(", ", params.stream().map(n -> n.type().getName().toLowerCase()).toList());
+        return String.join(", ", params.stream().map(n -> n.type().toString()).toList());
     }
 
     public List<ValueParser.TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens) {
@@ -543,8 +547,9 @@ public class ParserEvaluator {
                 ? new Node(NodeType.TYPE, Token.of(value.type().getName()))
                 : new Node(NodeType.TYPE, datatype);
 
-        if (!indefinite && !Datatype.equal(value.type(), Objects.requireNonNull(Datatype.of(parser, finalType.value())))) {
-            parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type().getName() + " to a " + datatype.token() + " variable.", datatype,
+        final Datatype type = Datatype.of(parser, finalType.value(), modifiers.stream().map(n -> Modifier.of(n.type())).toList().contains(Modifier.NULLABLE));
+        if (!indefinite && !Datatype.equal(value.type(), Objects.requireNonNull(type))) {
+            parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type() + " to a " + type + " variable.", datatype,
                     "Change the datatype to the correct one, try casting values inside the expression to the needed datatype or set the variable type to '?'.");
             return null;
         }
@@ -601,7 +606,7 @@ public class ParserEvaluator {
         for (@NotNull final Token token : tokens) {
             final Node asNode = new Node(NodeType.of(token), token);
             final NodeType type = asNode.type();
-            final Datatype asDatatype = parsedDatatype ? null : Datatype.of(parser, Collections.emptyList(), token);
+            final Datatype asDatatype = parsedDatatype ? null : Datatype.of(parser, Collections.emptyList(), token, currentNodeModifiers.stream().map(Modifier::of).toList().contains(Modifier.NULLABLE));
 
             if (type == NodeType.COMMA) {
                 currentNode.addChildren(new Node(NodeType.MODIFIERS, currentNodeModifiers.stream().map(Node::of).toList()));
@@ -744,7 +749,7 @@ public class ParserEvaluator {
                             .toArray(new NodeType[0]));
             if (returnToken == null) return null;
 
-            returnType = Datatype.of(parser, returnToken);
+            returnType = Datatype.of(parser, returnToken, modifs.contains(Modifier.NULLABLE));
         }
         if (returnType == null) return null;
 
@@ -757,12 +762,13 @@ public class ParserEvaluator {
         final List<Node> params = parseParametersDefineFunction(tokens.subList(4 + extraIndex, tokens.size() - 2));
 
         final List<FunctionParameter> parameters = params.stream().map(n -> {
-            final Datatype datatype = Datatype.of(parser, n.child(0).value());
+            final List<Modifier> modifs2 = n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList();
+            final Datatype datatype = Datatype.of(parser, n.child(0).value(), modifs2.contains(Modifier.NULLABLE));
             if (datatype == null) throw new NullPointerException();
             return new FunctionParameter(
                     datatype,
                     n.child(1).value().token(),
-                    n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                    modifs2
             );
         }).toList();
 
@@ -771,10 +777,10 @@ public class ParserEvaluator {
         final Optional<Scope> current = parser.scope();
         if (current.isPresent() && current.get() instanceof final FunctionScope functionScope) {
             for (final Node param : params) {
-                final Datatype pType = Datatype.of(parser, param.child(0).value());
+                final List<Modifier> paramModifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
+                final Datatype pType = Datatype.of(parser, param.child(0).value(), paramModifs.contains(Modifier.NULLABLE));
                 if (pType == null) return null;
                 final String ident = param.child(1).value().token();
-                final List<Modifier> paramModifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
                 functionScope.addLocalVariable(parser, new LocalVariable(
                         new Variable(
                                 ident, pType, paramModifs, null, true, null
@@ -818,12 +824,13 @@ public class ParserEvaluator {
         );
 
         final List<FunctionParameter> parameters = params.stream().map(n -> {
-            final Datatype datatype = Datatype.of(parser, n.child(0).value());
+            final List<Modifier> modifs = n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList();
+            final Datatype datatype = Datatype.of(parser, n.child(0).value(), modifs.contains(Modifier.NULLABLE));
             if (datatype == null) throw new NullPointerException();
             return new FunctionParameter(
                     datatype,
                     n.child(1).value().token(),
-                    n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                    modifs
             );
         }).toList();
 
@@ -872,19 +879,35 @@ public class ParserEvaluator {
                 return null;
             }
             final Method invokeMethod = jcallClass.getMethod(functionName, paramTypes.toArray(new Class<?>[0]));
+            final Annotation[][] paramAnnotations = invokeMethod.getParameterAnnotations();
+
+            for (int i = 0; i < params.size(); i++) {
+                final Datatype mutype = params.get(i).type();
+                final Annotation[] annotations = paramAnnotations[i];
+                if (mutype.nullable() && Stream.of(annotations).map(Annotation::annotationType).toList().contains(Nonnull.class)) {
+                    parser.parserError("Parameter #" + i + " of native function is nullable, but the same parameter of the java method is marked as " + Nonnull.class.getName());
+                    return null;
+                }
+            }
+
             final Class<?> methodType = invokeMethod.getReturnType();
             if (methodType != primitiveToJavaType(returnType.getPrimitive())) {
                 parser.parserError("Return type of native function does not match return type of native java method", at,
                         "Native functions cannot use primitive types like 'int'. Use the class java.lang.Integer instead of 'int' for example, to allow for nullable types");
                 return null;
             }
+            if (!returnType.nullable() && returnType.getPrimitive() != PrimitiveDatatype.VOID && !invokeMethod.isAnnotationPresent(Nonnull.class)) {
+                parser.parserError("Return type of native function must be nullable", at,
+                        "Either add the 'nullable' modifier to your native function definition, or annotate the java method with " + Nonnull.class.getName());
+                return null;
+            }
             if (!java.lang.reflect.Modifier.isStatic(invokeMethod.getModifiers())) {
                 parser.parserError("Native methods must be static", at);
                 return null;
             }
-            final MiCallable annotationTest = invokeMethod.getAnnotation(MiCallable.class);
-            if (annotationTest == null) {
-                parser.parserError("May only use java methods annotated with org.crayne.mi.lang.MiCallable as native functions", at, "Annotate the java method with org.crayne.mi.lang.MiCallable");
+            if (!invokeMethod.isAnnotationPresent(MiCallable.class)) {
+                parser.parserError("May only use java methods annotated with " + MiCallable.class.getName() + " as native functions", at,
+                        "Annotate the java method with " + MiCallable.class.getName());
                 return null;
             }
             return invokeMethod;
@@ -1240,10 +1263,10 @@ public class ParserEvaluator {
         final Optional<Scope> funcScope = parser.scope();
         if (funcScope.isPresent() && funcScope.get() instanceof final FunctionScope functionScope) {
             for (final Node param : paramNodes) {
-                final Datatype pType = Datatype.of(parser, param.child(0).value());
+                final List<Modifier> modifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
+                final Datatype pType = Datatype.of(parser, param.child(0).value(), modifs.contains(Modifier.NULLABLE));
                 if (pType == null) return null;
                 final String ident = param.child(1).value().token();
-                final List<Modifier> modifs = param.child(2).children().stream().map(n -> Modifier.of(n.type())).toList();
                 functionScope.addLocalVariable(parser, new LocalVariable(
                         new Variable(
                                 ident, pType, modifs, null, true, null
@@ -1256,12 +1279,13 @@ public class ParserEvaluator {
             final List<Modifier> modifiersNew = modifiers.stream().map(n -> Modifier.of(n.type())).toList();
 
             final List<FunctionParameter> params = paramNodes.stream().map(n -> {
-                final Datatype datatype = Datatype.of(parser, n.child(0).value());
+                final List<Modifier> modifs = n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList();
+                final Datatype datatype = Datatype.of(parser, n.child(0).value(), modifs.contains(Modifier.NULLABLE));
                 if (datatype == null) throw new NullPointerException();
                 return new FunctionParameter(
                         datatype,
                         n.child(1).value().token(),
-                        n.child(2).children().stream().map(n2 -> Modifier.of(n2.type())).toList()
+                        modifs
                 );
             }).toList();
 

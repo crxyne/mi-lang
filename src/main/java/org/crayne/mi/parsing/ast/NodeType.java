@@ -63,6 +63,8 @@ public enum NodeType {
     LITERAL_IMPL("impl"),
     LITERAL_ASSERT("assert"),
     LITERAL_TYPEDEF("typedef"),
+    LITERAL_NULLABLE("nullable"),
+    LITERAL_NONNULL("nonnull"),
 
     //statements simplified
     FUNCTION_CALL(null),
@@ -197,7 +199,7 @@ public enum NodeType {
     public static Datatype getAsDataType(@NotNull final Parser parser, @NotNull final Node node) {
         final Datatype primitive = node.type().getAsDataType();
 
-        if (primitive == null) return new Datatype(parser, node.value());
+        if (primitive == null) return new Datatype(parser, node.value(), false);
         return primitive;
     }
 
@@ -252,7 +254,7 @@ public enum NodeType {
 
     public boolean isModifier() {
         return switch (this) {
-            case LITERAL_PUB, LITERAL_PRIV, LITERAL_OWN, LITERAL_MUT, LITERAL_CONST, LITERAL_PROT, LITERAL_NAT, LITERAL_INTERN -> true;
+            case LITERAL_PUB, LITERAL_PRIV, LITERAL_OWN, LITERAL_MUT, LITERAL_CONST, LITERAL_PROT, LITERAL_NAT, LITERAL_INTERN, LITERAL_NULLABLE, LITERAL_NONNULL -> true;
             default -> false;
         };
     }

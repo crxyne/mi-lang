@@ -605,6 +605,8 @@ public class Parser {
             case LITERAL_PROT -> NodeType.LITERAL_OWN;
             case LITERAL_NAT -> NodeType.LITERAL_INTERN;
             case LITERAL_INTERN -> NodeType.LITERAL_NAT;
+            case LITERAL_NULLABLE -> NodeType.LITERAL_NONNULL;
+            case LITERAL_NONNULL -> NodeType.LITERAL_NULLABLE;
             default -> null;
         };
     }

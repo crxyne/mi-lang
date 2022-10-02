@@ -274,7 +274,7 @@ public class ValueParser {
             nextPart();
             nextPart();
             nextPart();
-            final Datatype datatype = new Datatype(parserParent, enumName);
+            final Datatype datatype = new Datatype(parserParent, enumName, true);
 
             return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
                     new Node(NodeType.IDENTIFIER, foundEnum.asIdentifierToken(enumName)),
@@ -439,7 +439,7 @@ public class ValueParser {
     }
 
     private TypedNode castValue(final TypedNode value, final Token castType) {
-        return new TypedNode(Datatype.of(parserParent, castType), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
+        return new TypedNode(Datatype.of(parserParent, castType, false), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
     }
 
 }

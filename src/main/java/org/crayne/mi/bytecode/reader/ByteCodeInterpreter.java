@@ -14,6 +14,7 @@ import org.crayne.mi.bytecode.reader.function.ByteCodeRuntimeFunction;
 import org.crayne.mi.log.MessageHandler;
 import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.Nonnull;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -300,8 +301,16 @@ public class ByteCodeInterpreter {
         final List<Object> params = new ArrayList<>(args.stream().map(ByteCodeValue::asObject).toList());
         try {
             final Object res = method.invoke(null, params.toArray(new Object[0]));
-            if (res != null) {
-                final ByteDatatype retType = ByteDatatype.of(argClassToArgString(res.getClass()));
+            final ByteDatatype retType = ByteDatatype.of(argClassToArgString(method.getReturnType()));
+            if (res == null) {
+                if (method.isAnnotationPresent(Nonnull.class))
+                    throw new ByteCodeException("Null-value returned by native java method " + method + " while also annotated with " + Nonnull.class);
+
+                push(ByteDatatype.NULL, new Byte[0]);
+                return;
+            }
+
+            if (retType != ByteDatatype.VOID) {
                 final Byte[] bytes = switch (retType.id()) {
                     case 0x00 -> ArrayUtils.toObject(ByteCode.intToBytes(((boolean) res) ? 1 : 0));
                     case 0x01, 0x02 -> ArrayUtils.toObject(ByteCode.intToBytes((int) res));
@@ -309,6 +318,7 @@ public class ByteCodeInterpreter {
                     case 0x04 -> ArrayUtils.toObject(ByteCode.floatToBytes((float) res));
                     case 0x05 -> ArrayUtils.toObject(ByteCode.doubleToBytes((double) res));
                     case 0x06 -> ByteCode.stringToBytes(String.valueOf(res));
+                    case 0x08 -> new Byte[0];
                     default -> throw new ByteCodeException("Cannot use " + retType + " as a native function return datatype");
                 };
                 push(retType, bytes);
@@ -430,7 +440,8 @@ public class ByteCodeInterpreter {
             case "java.lang.Float" -> "float";
             case "java.lang.Double" -> "double";
             case "java.lang.String" -> "string";
-            default -> throw new ByteCodeException("Cannot use '" + argType + "' as a native function variable type");
+            case "void" -> "void";
+            default -> throw new ByteCodeException("Cannot use '" + argType.getName() + "' as a native function variable type");
         };
     }
 

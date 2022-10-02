@@ -16,28 +16,31 @@ public class Datatype {
     private final boolean primitive;
     private final PrimitiveDatatype primitiveDatatype;
     private final Enum enumDatatype;
+    private final boolean nullable;
 
-    public static final Datatype BOOL = new Datatype(PrimitiveDatatype.BOOL);
-    public static final Datatype STRING = new Datatype(PrimitiveDatatype.STRING);
-    public static final Datatype DOUBLE = new Datatype(PrimitiveDatatype.DOUBLE);
-    public static final Datatype FLOAT = new Datatype(PrimitiveDatatype.FLOAT);
-    public static final Datatype LONG = new Datatype(PrimitiveDatatype.LONG);
-    public static final Datatype INT = new Datatype(PrimitiveDatatype.INT);
-    public static final Datatype CHAR = new Datatype(PrimitiveDatatype.CHAR);
-    public static final Datatype VOID = new Datatype(PrimitiveDatatype.VOID);
-    public static final Datatype NULL = new Datatype(PrimitiveDatatype.NULL);
+    public static final Datatype BOOL = new Datatype(PrimitiveDatatype.BOOL, false);
+    public static final Datatype STRING = new Datatype(PrimitiveDatatype.STRING, false);
+    public static final Datatype DOUBLE = new Datatype(PrimitiveDatatype.DOUBLE, false);
+    public static final Datatype FLOAT = new Datatype(PrimitiveDatatype.FLOAT, false);
+    public static final Datatype LONG = new Datatype(PrimitiveDatatype.LONG, false);
+    public static final Datatype INT = new Datatype(PrimitiveDatatype.INT, false);
+    public static final Datatype CHAR = new Datatype(PrimitiveDatatype.CHAR, false);
+    public static final Datatype VOID = new Datatype(PrimitiveDatatype.VOID, false);
+    public static final Datatype NULL = new Datatype(PrimitiveDatatype.NULL, true);
 
 
-    public Datatype(@NotNull final PrimitiveDatatype primitiveDatatype) {
+    public Datatype(@NotNull final PrimitiveDatatype primitiveDatatype, final boolean nullable) {
         primitive = true;
         this.primitiveDatatype = primitiveDatatype;
         enumDatatype = null;
+        this.nullable = nullable;
     }
 
-    public Datatype(@NotNull final Enum enumDatatype) {
+    public Datatype(@NotNull final Enum enumDatatype, final boolean nullable) {
         primitive = false;
         primitiveDatatype = null;
         this.enumDatatype = enumDatatype;
+        this.nullable = nullable;
     }
 
     public PrimitiveDatatype getPrimitive() {
@@ -72,9 +75,10 @@ public class Datatype {
         return foundEnum;
     }
 
-    public Datatype(@NotNull final Parser parser, @NotNull final Token enumDatatype) {
+    public Datatype(@NotNull final Parser parser, @NotNull final Token enumDatatype, final boolean nullable) {
         primitive = false;
         primitiveDatatype = null;
+        this.nullable = nullable;
         final Optional<Scope> currentScope = parser.scope();
         if (currentScope.isPresent() && currentScope.get() instanceof final FunctionScope functionScope) {
             this.enumDatatype = findEnumByIdentifier(parser, functionScope.using(), enumDatatype, true);
@@ -83,9 +87,10 @@ public class Datatype {
         this.enumDatatype = findEnumByIdentifier(parser, Collections.emptyList(), enumDatatype, true);
     }
 
-    public Datatype(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token enumDatatype) {
+    public Datatype(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token enumDatatype, final boolean nullable) {
         primitive = false;
         primitiveDatatype = null;
+        this.nullable = nullable;
         this.enumDatatype = findEnumByIdentifier(parser, usingMods, enumDatatype, true);
     }
 
@@ -127,7 +132,8 @@ public class Datatype {
 
     public static boolean equal(@NotNull final Datatype newType, @NotNull final Datatype oldType) {
         if (newType == oldType) return true;
-        if (newType.primitiveDatatype == PrimitiveDatatype.NULL) return true;
+        if (newType.primitiveDatatype == PrimitiveDatatype.NULL) return oldType.nullable;
+
         if ((newType.primitive && !oldType.primitive) || (!newType.primitive && oldType.primitive)) return false;
         if (newType.primitiveDatatype == null) return newType.enumDatatype.equals(oldType.enumDatatype);
         if (oldType.primitiveDatatype == null) return false;
@@ -138,6 +144,10 @@ public class Datatype {
         return newRank.equals(oldRank) || oldRank < newRank;
     }
 
+    public boolean nullable() {
+        return nullable;
+    }
+
     public String getName() {
         return primitiveDatatype != null ? primitiveDatatype.name().toLowerCase() : enumDatatype != null ? enumDatatype.asIdentifierToken().token() : null;
     }
@@ -146,22 +156,22 @@ public class Datatype {
         return getHeavierType(this, d);
     }
 
-    public static Datatype of(@NotNull final Parser parser, @NotNull final Token tok) {
-        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(parser, tok);
+    public static Datatype of(@NotNull final Parser parser, @NotNull final Token tok, final boolean nullable) {
+        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(parser, tok, nullable);
         final PrimitiveDatatype primitive = PrimitiveDatatype.of(tok);
         if (primitive == null) return null;
-        return new Datatype(primitive);
+        return new Datatype(primitive, nullable);
     }
 
-    public static Datatype of(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token tok) {
-        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(parser, usingMods, tok);
+    public static Datatype of(@NotNull final Parser parser, @NotNull final List<String> usingMods, @NotNull final Token tok, final boolean nullable) {
+        if (NodeType.of(tok) == NodeType.IDENTIFIER) return new Datatype(parser, usingMods, tok, nullable);
         final PrimitiveDatatype primitive = PrimitiveDatatype.of(tok);
         if (primitive == null) return null;
-        return new Datatype(primitive);
+        return new Datatype(primitive, nullable);
     }
 
     public boolean equals(@NotNull final Datatype y) {
-        return getName().equals("null") || y.getName().equals("null") || getName().equals(y.getName());
+        return (y.nullable && getName().equals("null")) || (nullable && y.getName().equals("null")) || (nullable == y.nullable && getName().equals(y.getName()));
     }
 
     public boolean operatorDefined(final NodeType op, final Datatype y) {
@@ -170,6 +180,7 @@ public class Datatype {
     }
 
     public String toString() {
-        return primitiveDatatype != null ? primitiveDatatype.name().toLowerCase() : enumDatatype != null ? enumDatatype.name() : null;
+        return (primitiveDatatype != PrimitiveDatatype.NULL && primitiveDatatype != PrimitiveDatatype.VOID ? (nullable ? "nullable" : "nonnull") + " " : "")
+                + (primitiveDatatype != null ? primitiveDatatype.name().toLowerCase() : enumDatatype != null ? enumDatatype.name() : null);
     }
 }

@@ -138,8 +138,6 @@ public class Parser {
     private int scopeEndCheck = 0;
     protected ClassScope currentClass;
 
-    // TODO fix this fucking long shit of a method and in general, rewrite the parser, its horrible
-
     public Node evalStatement(@NotNull final List<Token> tokens, final boolean expectedUnscopedWhile) {
         if (tokens.isEmpty()) return null;
         Node result = null;

@@ -379,11 +379,6 @@ public class ValueParser {
                 final NodeType nodeType = result == null ? null : NodeType.of(result.token());
                 final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(parserParent, new Node(nodeType, result));
                 if (datatype == null) return TypedNode.empty();
-                /* NOTE uncomment this once classes with generics and Option<T> are all added, for now allow null
-                if (datatype == Datatype.NULL && !parserParent.stdlib && parserParent.skimming) {
-                    parserParent.parserError("Unexpected token 'null'", "Only the standard library may use 'null' as a raw value, use Optional<T> to use nullable types");
-                    return TypedNode.empty();
-                }*/
                 nextPart();
                 return new TypedNode(datatype, new Node(nodeType, result));
             }

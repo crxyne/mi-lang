@@ -17,8 +17,6 @@ import java.util.stream.Collectors;
 
 import static org.crayne.mi.bytecode.common.ByteCode.*;
 
-// TODO final todos to finish up the compiler: add ternary operator
-// after this, directly start work on interpreter
 public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> result;
     private final List<ByteCodeInstruction> globalVariables;

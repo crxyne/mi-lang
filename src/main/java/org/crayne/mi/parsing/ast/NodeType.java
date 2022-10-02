@@ -53,7 +53,7 @@ public enum NodeType {
     LITERAL_USE("use"),
     LITERAL_NAT("nat"),
     LITERAL_INTERN("intern"),
-    LITERAL_CLASS("class"),
+    LITERAL_STRUCT("struct"),
     LITERAL_THIS("this"),
     LITERAL_NEW("new"),
     LITERAL_TRY("try"),
@@ -62,7 +62,6 @@ public enum NodeType {
     LITERAL_ASSERT("assert"),
     LITERAL_TYPEDEF("typedef"),
     LITERAL_ABSTRACT("abstr"),
-    LITERAL_VIRTUAL("virtual"),
 
     //statements simplified
     FUNCTION_CALL(null),

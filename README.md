@@ -6,7 +6,7 @@ Scripting language designed to communicate with java, to allow for easy plugins,
 ## Wiki
 To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
 
-## Java usage for app devs
+## Java usage
 ```java
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;

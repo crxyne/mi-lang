@@ -6,6 +6,36 @@ Scripting language designed to communicate with java, to allow for easy plugins,
 ## Wiki
 To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
 
+## Java usage for app devs
+```java
+public static void main(@NotNull final String... args) {
+    final Mi mi = new Mi(System.out, true);
+    final MessageHandler messageHandler = mi.messageHandler();
+
+    final String code = """
+module testing {
+    
+    fn main {
+        std.println("hello world!");
+    }
+    
+}
+                """;
+        
+    final List<ByteCodeInstruction> program = mi.compile(MiStandardLib.standardLib(), code, "testing", "main");
+    final ByteCodeInterpreter runtime = new ByteCodeInterpreter(program, messageHandler);
+    runtime.run();
+    
+    // or, alternatively compile from and to a file, read from that file and run the binary instead
+    final File inputFile = new File("path_to_input_file/file.mi");
+    try {
+        mi.compile(MiStandardLib.standardLib(), Files.readString(inputFile.toPath()), new File("path_to_output_file/file.mib"), inputFile, "testing", "main");
+    } catch (final IOException e) {
+        e.printStackTrace();
+    }
+}
+```
+
 ## NOTES
 #### Be patient
 Barebones version is finished, but to have some more high level language features it will take some more time. Still in BETA, so if you find any bugs, report them. Currently working on bytecode execution, so at this state, mi is unusable. Be patient.
@@ -28,7 +58,6 @@ module helloworld {
 - (currently one sided) communication with java for easy scripting in any java project
 
 #### TODOS:
-- bytecode vm
 - structs and impls similar to rust
 - macros, to insert code in front of a function
 - assert, typedef and their combination for fast easy types

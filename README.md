@@ -63,7 +63,7 @@ While this language may be interpreted in java (which is generally a horrible id
 ```
 module helloworld {
     
-    pub fn main {
+    fn main {
         std.println("Hello, world!");
     }
 

@@ -5,7 +5,7 @@ import org.crayne.mi.lang.EqualOperation;
 import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
-import org.crayne.mi.runtime.SyntaxTreeCompilation;
+import org.crayne.mi.util.SyntaxTree;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -22,7 +22,7 @@ public class ByteCodeCompiler {
     private final List<ByteCodeInstruction> globalVariables;
     private final List<ByteCodeInstruction> functionDefinitions;
     private final List<ByteCodeInstruction> enumDefinitions;
-    private final SyntaxTreeCompilation tree;
+    private final SyntaxTree tree;
 
     private final Map<String, Integer> globalVariableStorage;
     private final LinkedHashMap<String, Integer> localVariableStorage;
@@ -44,7 +44,7 @@ public class ByteCodeCompiler {
     private final String mainFunc;
     private boolean foundMainFunc = false;
 
-    public ByteCodeCompiler(@NotNull final SyntaxTreeCompilation tree, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
+    public ByteCodeCompiler(@NotNull final SyntaxTree tree, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
         localScopeVariables = new ArrayList<>();

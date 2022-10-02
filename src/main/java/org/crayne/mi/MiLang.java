@@ -6,7 +6,6 @@ import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.crayne.mi.log.MessageHandler;
 import org.crayne.mi.parsing.parser.ParserEvaluator;
-import org.crayne.mi.runtime.MiProgram;
 import org.crayne.mi.stdlib.MiStandardLib;
 import org.jetbrains.annotations.NotNull;
 
@@ -93,8 +92,8 @@ public class MiLang {
     }
 
     public static void main(@NotNull final String... args) {
-        final MiProgram miProgram = new MiProgram(System.out, true);
-        final MessageHandler messageHandler = miProgram.messageHandler();
+        final Mi mi = new Mi(System.out, true);
+        final MessageHandler messageHandler = mi.messageHandler();
 
         if (args.length == 0) {
             messageHandler.errorMsg("Expected either 'compile' or 'run' as first argument in args: " + Arrays.toString(args));
@@ -127,7 +126,7 @@ public class MiLang {
 
             final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mib");
 
-            miProgram.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()), ParserEvaluator.moduleOf(mainFunc), ParserEvaluator.identOf(mainFunc));
+            mi.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()), ParserEvaluator.moduleOf(mainFunc), ParserEvaluator.identOf(mainFunc));
             return;
         }
         try {

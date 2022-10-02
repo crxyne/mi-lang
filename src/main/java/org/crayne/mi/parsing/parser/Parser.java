@@ -6,7 +6,7 @@ import org.crayne.mi.lang.Module;
 import org.crayne.mi.log.MessageHandler;
 import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.ast.NodeType;
-import org.crayne.mi.runtime.SyntaxTreeCompilation;
+import org.crayne.mi.util.SyntaxTree;
 import org.crayne.mi.parsing.lexer.Token;
 import org.crayne.mi.parsing.parser.scope.*;
 import org.jetbrains.annotations.NotNull;
@@ -47,7 +47,7 @@ public class Parser {
         add(new Scope(ScopeType.PARENT, 0, 0));
     }};
 
-    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code, @NotNull final File inputFile) {
+    public Parser(@NotNull final MessageHandler output, @NotNull final List<Token> tokens, final int stdlibFinishLine, @NotNull final String code, final File inputFile) {
         this.output = output;
         this.tokens = tokens;
         if (stdlibFinishLine == -1) {
@@ -60,7 +60,7 @@ public class Parser {
         evaluator = new ParserEvaluator(this);
     }
 
-    public SyntaxTreeCompilation parse() {
+    public SyntaxTree parse() {
         encounteredError = false;
         evaluator = new ParserEvaluator(this);
         skim();
@@ -72,7 +72,7 @@ public class Parser {
             parent.addChildren(statement);
         }
         if (encounteredError) return null;
-        final SyntaxTreeCompilation result = new SyntaxTreeCompilation(parent, output, code, stdlibFinishLine, inputFile);
+        final SyntaxTree result = new SyntaxTree(parent, output, code, stdlibFinishLine, inputFile);
         parentModule = new Module("!PARENT", 0, null);
         return result;
     }

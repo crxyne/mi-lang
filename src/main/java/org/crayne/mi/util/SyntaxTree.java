@@ -1,4 +1,4 @@
-package org.crayne.mi.runtime;
+package org.crayne.mi.util;
 
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.util.errorhandler.Traceback;
@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class SyntaxTreeCompilation {
+public class SyntaxTree {
     private final Node parentNode;
     private final File inputFile;
     private final MessageHandler out;
@@ -23,7 +23,7 @@ public class SyntaxTreeCompilation {
     private final int stdlibFinishLine;
     private boolean error;
 
-    public SyntaxTreeCompilation(@NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine, @NotNull final File inputFile) {
+    public SyntaxTree(@NotNull final Node parentNode, @NotNull final MessageHandler out, @NotNull final String code, final int stdlibFinishLine, final File inputFile) {
         this.parentNode = parentNode;
         this.out = out;
         this.code = Arrays.stream(code.split("\n")).toList();
@@ -64,7 +64,6 @@ public class SyntaxTreeCompilation {
         final ByteCodeCompiler compiler = new ByteCodeCompiler(this, mainFunctionModule, mainFunction);
         out.infoMsg("Compiling " + inputFile.getName() + "...");
         final List<ByteCodeInstruction> compiled = compiler.compile();
-        System.out.println(compiler);
         ByteCodeCompiler.compileToFile(compiled, file);
         if (compiled.isEmpty()) {
             out.errorMsg("Could not compile " + inputFile.getName() + ". See error output above.");

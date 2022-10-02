@@ -1,9 +1,12 @@
-package org.crayne.mi.runtime;
+package org.crayne.mi;
 
+import org.crayne.mi.bytecode.common.ByteCodeInstruction;
+import org.crayne.mi.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mi.log.MessageHandler;
 import org.crayne.mi.parsing.lexer.Token;
 import org.crayne.mi.parsing.lexer.Tokenizer;
 import org.crayne.mi.parsing.parser.Parser;
+import org.crayne.mi.util.SyntaxTree;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -12,12 +15,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-public class MiProgram {
+public class Mi {
 
     private static final List<String> multiTokens = Arrays.asList("<<", ">>", "->", "&&", "||", "==", "!=", "::", "<=", ">=", "++", "--", "+=", "*=", "/=", "-=", "%=", "<<=", ">>=", "&=", "|=");
     private final MessageHandler out;
 
-    public MiProgram(@NotNull final PrintStream out, final boolean enableColor) {
+    public Mi(@NotNull final PrintStream out, final boolean enableColor) {
         this.out = new MessageHandler(out, enableColor);
     }
 
@@ -25,7 +28,7 @@ public class MiProgram {
         return out;
     }
 
-    private Optional<SyntaxTreeCompilation> parse(@NotNull final String stdlib, @NotNull final String code, @NotNull final File inputFile) {
+    private Optional<SyntaxTree> parse(@NotNull final String stdlib, @NotNull final String code, final File inputFile) {
         final String actualCode = stdlib + code + "\n";
         this.out.setProgram(actualCode);
 
@@ -37,8 +40,14 @@ public class MiProgram {
         return Optional.ofNullable(parser.parse());
     }
 
+    public List<ByteCodeInstruction> compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
+        final Optional<SyntaxTree> tree = parse(stdlib, code, null);
+        final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.orElseThrow(RuntimeException::new), mainFunctionModule, mainFunction);
+        return compiler.compile();
+    }
+
     public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
-        final Optional<SyntaxTreeCompilation> tree = parse(stdlib, code, inputFile);
+        final Optional<SyntaxTree> tree = parse(stdlib, code, inputFile);
         if (tree.isPresent()) {
             try {
                 tree.get().compile(file, mainFunctionModule, mainFunction);

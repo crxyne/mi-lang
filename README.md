@@ -6,11 +6,10 @@ Scripting language designed to communicate with java, to allow for easy plugins,
 ## Wiki
 To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
 
-#### Barebones version is finished, but to have some more high level language features it will take some more time. Still in BETA, so if you find any bugs, report them.
-
-## NOTE
-I am currently working on bytecode execution, so at this state, mi is unusable. Be patient.
-
+## NOTES
+#### Be patient
+Barebones version is finished, but to have some more high level language features it will take some more time. Still in BETA, so if you find any bugs, report them. Currently working on bytecode execution, so at this state, mi is unusable. Be patient.
+#### The language is bad but not horrible (ha)
 While this language may be interpreted in java (which is generally a horrible idea), the purpose of this language is not to be fast. However, whenever possible, the code will be optimized to allow for a faster execution. As a sidenote, this compiles to bytecode, meaning anyone could, in theory, write an interpreter for it in another language to get a better performance.
 
 ### helloworld

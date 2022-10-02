@@ -38,10 +38,4 @@ public class StdTermion {
         return TerminalColor.reset();
     }
 
-    @MiCallable
-    @Nonnull
-    public static String test() {
-        return null;
-    }
-
 }

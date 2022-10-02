@@ -8,6 +8,19 @@ To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
 
 ## Java usage for app devs
 ```java
+import org.crayne.mi.bytecode.common.ByteCodeInstruction;
+import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
+import org.crayne.mi.log.MessageHandler;
+import org.crayne.mi.stdlib.MiStandardLib;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
+
+......
+
 public static void main(@NotNull final String... args) {
     final Mi mi = new Mi(System.out, true);
     final MessageHandler messageHandler = mi.messageHandler();

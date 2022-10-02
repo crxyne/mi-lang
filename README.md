@@ -82,10 +82,11 @@ module helloworld {
 ```
 
 #### FEATURES:
-- basic strongly typed programming language features (types, functions, namespaces / modules / packages whatever you call them, etc)
+- basic strongly typed programming language features
 - (currently one sided) communication with java for easy scripting in any java project
 
 #### TODOS:
+- first and most important todo for now, fix the parser code, its absolutely horrible
 - structs and impls similar to rust
 - macros, to insert code in front of a function
 - assert, typedef and their combination for fast easy types

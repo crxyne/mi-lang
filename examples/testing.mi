@@ -1,10 +1,7 @@
 module testing {
-
-	pub nat fn test :: string () -> "org.crayne.mi.stdlib.StdTermion";
 	
 	pub fn main {
-		?t = test();
-		std.println(t);
+	
 	}
 	
 }

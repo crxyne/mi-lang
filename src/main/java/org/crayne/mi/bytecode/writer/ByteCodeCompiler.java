@@ -325,9 +325,9 @@ public class ByteCodeCompiler {
         final String operator = instr.child(1).value().token();
         final Node value = instr.child(2);
 
-        compileExpression(value, result);
         final EqualOperation equalOperation = Objects.requireNonNull(EqualOperation.of(operator));
         if (equalOperation != EqualOperation.EQUAL) compileExpression(instr.child(0), result);
+        compileExpression(value, result);
         switch (equalOperation) {
             case ADD -> singleInstruction(PLUS, result);
             case SUB -> singleInstruction(MINUS, result);
@@ -343,12 +343,12 @@ public class ByteCodeCompiler {
         if (identifier.startsWith("!PARENT.")) {
             final int absoluteAddress = globalVariableStorage.get(identifier);
             push(result, ByteCode.integer(absoluteAddress));
-            rawInstruction(new ByteCodeInstruction(VALUE_AT_ADDRESS.code()), result);
         } else {
             final int relativeAddress = localVariableStorage.get(identifier);
             push(result, ByteCode.integer(relativeAddress));
-            rawInstruction(new ByteCodeInstruction(VALUE_AT_RELATIVE_ADDRESS.code()), result);
+            rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
         }
+
         rawInstruction(new ByteCodeInstruction((pushMutated ? MUTATE_VARIABLE_AND_PUSH : MUTATE_VARIABLE).code()), result);
     }
 

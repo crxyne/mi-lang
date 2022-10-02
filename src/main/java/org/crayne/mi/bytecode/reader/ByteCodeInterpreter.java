@@ -148,7 +148,8 @@ public class ByteCodeInterpreter {
             case VALUE_AT_ADDRESS -> evalValAtAddr();
             case MAIN_FUNCTION -> evalMainFunc(instr);
             case CAST -> evalCast(instr);
-            //case MUTATE_VARIABLE -> popPushStack(2);
+            case MUTATE_VARIABLE -> evalVariableMut(false);
+            case MUTATE_VARIABLE_AND_PUSH -> evalVariableMut(true);
             case PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> popPushStack(1);
         } else if (instr.type().orElse(null) == ByteCode.FUNCTION_DEFINITION_END) evalFuncEnd();
@@ -174,7 +175,9 @@ public class ByteCodeInterpreter {
             case JUMP -> evalJump(instr);
             case JUMP_IF -> evalJumpIf(instr);
             case CAST -> evalCast(instr);
-            case MUTATE_VARIABLE -> popPushStack(2); // TODO
+            case RELATIVE_TO_ABSOLUTE_ADDRESS -> evalRelToAbsAddr();
+            case MUTATE_VARIABLE -> evalVariableMut(false);
+            case MUTATE_VARIABLE_AND_PUSH -> evalVariableMut(true);
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
            // default -> System.out.println("ignored instr " + instr);
@@ -359,6 +362,16 @@ public class ByteCodeInterpreter {
         push(value);
     }
 
+    private void evalVariableMut(final boolean push) {
+        final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for mutate variable opcode"));
+        final int addr = readInt(addrBytes.value());
+        //popPushStack();
+        final ByteCodeValue newValue = pushTop(1).orElseThrow(() -> new ByteCodeException("No new value specified for mutate variable opcode"));
+        variableStack.set(addr - 1, newValue);
+        popPushStack(2);
+        if (push) push(newValue);
+    }
+
     private void evalValAtRelAddr() {
         final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for relative addr to absolut addr opcode"));
         if (localAddrOffset.isEmpty()) throw new ByteCodeException("Relative address evaluation outside of function");
@@ -369,12 +382,24 @@ public class ByteCodeInterpreter {
         push(val);
     }
 
-    private ByteCodeValue atRelativeAddress(final int addr) {
+    private void evalRelToAbsAddr() {
+        final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for relative addr to absolut addr opcode"));
+        if (localAddrOffset.isEmpty()) throw new ByteCodeException("Relative address evaluation outside of function");
+        final int addr = readInt(addrBytes.value());
+        final int abs = relativeToAbsoluteAddr(addr);
+        popPushStack();
+        push(ByteDatatype.INT, ArrayUtils.toObject(ByteCode.intToBytes(abs + 1)));
+    }
+
+    private int relativeToAbsoluteAddr(final int addr) {
         final int currentRelAddr = localAddrOffset(localAddrOffsetIndex());
         if (currentRelAddr == 0) throw new ByteCodeException("Cannot get variable at relative address, no variables have been defined in this function");
         final int currentAbs = variableStack.size();
-        int abs = currentAbs - currentRelAddr + addr;
-        return variableStack.get(abs);
+        return currentAbs - currentRelAddr + addr;
+    }
+
+    private ByteCodeValue atRelativeAddress(final int addr) {
+        return variableStack.get(relativeToAbsoluteAddr(addr));
     }
 
     private void evalInternFunc() {

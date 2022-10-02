@@ -72,7 +72,9 @@ public enum ByteCode {
     BOOL_VALUE((byte) 0xD2),
     ENUM_VALUE((byte) 0xD3),
     NULL_VALUE((byte) 0xD4),
-    CHARACTER_VALUE((byte) 0xD5);
+    CHARACTER_VALUE((byte) 0xD5),
+
+    RELATIVE_TO_ABSOLUTE_ADDRESS((byte) 0xD6);
 
     public static final byte BYTECODE_VERSION = 1;
 

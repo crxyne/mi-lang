@@ -19,13 +19,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 
-......
+public class Tests {
 
-public static void main(@NotNull final String... args) {
-    final Mi mi = new Mi(System.out, true);
-    final MessageHandler messageHandler = mi.messageHandler();
+    public static void main(@NotNull final String... args) {
+        final Mi mi = new Mi(System.out, true);
+        final MessageHandler messageHandler = mi.messageHandler();
 
-    final String code = """
+        final String code = """
 module testing {
     
     fn main {
@@ -34,19 +34,23 @@ module testing {
     
 }
                 """;
-        
-    final List<ByteCodeInstruction> program = mi.compile(MiStandardLib.standardLib(), code, "testing", "main");
-    final ByteCodeInterpreter runtime = new ByteCodeInterpreter(program, messageHandler);
-    runtime.run();
-    
-    // or, alternatively compile from and to a file, read from that file and run the binary instead
-    final File inputFile = new File("path_to_input_file/file.mi");
-    try {
-        mi.compile(MiStandardLib.standardLib(), Files.readString(inputFile.toPath()), new File("path_to_output_file/file.mib"), inputFile, "testing", "main");
-    } catch (final IOException e) {
-        e.printStackTrace();
+
+        final List<ByteCodeInstruction> program = mi.compile(MiStandardLib.standardLib(), code, "testing", "main");
+        final ByteCodeInterpreter runtime = new ByteCodeInterpreter(program, messageHandler);
+        runtime.run();
+
+        // or, alternatively compile from and to a file, read from that file and run the binary instead
+        final File inputFile = new File("path_to_input_file/file.mi");
+        try {
+            mi.compile(MiStandardLib.standardLib(), Files.readString(inputFile.toPath()), new File("path_to_file/file.mib"), inputFile, "testing", "main");
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
     }
+
+
 }
+
 ```
 
 ## NOTES

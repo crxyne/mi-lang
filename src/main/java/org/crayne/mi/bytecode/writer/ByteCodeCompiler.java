@@ -35,7 +35,7 @@ public class ByteCodeCompiler {
     private int absoluteAddress = 1;
     private int relativeAddress = -1;
     private long functionId = 0;
-    private int label = 1;
+    private int label = 2;
     private int enumId = 0;
     private final List<Integer> localScopeVariables;
     private int scope = -1;
@@ -315,13 +315,12 @@ public class ByteCodeCompiler {
     }
 
     private void compileReturnStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
+        deleteAllLocalScopeVars(result);
         if (instr.children().isEmpty()) {
-            deleteAllLocalScopeVars(result);
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
             return;
         }
         compileExpression(instr.child(0), result);
-        deleteAllLocalScopeVars(result);
         rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
     }
 

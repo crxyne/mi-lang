@@ -1,16 +1,11 @@
 module testing {
-
-	pub enum Result {
-		Ok, Err
-	}
 	
-	pub enum Result2 {
-		Ok, Err
+	pub enum Result {
+		Err, Ok
 	}
 	
 	pub fn main {
-		?r = Result::Err;
-		std.println(string(r));
+		std.println(int(Result::Err));
 	}
 	
 }

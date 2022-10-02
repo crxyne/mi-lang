@@ -274,7 +274,7 @@ public class ValueParser {
             nextPart();
             nextPart();
             nextPart();
-            final Datatype datatype = new Datatype(parserParent, enumName, true);
+            final Datatype datatype = new Datatype(parserParent, enumName, false);
 
             return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
                     new Node(NodeType.IDENTIFIER, foundEnum.asIdentifierToken(enumName)),

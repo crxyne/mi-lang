@@ -1,11 +1,9 @@
 module testing {
 	
-	pub enum Result {
-		Err, Ok
-	}
-	
 	pub fn main {
-		std.println(int(Result::Err));
+		for mut int i = 0, i .. 10 {
+			std.println(i);
+		}
 	}
 	
 }

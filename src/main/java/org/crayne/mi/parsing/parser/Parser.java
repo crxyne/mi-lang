@@ -88,6 +88,8 @@ public class Parser {
         return statements;
     }
 
+    private Node lastScopedNode;
+
     public Node parse(@NotNull final List<Token> tokenList, @NotNull final String code) {
         output.setProgram(code);
         if (stdlibFinishLine == -1) {
@@ -105,7 +107,6 @@ public class Parser {
                 case LBRACE -> {
                     final Node sm = astGenerator.evalScoped(statement);
                     if (sm == null) {
-                        System.out.println(lastToken);
                         parserError("Not a statement.", lastToken);
                         return null;
                     }
@@ -114,6 +115,7 @@ public class Parser {
                     sm.addChildren(scope);
                     currentNode.addChildren(sm);
                     currentNode = scope;
+                    lastScopedNode = sm;
                 }
                 case SEMI -> {
                     final Node sm = astGenerator.evalUnscoped(statement);
@@ -121,7 +123,15 @@ public class Parser {
                         parserError("Not a statement.", lastToken);
                         return null;
                     }
-
+                    // put the unscoped while statement into the actual do statement if there is one
+                    if (lastScopedNode != null && sm.type() == NodeType.WHILE_STATEMENT_UNSCOPED) {
+                        if (lastScopedNode.type() != NodeType.DO_STATEMENT) {
+                            parserError("Not a statement.", lastToken);
+                            return null;
+                        }
+                        lastScopedNode.addChildren(sm);
+                        continue;
+                    }
                     currentNode.addChildren(sm);
                 }
                 case RBRACE -> currentNode = currentNode.parent();

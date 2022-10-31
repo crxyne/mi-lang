@@ -124,8 +124,8 @@ public class ByteCodeCompiler {
     private void compileInstruction(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
         traceback(instr.lineDebugging(), result);
         switch (instr.type()) {
-            case VAR_DEF_AND_SET_VALUE -> compileVariableDefinition(instr, result);
-            case VAR_DEFINITION -> compileVariableDeclaration(instr, result);
+            case DEFINE_VARIABLE -> compileVariableDefinition(instr, result);
+            case DECLARE_VARIABLE -> compileVariableDeclaration(instr, result);
             case CREATE_MODULE -> {
                 currentModuleName.add(instr.child(0).value().token());
                 compileParent(instr.child(1), result);
@@ -135,8 +135,8 @@ public class ByteCodeCompiler {
             case FUNCTION_DEFINITION -> compileFunction(instr, null, instr.child(4));
             case FUNCTION_CALL -> compileFunctionCall(instr, result);
             case CREATE_ENUM -> compileEnumDefinition(instr);
-            case VAR_SET_VALUE -> compileVariableMutation(instr, false, result);
-            case RETURN_VALUE -> compileReturnStatement(instr, result);
+            case MUTATE_VARIABLE -> compileVariableMutation(instr, false, result);
+            case RETURN_STATEMENT -> compileReturnStatement(instr, result);
             case NOOP -> {
                 if (!instr.children().isEmpty()) compileParent(instr, result); // local scopes are technically noop since theres no statement aside from the { itself
             }
@@ -618,7 +618,7 @@ public class ByteCodeCompiler {
                 final List<Node> args = values.get(1).children();
                 compileFunctionCall(name, args, result);
             }
-            case VAR_SET_VALUE -> compileVariableMutation(new Node(op, -1, values), true, result);
+            case MUTATE_VARIABLE -> compileVariableMutation(new Node(op, -1, values), true, result);
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value(), result);
             default -> panic("Could not parse expression (failed at " + op + ")");
         }

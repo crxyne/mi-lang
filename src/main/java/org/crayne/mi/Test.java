@@ -21,12 +21,18 @@ mod std {
     
     pub nat fn println(string s) -> "org.crayne.mi.stdlib.MiStandardLib";
     
+    pub fn cos :: double () {
+        :: 4;
+    }
+    
 }
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
     fn main(int a) {
+        do {
         
+        } while true;
     }
     
 }

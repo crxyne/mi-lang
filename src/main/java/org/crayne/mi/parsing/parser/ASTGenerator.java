@@ -41,12 +41,12 @@ public class ASTGenerator {
         if (ret == null) return null;
 
         if (tokens.size() == 2) { // ret ; are two tokens
-            return new Node(parser.currentNode(), NodeType.RETURN_VALUE, ret.actualLine());
+            return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine());
         }
         final ValueParser.TypedNode retVal = parseExpression(tokens.subList(1, tokens.size() - 1));
         if (retVal == null || retVal.type() == null || retVal.node() == null) return null;
 
-        return new Node(parser.currentNode(), NodeType.RETURN_VALUE, ret.actualLine(), new Node(NodeType.VALUE, ret.actualLine(), retVal.node()));
+        return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine(), new Node(NodeType.VALUE, ret.actualLine(), retVal.node()));
     }
 
     private Node evalEnumMembers(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -107,12 +107,12 @@ public class ASTGenerator {
 
     public Node evalVariableChange(@NotNull final Token identifier, final ValueParser.TypedNode value, @NotNull final Token equal) {
         if (value == null) { // inc / decrement variable
-            return new Node(parser.currentNode(), NodeType.VAR_SET_VALUE, equal.actualLine(),
+            return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(),
                     new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                     new Node(NodeType.OPERATOR, equal, equal.actualLine())
             );
         }
-        return new Node(parser.currentNode(), NodeType.VAR_SET_VALUE, equal.actualLine(),
+        return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 new Node(NodeType.OPERATOR, equal, equal.actualLine()),
                 new Node(NodeType.VALUE, equal.actualLine(), value.node())
@@ -253,7 +253,7 @@ public class ASTGenerator {
                 return null;
             }
 
-            return new Node(parser.currentNode(), NodeType.VAR_DEFINITION, identifier.actualLine(),
+            return new Node(parser.currentNode(), NodeType.DECLARE_VARIABLE, identifier.actualLine(),
                     new Node(NodeType.MODIFIERS, modifiers.isEmpty() ? -1 : modifiers.get(0).lineDebugging(), modifiers),
                     new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                     new Node(NodeType.TYPE, datatype, datatype.actualLine())
@@ -281,7 +281,7 @@ public class ASTGenerator {
             return null;
         }
 
-        return new Node(parser.currentNode(), NodeType.VAR_DEF_AND_SET_VALUE, identifier.actualLine(),
+        return new Node(parser.currentNode(), NodeType.DEFINE_VARIABLE, identifier.actualLine(),
                 new Node(NodeType.MODIFIERS, modifiers.isEmpty() ? -1 : modifiers.get(0).lineDebugging(), modifiers),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 finalType,
@@ -314,7 +314,7 @@ public class ASTGenerator {
     public List<Node> parseParametersDefineFunction(@NotNull final List<Token> tokens) {
         final List<Node> result = new ArrayList<>();
         if (tokens.isEmpty()) return result;
-        Node currentNode = new Node(NodeType.VAR_DEFINITION, -1);
+        Node currentNode = new Node(NodeType.DECLARE_VARIABLE, -1);
         final List<Node> currentNodeModifiers = new ArrayList<>();
         boolean addedNode = false;
         boolean parsedDatatype = false;
@@ -328,7 +328,7 @@ public class ASTGenerator {
             if (type == NodeType.COMMA) {
                 currentNode.addChildren(new Node(NodeType.MODIFIERS, -1, currentNodeModifiers));
                 result.add(currentNode);
-                currentNode = new Node(NodeType.VAR_DEFINITION, -1);
+                currentNode = new Node(NodeType.DECLARE_VARIABLE, -1);
                 currentNodeModifiers.clear();
                 parsedDatatype = false;
                 parsedIdentifier = false;
@@ -513,7 +513,7 @@ public class ASTGenerator {
     public Node evalTraditionalForStatement(@NotNull final List<List<Token>> exprs) {
         final Node createVariable = evalUnscoped(exprs.get(0));
         if (createVariable == null) return null;
-        if (createVariable.type() != NodeType.VAR_DEF_AND_SET_VALUE) {
+        if (createVariable.type() != NodeType.DEFINE_VARIABLE) {
             parser.parserError("Expected variable definition", exprs.get(0).get(0));
             return null;
         }
@@ -527,7 +527,7 @@ public class ASTGenerator {
         final Node loopStatement = evalUnscoped(exprs.get(2));
 
         if (loopStatement == null) return null;
-        if (loopStatement.type() != NodeType.VAR_SET_VALUE && loopStatement.type() != NodeType.FUNCTION_CALL) {
+        if (loopStatement.type() != NodeType.MUTATE_VARIABLE && loopStatement.type() != NodeType.FUNCTION_CALL) {
             parser.parserError("Expected variable set or function call as for loop instruct", exprs.get(0).get(0));
             return null;
         }

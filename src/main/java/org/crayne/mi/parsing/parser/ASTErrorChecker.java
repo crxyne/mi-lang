@@ -7,14 +7,14 @@ import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ASTErrorChecker {
 
     private final Parser parser;
     private Node AST;
     private MiModule currentModule = new MiModule("!PARENT");
+    private MiFunctionScope currentFunctionScope = null;
 
     public ASTErrorChecker(@NotNull final Parser parser) {
         this.parser = parser;
@@ -23,24 +23,42 @@ public class ASTErrorChecker {
     public Node checkAST(@NotNull final Node AST) {
         this.AST = AST;
         parser.reachedStdlibFinish(false);
-        defineAllGlobal(this.AST);
-
+        final Set<Map.Entry<Node, MiInternFunction>> functionScopes = defineAllGlobal(this.AST);
+        parser.reachedStdlibFinish(false);
+        checkAllFunctions(functionScopes);
+        parser.reachedStdlibFinish(true);
 
         return parser.encounteredError() ? null : this.AST;
     }
 
-    private void defineAllGlobal(@NotNull final Node node) {
+    private Set<Map.Entry<Node, MiInternFunction>> defineAllGlobal(@NotNull final Node node) {
+        final Set<Map.Entry<Node, MiInternFunction>> functionScopes = new HashSet<>();
         for (@NotNull final Node child : node.children()) {
-            if (parser.encounteredError()) return;
+            if (parser.encounteredError()) return new HashSet<>();
             switch (child.type()) {
-                case CREATE_MODULE -> defineModule(child);
+                case CREATE_MODULE -> functionScopes.addAll(defineModule(child));
                 case STANDARDLIB_MI_FINISH_CODE -> parser.reachedStdlibFinish(true);
-                case FUNCTION_DEFINITION -> defineInternFunction(child);
+                case FUNCTION_DEFINITION -> {
+                    final Map.Entry<Node, MiInternFunction> entry = defineInternFunction(child);
+                    if (entry == null) return new HashSet<>();
+                    functionScopes.add(entry);
+                }
                 case NATIVE_FUNCTION_DEFINITION -> defineNativeFunction(child);
-                case VAR_DEFINITION -> defineGlobalVariable(child, false);
-                case VAR_DEF_AND_SET_VALUE -> defineGlobalVariable(child, true);
+                case DECLARE_VARIABLE -> defineGlobalVariable(child, false);
+                case DEFINE_VARIABLE -> defineGlobalVariable(child, true);
             }
         }
+        return functionScopes;
+    }
+
+    private void checkAllFunctions(@NotNull final Set<Map.Entry<Node, MiInternFunction>> functionScopes) {
+        functionScopes.forEach(this::checkLocal);
+    }
+
+    private void checkLocal(@NotNull final Map.Entry<Node, MiInternFunction> functionScope) {
+        final Node parentFunctionScope = functionScope.getKey();
+        final MiInternFunction function = functionScope.getValue();
+
     }
 
     private static Class<?> primitiveToJavaType(@NotNull final MiDatatype type) {
@@ -73,31 +91,33 @@ public class ASTErrorChecker {
         currentModule.add(variable);
     }
 
-    private void defineModule(@NotNull final Node node) {
+    private Set<Map.Entry<Node, MiInternFunction>> defineModule(@NotNull final Node node) {
         final Token ident = node.child(0).value();
         final String name = ident.token();
         final MiModule sub = new MiModule(name, currentModule);
         if (currentModule.findSubmoduleByName(name).isPresent()) {
             parser.parserError("A " + (currentModule.parent().isPresent() ? "sub" : "")
                     + "module called '" + name + "' already exists here", ident, "Rename the module or move it somewhere else.");
-            return;
+            return new HashSet<>();
         }
         currentModule.submodules().add(sub);
 
         final MiModule parent = currentModule;
         currentModule = sub;
-        defineAllGlobal(node.child(1)); // define everything inside of the submodule
+        final Set<Map.Entry<Node, MiInternFunction>> result = defineAllGlobal(node.child(1)); // define everything inside of the submodule
         currentModule = parent;
+        return result;
     }
 
-    private void defineInternFunction(@NotNull final Node node) {
+    private Map.Entry<Node, MiInternFunction> defineInternFunction(@NotNull final Node node) {
         final Token ident = functionName(node);
-        final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return;
-        final List<MiVariable> params = functionParameters(node); if (params == null) return;
+        final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return null;
+        final List<MiVariable> params = functionParameters(node); if (params == null) return null;
         final MiDatatype type = functionReturnType(node, modifiers);
 
         final MiInternFunction function = new MiInternFunction(modifiers, ident.token(), type, currentModule, params);
         tryAddFunction(function, ident);
+        return parser.encounteredError() ? null : Map.entry(node.child(4), function);
     }
 
     private void defineNativeFunction(@NotNull final Node node) {

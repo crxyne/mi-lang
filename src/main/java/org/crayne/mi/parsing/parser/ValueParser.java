@@ -1,12 +1,9 @@
 package org.crayne.mi.parsing.parser;
 
-import org.crayne.mi.lang.Enum;
 import org.crayne.mi.lang.*;
 import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
-import org.crayne.mi.parsing.parser.scope.FunctionScope;
-import org.crayne.mi.parsing.parser.scope.Scope;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -19,9 +16,12 @@ public class ValueParser {
     private final List<Token> expr;
     private final Parser parserParent;
 
-    public record TypedNode(Datatype type, Node node) {
+    public record TypedNode(MiDatatype type, Node node) {
         public static TypedNode empty() {
-            return new TypedNode(null, new Node(NodeType.VALUE));
+            return new TypedNode(null, new Node(NodeType.VALUE, -1));
+        }
+        public int lineDebugging() {
+            return node == null ? -1 : node.lineDebugging();
         }
     }
 
@@ -47,7 +47,7 @@ public class ValueParser {
 
     private boolean ternaryExpectColon(@NotNull final TypedNode y) {
         if (NodeType.of(currentToken) != NodeType.COLON) {
-            parserParent.parserError("Expected ':' after ternary 'if'", y.node.value(), true);
+            parserParent.parserError("Expected ':' after ternary 'if'", y.node.value());
             return true;
         }
         return false;
@@ -63,7 +63,7 @@ public class ValueParser {
     }
 
     private boolean ternaryConditionNotBoolean(@NotNull final TypedNode x) {
-        if (x.type.notPrimitive() || !x.type.getPrimitive().equals(PrimitiveDatatype.BOOL)) {
+        if (!MiDatatype.match(x.type, MiDatatype.BOOL)) {
             parserParent.parserError("Ternary operator condition should be of type 'nonnull bool' but is instead '" + x.type + "'", x.node.value());
             return true;
         }
@@ -86,25 +86,18 @@ public class ValueParser {
         ));
     }
 
+    private static boolean isComparator(@NotNull final String token) {
+        return switch (NodeType.of(token)) {
+            case EQUALS, NOTEQUALS, GREATER_THAN, GREATER_THAN_EQ, LESS_THAN, LESS_THAN_EQ -> true;
+            default -> false;
+        };
+    }
+
     private TypedNode evalExpression(final TypedNode x, final TypedNode y, final Token op) {
-        if (parserParent.encounteredError) return TypedNode.empty();
         if (NodeType.of(op) == NodeType.QUESTION_MARK) return evalTernaryOperator(x, y);
-        boolean operatorDefined = false;
 
-        try {
-            operatorDefined = x.type.operatorDefined(NodeType.of(op.token()), y.type);
-        } catch (final Exception ignored) {}
-
-        if (!operatorDefined) {
-            if (x.type.equals(y.type)) {
-                parserParent.parserError("Operator '" + op.token() + "' is not defined for operand type " + x.type, op);
-                return TypedNode.empty();
-            }
-            parserParent.parserError("Operator '" + op.token() + "' is not defined for left operand " + x.type + " and right operand " + y.type, op);
-            return TypedNode.empty();
-        }
         return new TypedNode(
-                PrimitiveDatatype.isComparator(op.token()) ? Datatype.BOOL : x.type.heavier(y.type),
+                isComparator(op.token()) ? MiDatatype.BOOL : MiDatatype.heavier(x.type, y.type),
                 new Node(NodeType.of(op.token()), -1, x.node, y.node));
     }
 
@@ -129,7 +122,7 @@ public class ValueParser {
     private TypedNode parseExpression(final int precendece) {
         TypedNode nodeX = precendece > 0 ? parseExpression(precendece - 1) : parseFactor();
         if (nodeX == null) {
-            parserParent.parserError("Unexpected parsing error");
+            parserParent.parserError("Unexpected parsing error", currentToken);
             return TypedNode.empty();
         }
         for (; ; ) {
@@ -148,7 +141,7 @@ public class ValueParser {
         }
     }
 
-    private static boolean noTypeMatches(@NotNull final TypedNode factor, @NotNull final Datatype... types) {
+    private static boolean noTypeMatches(@NotNull final TypedNode factor, @NotNull final MiDatatype... types) {
         return Stream.of(types).noneMatch(factor.type::equals);
     }
 
@@ -156,7 +149,7 @@ public class ValueParser {
         parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
     }
 
-    private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev, @NotNull final Datatype... types) {
+    private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev, @NotNull final MiDatatype... types) {
         if (noTypeMatches(fact, types)) {
             cannotUseOperatorError(fact, prev);
             return true;
@@ -165,15 +158,15 @@ public class ValueParser {
     }
 
     private boolean cannotUseNumberOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        return cannotUseOperator(fact, prev, Datatype.INT, Datatype.LONG, Datatype.DOUBLE, Datatype.FLOAT);
+        return cannotUseOperator(fact, prev, MiDatatype.INT, MiDatatype.LONG, MiDatatype.DOUBLE, MiDatatype.FLOAT);
     }
 
     private boolean cannotUseBitwiseOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        return cannotUseOperator(fact, prev, Datatype.INT, Datatype.LONG, Datatype.CHAR);
+        return cannotUseOperator(fact, prev, MiDatatype.INT, MiDatatype.LONG, MiDatatype.CHAR);
     }
 
     private boolean cannotUseBooleanOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        return cannotUseOperator(fact, prev, Datatype.BOOL);
+        return cannotUseOperator(fact, prev, MiDatatype.BOOL);
     }
 
     private static TypedNode embraceFactor(@NotNull final TypedNode factor, @NotNull final NodeType nodeType) {
@@ -231,7 +224,7 @@ public class ValueParser {
 
     private boolean expectValue(@NotNull final Token prev) {
         if (parsingPosition + 1 >= expr.size()) {
-            parserParent.parserError("Expected value after '" + prev.token() + "'", prev, true);
+            parserParent.parserError("Expected value after '" + prev.token() + "'", prev);
             return true;
         }
         return false;
@@ -239,8 +232,6 @@ public class ValueParser {
 
     private Optional<TypedNode> handleFactorPrefixes() {
         final Token prev = currentToken;
-        if (parserParent.encounteredError || prev == null)
-            return Optional.empty();
 
         final NodeType tokenType = NodeType.of(prev);
         if (NodeType.of(prev).isDatatype()) return Optional.of(castFactor(prev));
@@ -258,27 +249,15 @@ public class ValueParser {
         final Token enumMember = expr.get(parsingPosition + 2);
         if (NodeType.of(enumMember) == NodeType.IDENTIFIER) {
             final Token enumName = currentToken;
-            final String enumMemberStr = enumMember.token();
-            final String enumNameStr = enumName.token();
 
-            final Optional<Scope> scope = parserParent.scope();
-            final FunctionScope functionScope = scope.isPresent() && scope.get() instanceof FunctionScope ? (FunctionScope) scope.get() : null;
-
-            final Enum foundEnum = Datatype.findEnumByIdentifier(parserParent, functionScope != null ? functionScope.using() : Collections.emptyList(), enumName, true);
-
-            if (foundEnum == null) return TypedNode.empty();
-            if (!foundEnum.members().contains(enumMemberStr)) {
-                parserParent.parserError("Enum '" + enumNameStr + "' does not have ordinal '" + enumMemberStr + "'", enumMember);
-                return TypedNode.empty();
-            }
             nextPart();
             nextPart();
             nextPart();
-            final Datatype datatype = new Datatype(parserParent, enumName, false);
+            final MiDatatype miDatatype = new MiDatatype(enumName.token(), false);
 
-            return new TypedNode(datatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
-                    new Node(NodeType.IDENTIFIER, foundEnum.asIdentifierToken(enumName)),
-                    new Node(NodeType.MEMBER, enumMember)
+            return new TypedNode(miDatatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
+                    new Node(NodeType.IDENTIFIER, enumName, enumName.actualLine()),
+                    new Node(NodeType.MEMBER, enumMember, enumMember.actualLine())
             ));
         } else {
             parserParent.parserError("Unexpected token '::'", nextPart);
@@ -289,53 +268,42 @@ public class ValueParser {
     private TypedNode evalFunctionCall() {
         final Token identifier = currentToken;
         final List<TypedNode> parsedArgs = parseArgs();
-        if (parsedArgs == null || parserParent.encounteredError) return new TypedNode(null, new Node(NodeType.VALUE));
 
-        final FunctionDefinition def = parserParent.evaluator().checkValidFunctionCall(identifier, parsedArgs, true, true);
-        if (def == null) return new TypedNode(null, new Node(NodeType.VALUE));
-
-        final Datatype retType = def.returnType();
-        if (retType == Datatype.VOID) {
-            parserParent.parserError("Usage of void function as a value in expression", identifier);
-            return TypedNode.empty();
-        }
-
-        return new TypedNode(retType, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
-                new Node(NodeType.IDENTIFIER, def.asIdentifierToken(identifier)),
-                new Node(NodeType.PARAMETERS, parsedArgs.stream().map(n ->
-                        new Node(NodeType.PARAMETER, -1,
-                                new Node(NodeType.VALUE, -1, n.node()),
-                                new Node(NodeType.TYPE, Token.of(n.type().getName()))
+        return new TypedNode(MiDatatype.VOID, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
+                new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
+                new Node(NodeType.PARAMETERS, identifier.actualLine(), parsedArgs == null ? Collections.emptyList() : parsedArgs.stream().map(n ->
+                        new Node(NodeType.PARAMETER, n.lineDebugging(),
+                                new Node(NodeType.VALUE, n.lineDebugging(), n.node()),
+                                new Node(NodeType.TYPE, Token.of(n.type().name()), n.lineDebugging())
                         )
                 ).toList())
         ));
     }
 
     private TypedNode evalVariable(final Token nextPart) {
-        final Optional<Variable> findVar = parserParent.evaluator().findVariable(currentToken, true);
-        if (findVar.isEmpty()) return TypedNode.empty();
 
         final Token identifier = currentToken;
         if (nextPart != null) {
-            final EqualOperation eq = EqualOperation.of(nextPart.token());
-            if (eq != null) {
+            final Optional<MiEqualOperator> eq = MiEqualOperator.of(nextPart.token());
+            if (eq.isPresent()) {
                 nextPart();
                 nextPart();
 
-                final TypedNode val = nextPart.token().equals("++") || nextPart.token().equals("--")
-                        ? new TypedNode(Datatype.INT, new Node(NodeType.INTEGER_NUM_LITERAL, Token.of("1")))
-                        : parseExpression();
+                final TypedNode val = NodeType.of(nextPart).incrementDecrement() ? null : parseExpression();
 
-                return new TypedNode(findVar.get().type(), parserParent.evaluator().evalVariableChange(identifier, val, nextPart, findVar.get()));
+                return new TypedNode(MiDatatype.VOID, null);
             }
         }
-        if (!findVar.get().initialized()) {
-            parserParent.parserError("Variable '" + identifier.token() + "' might not have been initialized yet", identifier, "Set the value of the variable upon declaration");
-            return TypedNode.empty();
-        }
-        final TypedNode result = new TypedNode(findVar.get().type(), new Node(NodeType.IDENTIFIER, findVar.get().asIdentifierToken(identifier)));
+        final TypedNode result = new TypedNode(MiDatatype.VOID, new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()));
         nextPart();
         return result;
+    }
+
+    private TypedNode evalStructCreation(@NotNull final Token nextPart) {
+        final MiDatatype miDatatype = new MiDatatype(nextPart.token(), false);
+        return new TypedNode(miDatatype, new Node(NodeType.STRUCT_CONSTRUCT, nextPart.actualLine(),
+                new Node(NodeType.IDENTIFIER, nextPart, nextPart.actualLine())
+        ));
     }
 
     private TypedNode parseFactor() {
@@ -343,7 +311,7 @@ public class ValueParser {
         if (prefixed.isPresent()) return prefixed.get();
 
         if (currentToken == null) {
-            parserParent.parserError("Unexpected parsing error");
+            parserParent.parserError("Unexpected parsing error", expr.get(0));
             return TypedNode.empty();
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
@@ -355,7 +323,7 @@ public class ValueParser {
                 if (nextType != null) switch (nextType) {
                     case DOUBLE_COLON -> {
                         if (parsingPosition + 2 >= expr.size()) {
-                            parserParent.parserError("Expected enum ordinal identifier after '::'");
+                            parserParent.parserError("Expected enum ordinal identifier after '::'", currentToken);
                             return TypedNode.empty();
                         }
                         return evalEnumMember(nextPart);
@@ -365,6 +333,15 @@ public class ValueParser {
                     }
                 }
                 return evalVariable(nextPart);
+            }
+            case LITERAL_NEW -> {
+                if (nextType != NodeType.IDENTIFIER) {
+                    parserParent.parserError("Expected identifier after 'new'", currentToken);
+                    return TypedNode.empty();
+                }
+                nextPart();
+                nextPart();
+                return evalStructCreation(nextPart);
             }
             case LPAREN -> {
                 nextPart();
@@ -377,10 +354,10 @@ public class ValueParser {
             default -> {
                 final Token result = currentToken;
                 final NodeType nodeType = result == null ? null : NodeType.of(result.token());
-                final Datatype datatype = nodeType == null ? null : NodeType.getAsDataType(parserParent, new Node(nodeType, result));
-                if (datatype == null) return TypedNode.empty();
+                final MiDatatype miDatatype = nodeType == null ? null : NodeType.getAsDataType(new Node(nodeType, result, result.actualLine()));
+                if (miDatatype == null) return TypedNode.empty();
                 nextPart();
-                return new TypedNode(datatype, new Node(nodeType, result));
+                return new TypedNode(miDatatype, new Node(nodeType, result, result.actualLine()));
             }
         }
     }
@@ -401,7 +378,7 @@ public class ValueParser {
             nextPart();
         }
         if (foundEndingParen == -1) {
-            parserParent.parserError("Expected ')' after arguments of function call");
+            parserParent.parserError("Expected ')' after arguments of function call", currentToken);
             return null;
         }
         nextPart();
@@ -439,7 +416,7 @@ public class ValueParser {
     }
 
     private TypedNode castValue(final TypedNode value, final Token castType) {
-        return new TypedNode(Datatype.of(parserParent, castType, false), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
+        return new TypedNode(MiDatatype.of(castType.token(), false), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
     }
 
 }

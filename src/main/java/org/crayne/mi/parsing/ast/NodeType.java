@@ -1,11 +1,8 @@
 package org.crayne.mi.parsing.ast;
 
-import org.crayne.mi.lang.Datatype;
-import org.crayne.mi.lang.EqualOperation;
-import org.crayne.mi.lang.PrimitiveDatatype;
+import org.crayne.mi.lang.MiDatatype;
 import org.crayne.mi.parsing.lexer.Tokenizer;
 import org.crayne.mi.parsing.lexer.Token;
-import org.crayne.mi.parsing.parser.Parser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
@@ -22,20 +19,20 @@ public enum NodeType {
     STANDARDLIB_MI_FINISH_CODE("STANDARDLIB_MI_FINISH_CODE"),
 
     //keywords
-    LITERAL_INT("int", Datatype.INT),
-    LITERAL_DOUBLE("double", Datatype.DOUBLE),
-    LITERAL_LONG("long", Datatype.LONG),
+    LITERAL_INT("int", MiDatatype.INT),
+    LITERAL_DOUBLE("double", MiDatatype.DOUBLE),
+    LITERAL_LONG("long", MiDatatype.LONG),
     SHORT_UNUSED("short"),
     BYTE_UNUSED("byte"),
     GOTO_UNUSED("goto"),
     CLASS_UNUSED("class"),
-    LITERAL_FLOAT("float", Datatype.FLOAT),
-    LITERAL_BOOL("bool", Datatype.BOOL),
-    LITERAL_STRING("string", Datatype.STRING),
-    LITERAL_CHAR("char", Datatype.CHAR),
-    LITERAL_VOID("void", Datatype.VOID),
-    LITERAL_NULL("null", Datatype.NULL),
-    LITERAL_MODULE("module"),
+    LITERAL_FLOAT("float", MiDatatype.FLOAT),
+    LITERAL_BOOL("bool", MiDatatype.BOOL),
+    LITERAL_STRING("string", MiDatatype.STRING),
+    LITERAL_CHAR("char", MiDatatype.CHAR),
+    LITERAL_VOID("void", MiDatatype.VOID),
+    LITERAL_NULL("null", MiDatatype.NULL),
+    LITERAL_MODULE("mod"),
     LITERAL_PUB("pub"),
     LITERAL_PRIV("priv"),
     LITERAL_PROT("prot"),
@@ -78,6 +75,7 @@ public enum NodeType {
     ENUM_VALUES(null),
     VAR_DEFINITION(null),
     VAR_SET_VALUE(null),
+    STRUCT_MEMBER_SET_VALUE(null),
     VAR_DEF_AND_SET_VALUE(null),
     VALUE(null),
     OPERATOR(null),
@@ -103,19 +101,19 @@ public enum NodeType {
     RETURN_VALUE(null),
     CAST_VALUE(null),
     CREATE_STRUCT(null),
-    CREATE_CONSTRUCTOR(null),
+    STRUCT_CONSTRUCT(null),
     NEGATE(null),
     BOOL_NOT(null),
     INCREMENT(null),
     DECREMENT(null),
     GET_ENUM_MEMBER(null),
-    INTEGER_NUM_LITERAL(null, Datatype.INT),
-    DOUBLE_NUM_LITERAL(null, Datatype.DOUBLE),
-    FLOAT_NUM_LITERAL(null, Datatype.FLOAT),
-    LONG_NUM_LITERAL(null, Datatype.LONG),
-    BOOL_LITERAL(null, Datatype.BOOL),
-    CHAR_LITERAL(null, Datatype.CHAR),
-    STRING_LITERAL(null, Datatype.STRING),
+    INTEGER_NUM_LITERAL(null, MiDatatype.INT),
+    DOUBLE_NUM_LITERAL(null, MiDatatype.DOUBLE),
+    FLOAT_NUM_LITERAL(null, MiDatatype.FLOAT),
+    LONG_NUM_LITERAL(null, MiDatatype.LONG),
+    BOOL_LITERAL(null, MiDatatype.BOOL),
+    CHAR_LITERAL(null, MiDatatype.CHAR),
+    STRING_LITERAL(null, MiDatatype.STRING),
 
     //literals
     ADD("+"),
@@ -178,59 +176,29 @@ public enum NodeType {
     }};
 
     private final String asString;
-    private Datatype type;
+    private MiDatatype type;
 
     NodeType(final String asString) {
         this.asString = asString;
     }
-    NodeType(final String asString, final Datatype datatype) {
+    NodeType(final String asString, final MiDatatype miDatatype) {
         this.asString = asString;
-        this.type = datatype;
+        this.type = miDatatype;
     }
 
     public String getAsString() {
         return asString;
     }
 
-    public Datatype getAsDataType() {
+    public MiDatatype getAsDataType() {
         return type;
     }
 
-    public static Datatype getAsDataType(@NotNull final Parser parser, @NotNull final Node node) {
-        final Datatype primitive = node.type().getAsDataType();
+    public static MiDatatype getAsDataType(@NotNull final Node node) {
+        final MiDatatype primitive = node.type().getAsDataType();
 
-        if (primitive == null) return new Datatype(parser, node.value(), false);
+        if (primitive == null) return new MiDatatype(node.value().token());
         return primitive;
-    }
-
-    public static NodeType of(@NotNull final PrimitiveDatatype type) {
-        return switch (type) {
-            case INT -> LITERAL_INT;
-            case CHAR -> LITERAL_CHAR;
-            case LONG -> LITERAL_LONG;
-            case FLOAT -> LITERAL_FLOAT;
-            case DOUBLE -> LITERAL_DOUBLE;
-            case STRING -> LITERAL_STRING;
-            case BOOL -> LITERAL_BOOL;
-            case VOID -> LITERAL_VOID;
-            case NULL -> LITERAL_NULL;
-        };
-    }
-
-    public static NodeType of(@NotNull final EqualOperation eq) {
-        return switch (eq) {
-            case EQUAL -> null;
-            case OR -> BIT_OR;
-            case ADD -> ADD;
-            case AND -> BIT_AND;
-            case DIV -> DIVIDE;
-            case MOD -> MODULUS;
-            case SUB -> SUBTRACT;
-            case MULT -> MULTIPLY;
-            case SHIFTL -> LSHIFT;
-            case SHIFTR -> RSHIFT;
-            case XOR -> XOR;
-        };
     }
 
     public boolean isDatatype() {
@@ -248,6 +216,13 @@ public enum NodeType {
                     LITERAL_INT, LITERAL_NAT, LITERAL_LONG, LITERAL_MODULE,
                     LITERAL_MUT, LITERAL_NULL, LITERAL_PRIV, LITERAL_PROT, LITERAL_USE, LITERAL_OWN,
                     LITERAL_STRING, LITERAL_VOID, LITERAL_WHILE -> true;
+            default -> false;
+        };
+    }
+
+    public boolean incrementDecrement() {
+        return switch (this) {
+            case INCREMENT, INCREMENT_LITERAL, DECREMENT, DECREMENT_LITERAL -> true;
             default -> false;
         };
     }

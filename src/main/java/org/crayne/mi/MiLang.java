@@ -5,7 +5,7 @@ import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.crayne.mi.log.MessageHandler;
-import org.crayne.mi.parsing.parser.ParserEvaluator;
+import org.crayne.mi.parsing.parser.ASTGenerator;
 import org.crayne.mi.stdlib.MiStandardLib;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,6 +16,8 @@ import java.util.*;
 import java.util.function.Predicate;
 
 public class MiLang {
+
+    // TODO big big issue, cant access enum values from other modules, as it just cant "find the variable"
 
     public record Argument(String key, String value) {}
 
@@ -126,7 +128,7 @@ public class MiLang {
 
             final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mib");
 
-            mi.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()), ParserEvaluator.moduleOf(mainFunc), ParserEvaluator.identOf(mainFunc));
+            mi.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()), ASTGenerator.moduleOf(mainFunc), ASTGenerator.identOf(mainFunc));
             return;
         }
         try {

@@ -38,13 +38,16 @@ public class MessageHandler {
 
     public void astHelperError(@NotNull final String msg, final int line, final int column, final int stdlibFinishLine, final boolean stdlib, @NotNull final String... quickFixes) {
         if (program == null) throw new RuntimeException("No program has been fed into MessageHandler instance " + this);
-        if (line > program.size() || line <= 0) throw new RuntimeException("Line is out of bounds of the program " + this);
+
+        final int actualLine = line - (stdlib ? 0 : 1) + stdlibFinishLine;
+        if (actualLine > program.size() || actualLine <= 0) throw new RuntimeException("Line is out of bounds of the program " + this);
 
         final String atLine = program.get(line - 1 + stdlibFinishLine);
         if (column > atLine.length() || column <= 0) throw new RuntimeException("Column (" + column + ") is out of bounds of line " + line + " (" + atLine + ")" + this);
         final String helperArrow = " ".repeat(column - 1) + "^";
 
-        log("Encountered error while parsing mi (µ) program\n>>> at line " + (line + (stdlib ? 1 : 0)) + ", column " + column, LogHandler.Level.ERROR)
+        log((stdlib ? "StandardLib error encountered, please contact the developer of this standard library to fix this issue:" : "Encountered error while parsing mi (µ) program")
+                + "\n>>> at line " + (line + (stdlib ? 1 : 0)) + ", column " + column, LogHandler.Level.ERROR)
                 .extraInfo(msg)
                 .hints(atLine, helperArrow)
                 .possibleSolutions(quickFixes)
@@ -75,7 +78,7 @@ public class MessageHandler {
     }
 
     protected <T> void println(@NotNull final T obj) {
-        out.println(obj);
+        out.println(String.valueOf(obj).replace("\t", "    "));
     }
 
 }

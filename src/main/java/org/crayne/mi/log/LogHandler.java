@@ -31,12 +31,12 @@ public class LogHandler {
         this.enableColor = enableColor;
     }
 
-    public String prefix(@NotNull final Level level) {
-        return (enableColor ? TerminalColor.foreground(level.color()) : "") + "[mi] [" + level + "]: ";
+    public String prefix(@NotNull final Level level, final boolean addLevelName) {
+        return (enableColor ? TerminalColor.foreground(level.color()) : "") + (addLevelName ? "[mi] [" + level + "]: " : "");
     }
 
     public void log(@NotNull final String msg, final Level level, @NotNull final PrintStream out) {
-        out.println((level != null ? prefix(level) : "") + msg + TerminalColor.reset());
+        out.println((level != null ? prefix(level, true) : "") + msg + TerminalColor.reset());
     }
 
     public void info(@NotNull final String msg, @NotNull final PrintStream out) {

@@ -1,7 +1,7 @@
 package org.crayne.mi.bytecode.writer;
 
 import org.crayne.mi.bytecode.common.*;
-import org.crayne.mi.lang.EqualOperation;
+import org.crayne.mi.lang.MiEqualOperator;
 import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
@@ -333,10 +333,10 @@ public class ByteCodeCompiler {
         final String operator = instr.child(1).value().token();
         final Node value = instr.child(2);
 
-        final EqualOperation equalOperation = Objects.requireNonNull(EqualOperation.of(operator));
-        if (equalOperation != EqualOperation.EQUAL) compileExpression(instr.child(0), result);
+        final MiEqualOperator equalOperation = MiEqualOperator.of(operator).orElse(null);
+        if (equalOperation != MiEqualOperator.SET) compileExpression(instr.child(0), result);
         compileExpression(value, result);
-        switch (equalOperation) {
+        if (equalOperation != null) switch (equalOperation) {
             case ADD -> singleInstruction(PLUS, result);
             case SUB -> singleInstruction(MINUS, result);
             case MULT -> singleInstruction(MULTIPLY, result);
@@ -345,8 +345,8 @@ public class ByteCodeCompiler {
             case AND -> singleInstruction(BIT_AND, result);
             case XOR -> singleInstruction(BIT_XOR, result);
             case MOD -> singleInstruction(MODULO, result);
-            case SHIFTL -> singleInstruction(BITSHIFT_LEFT, result);
-            case SHIFTR -> singleInstruction(BITSHIFT_RIGHT, result);
+            case LSHIFT -> singleInstruction(BITSHIFT_LEFT, result);
+            case RSHIFT -> singleInstruction(BITSHIFT_RIGHT, result);
         }
         if (identifier.startsWith("!PARENT.")) {
             final int absoluteAddress = globalVariableStorage.get(identifier);
@@ -532,7 +532,7 @@ public class ByteCodeCompiler {
 
     private void ofLiteral(@NotNull final Node node, @NotNull final List<ByteCodeInstruction> result) {
         final String value = node.value().token();
-        final String type = node.type().getAsDataType().getName();
+        final String type = node.type().getAsDataType().name();
         switch (ByteDatatype.of(type, findEnumId(type)).name()) {
             case "bool" -> push(result, bool(value));
             case "string" -> push(result, string(value.substring(1, value.length() - 1)));
@@ -573,11 +573,11 @@ public class ByteCodeCompiler {
                 rawInstruction(new ByteCodeInstruction(NOT.code()), result);
             }
             case BOOL_NOT -> {
-                compileExpression(new Node(NodeType.VALUE, values), result);
+                compileExpression(new Node(NodeType.VALUE, -1, values), result);
                 rawInstruction(new ByteCodeInstruction(NOT.code()), result);
             }
             case BIT_NOT -> {
-                compileExpression(new Node(NodeType.VALUE, values), result);
+                compileExpression(new Node(NodeType.VALUE, -1, values), result);
                 rawInstruction(new ByteCodeInstruction(BIT_NOT.code()), result);
             }
             case NEGATE -> operator(Node.of(Token.of("0")), x, MINUS, result);
@@ -610,7 +610,7 @@ public class ByteCodeCompiler {
                 rawInstruction(new ByteCodeInstruction(VALUE_AT_RELATIVE_ADDRESS.code()), result);
             }
             case CAST_VALUE -> {
-                compileExpression(new Node(NodeType.VALUE, values), result);
+                compileExpression(new Node(NodeType.VALUE, -1, values), result);
                 rawInstruction(cast(ByteDatatype.of(nodeVal.token(), findEnumId(nodeVal.token()))), result);
             }
             case FUNCTION_CALL -> {
@@ -618,7 +618,7 @@ public class ByteCodeCompiler {
                 final List<Node> args = values.get(1).children();
                 compileFunctionCall(name, args, result);
             }
-            case VAR_SET_VALUE -> compileVariableMutation(new Node(op, values), true, result);
+            case VAR_SET_VALUE -> compileVariableMutation(new Node(op, -1, values), true, result);
             case VALUE -> operator(values.get(0).type(), values.get(0).children(), values.get(0).value(), result);
             default -> panic("Could not parse expression (failed at " + op + ")");
         }

@@ -60,17 +60,17 @@ public class Message {
     }
 
     private static final String newline = "\n";
-    private void message(@NotNull final LogHandler.Level level, @NotNull final String message, @NotNull final StringBuilder builder) {
-        builder.append(handler.logger().prefix(level)).append(message).append(TerminalColor.reset()).append(newline);
+    private void message(@NotNull final LogHandler.Level level, final boolean addLevelName, @NotNull final String message, @NotNull final StringBuilder builder) {
+        builder.append(handler.logger().prefix(level, addLevelName)).append(message).append(TerminalColor.reset()).append(newline);
     }
 
     public void print() {
         final StringBuilder result = new StringBuilder();
-        message(level, message, result);
+        message(level, true, message, result);
 
-        for (@NotNull final String info : extraInfo) message(level, info, result);
-        for (@NotNull final String sol : possibleSolutions) message(LogHandler.Level.FIX, sol, result);
-        for (@NotNull final String hint : hints) message(LogHandler.Level.HINT, hint, result);
+        for (@NotNull final String info : extraInfo) message(level, false, info, result);
+        for (@NotNull final String sol : possibleSolutions) message(LogHandler.Level.FIX, true, sol, result);
+        for (@NotNull final String hint : hints) message(LogHandler.Level.HINT, true, hint, result);
 
         handler.println(result.substring(0, result.toString().length() - 1));
     }

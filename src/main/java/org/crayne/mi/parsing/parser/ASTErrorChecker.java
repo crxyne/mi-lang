@@ -14,6 +14,7 @@ public class ASTErrorChecker {
     private final Parser parser;
     private Node AST;
     private MiModule currentModule = new MiModule("!PARENT");
+    private final MiModule rootModule = currentModule;
     private MiFunctionScope currentFunctionScope = null;
 
     public ASTErrorChecker(@NotNull final Parser parser) {
@@ -59,6 +60,62 @@ public class ASTErrorChecker {
         final Node parentFunctionScope = functionScope.getKey();
         final MiInternFunction function = functionScope.getValue();
 
+        checkLocal(parentFunctionScope, function);
+    }
+
+    private Optional<MiModule> findModuleByName(@NotNull final String dotted, final boolean goFromRoot, @NotNull final MiInternFunction usedAt, @NotNull final Token ident) {
+        // calling a function with the . as the first character means explicitly going from
+        // root and checking all submodules from there
+        MiModule current = goFromRoot ? rootModule : usedAt.module();
+
+        for (@NotNull final String subMod : dotted.split("\\.")) {
+            if (subMod.isEmpty()) continue;
+            if (current == null) break;
+            final Optional<MiModule> submodule = current.findSubmoduleByName(subMod);
+            current = submodule.orElse(null);
+        }
+        return current == null && !goFromRoot ? findModuleByName(dotted, true, usedAt, ident) : Optional.ofNullable(current);
+    }
+
+    private Optional<MiFunction> findFunctionByCall(@NotNull final Token ident, @NotNull final List<MiDatatype> callParams, @NotNull final MiInternFunction calledFrom) {
+        final String name = ident.token();
+        if (!name.contains(".")) {
+            // calling a function without specifying the module means either using
+            // a local function in the current scope, or a function in the root scope (standard library functions)
+            return Optional.ofNullable(calledFrom.module().findFunction(name, callParams)
+                    .orElse(rootModule.findFunction(name, callParams).orElse(null)));
+        }
+        final boolean searchAtRoot = name.startsWith(".");
+        final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
+        final Optional<MiModule> callModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, calledFrom, ident);
+        if (callModule.isEmpty()) {
+            parser.parserError("Cannot find " + (!searchAtRoot ? "sub" : "") + "module '" + withoutFirstDotAndName + "' here", ident,
+                    "Make sure you spelled the module name correctly and have defined the module already.");
+            return Optional.empty();
+        }
+        return callModule.get().findFunction(ASTGenerator.identOf(name), callParams);
+    }
+
+    private void checkLocal(@NotNull final Node scope, @NotNull final MiInternFunction function) {
+        for (@NotNull final Node child : scope.children()) {
+            switch (child.type()) {
+                case FUNCTION_CALL -> {
+                    final Token ident = child.child(0).value();
+                    final List<MiDatatype> callParams = child
+                            .child(1)
+                            .children()
+                            .stream()
+                            .map(n -> MiDatatype.of(n.child(1).value().token()))
+                            .toList();
+
+                    final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, function);
+                    if (callFunction.isEmpty()) {
+                        parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident);
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     private static Class<?> primitiveToJavaType(@NotNull final MiDatatype type) {

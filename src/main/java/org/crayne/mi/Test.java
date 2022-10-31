@@ -14,25 +14,21 @@ public class Test {
     public static void main(@NotNull final String... args) {
         final String code =
 """
-mod std {
+mod stda {
 
     pub? Pi = 3.14159265358979323;
     pub? E = 2.7182818284;
     
     pub nat fn println(string s) -> "org.crayne.mi.stdlib.MiStandardLib";
     
-    pub fn cos :: double () {
-        :: 4;
-    }
-    
 }
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
-    fn main(int a) {
-        do {
-        
-        } while true;
+    pub fn println(string s) {}
+
+    fn main {
+        println("hello, world!");
     }
     
 }

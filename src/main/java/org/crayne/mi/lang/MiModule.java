@@ -79,7 +79,6 @@ public class MiModule implements MiContainer {
     public Optional<MiFunction> findFunction(@NotNull final String name, @NotNull final Collection<MiDatatype> parameters) {
         return filterFunctionsByName(name).stream().filter(f -> {
             final Set<MiDatatype> funcParams = f.parameterTypes();
-            System.out.println("CHECK EQUAL " + name + " " + parameters + " " + funcParams);
             return new HashSet<>(parameters).containsAll(funcParams) && new HashSet<>(funcParams).containsAll(parameters);
         }).findAny();
     }

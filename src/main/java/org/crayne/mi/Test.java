@@ -27,7 +27,7 @@ mod main {
 
     fn main {
         std.println("hello, world!");
-        
+        std.Pi = 4;
     }
     
 }

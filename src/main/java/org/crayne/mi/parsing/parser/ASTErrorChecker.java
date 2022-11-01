@@ -98,31 +98,38 @@ public class ASTErrorChecker {
 
     private void checkLocal(@NotNull final Node scope, @NotNull final MiInternFunction function) {
         for (@NotNull final Node child : scope.children()) {
+            if (parser.encounteredError()) return;
             switch (child.type()) {
-                case FUNCTION_CALL -> {
-                    final Token ident = child.child(0).value();
-                    final List<MiDatatype> callParams = child
-                            .child(1)
-                            .children()
-                            .stream()
-                            .map(n -> MiDatatype.of(n.child(1).value().token()))
-                            .toList();
-
-                    final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, function);
-                    if (callFunction.isEmpty()) {
-                        parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident);
-                        return;
-                    }
-                    final Set<MiModifier> modifiers = callFunction.get().modifiers();
-                    final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
-                    if (!MiModifier.validAccess(modifiers, callFunction.get().module(), function.module())) {
-                        parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
-                                (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
-                                        : "Protected functions can only be accessed within their own module scope"));
-                        return;
-                    }
-                }
+                case FUNCTION_CALL -> checkFunctionCall(child, function);
+                case CREATE_MODULE -> parser.parserError("Unexpected module definition inside of a function", child.child(0).value(),
+                        "Cannot create modules inside of functions, so move the module definition out of this scope");
+                case FUNCTION_DEFINITION, NATIVE_FUNCTION_DEFINITION -> parser.parserError("Unexpected function definition inside of another function", child.child(0).value(),
+                        "Cannot create nested functions, so move the function definition out of this scope");
             }
+        }
+    }
+
+    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction function) {
+        final Token ident = child.child(0).value();
+        final List<MiDatatype> callParams = child
+                .child(1)
+                .children()
+                .stream()
+                .map(n -> MiDatatype.of(n.child(1).value().token()))
+                .toList();
+
+        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, function);
+        if (callFunction.isEmpty()) {
+            parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident);
+            return;
+        }
+        final Set<MiModifier> modifiers = callFunction.get().modifiers();
+        final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
+        if (!MiModifier.validAccess(modifiers, callFunction.get().module(), function.module())) {
+            parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
+                    (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
+                            : "Protected functions can only be accessed within their own module scope"));
+            return;
         }
     }
 

@@ -186,8 +186,8 @@ public class ASTErrorChecker {
 
     private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
         final Token ident = child.child(0).value();
-        final List<ValueParser.TypedNode> callParamNodes = child.
-                child(1)
+        final List<ValueParser.TypedNode> callParamNodes = child
+                .child(1)
                 .children()
                 .stream()
                 .map(Node::children)

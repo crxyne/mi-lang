@@ -57,11 +57,12 @@ public class Parser {
         final List<List<Token>> statements = new ArrayList<>();
         List<Token> current = new ArrayList<>();
         int paren = 0;
+        boolean parsingValue = false; // allow for lambdas, e.g. fn test = () -> {};
 
         for (@NotNull final Token tok : tokenList) {
             final NodeType tokType = NodeType.of(tok);
             if (tokType == NodeType.RBRACE) {
-                if (paren == 0) {
+                if (paren == 0 && !parsingValue) {
                     if (!current.isEmpty()) statements.add(current);
                     statements.add(Collections.singletonList(tok));
                     current = new ArrayList<>();
@@ -75,12 +76,17 @@ public class Parser {
                         statements.add(current);
                         current = new ArrayList<>();
                     }
+                    parsingValue = false;
                 }
+                case SET, SET_ADD, SET_AND, SET_OR, SET_DIV, SET_LSHIFT,
+                        SET_MOD, SET_MULT, SET_RSHIFT, SET_SUB, SET_XOR -> parsingValue = true;
                 case LPAREN -> paren++;
                 case RPAREN -> paren--;
                 case LBRACE -> {
-                    statements.add(current);
-                    current = new ArrayList<>();
+                    if (!parsingValue) {
+                        statements.add(current);
+                        current = new ArrayList<>();
+                    }
                 }
             }
         }

@@ -27,6 +27,7 @@ mod main {
 
     fn main {
         std.println("hello, world!");
+        
     }
     
 }

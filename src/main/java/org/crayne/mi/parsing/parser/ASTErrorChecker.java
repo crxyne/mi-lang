@@ -15,7 +15,6 @@ public class ASTErrorChecker {
     private Node AST;
     private MiModule currentModule = new MiModule("!PARENT");
     private final MiModule rootModule = currentModule;
-    private MiFunctionScope currentFunctionScope = null;
 
     public ASTErrorChecker(@NotNull final Parser parser) {
         this.parser = parser;
@@ -45,8 +44,8 @@ public class ASTErrorChecker {
                     functionScopes.add(entry);
                 }
                 case NATIVE_FUNCTION_DEFINITION -> defineNativeFunction(child);
-                case DECLARE_VARIABLE -> defineGlobalVariable(child, false);
-                case DEFINE_VARIABLE -> defineGlobalVariable(child, true);
+                case DECLARE_VARIABLE -> defineVariable(child, currentModule, false);
+                case DEFINE_VARIABLE -> defineVariable(child, currentModule, true);
             }
         }
         return functionScopes;
@@ -117,11 +116,20 @@ public class ASTErrorChecker {
         return accessModule.get().find(ASTGenerator.identOf(name));
     }
 
-    private void checkLocal(@NotNull final Node scope, @NotNull final MiInternFunction function) {
+    private void checkLocal(@NotNull final Node scope, @NotNull final MiFunctionScope functionScope) {
+        final MiInternFunction function = functionScope.function();
+
         for (@NotNull final Node child : scope.children()) {
             if (parser.encounteredError()) return;
             switch (child.type()) {
                 case FUNCTION_CALL -> checkFunctionCall(child, function);
+                case SCOPE -> {
+                    final MiFunctionScope localScope = new MiFunctionScope(function, functionScope);
+                    checkLocal(child, localScope);
+                    localScope.pop();
+                }
+                case DECLARE_VARIABLE -> defineVariable(child, functionScope, false);
+                case DEFINE_VARIABLE -> defineVariable(child, functionScope, true);
                 case MUTATE_VARIABLE -> checkVariableMutation(child, function);
                 case CREATE_MODULE -> parser.parserError("Unexpected module definition inside of a function", child.child(0).value(),
                         "Cannot create modules inside of functions, so move the module definition out of this scope");
@@ -209,19 +217,24 @@ public class ASTErrorChecker {
         };
     }
 
-    private void defineGlobalVariable(@NotNull final Node node, final boolean initialized) {
+    private void defineVariable(@NotNull final Node node, @NotNull final MiContainer container, final boolean initialized) {
         final Token ident = node.child(1).value();
         final List<MiModifier> modifiers = variableModifiers(node, initialized, ident); if (modifiers == null) return;
 
         final String name = ident.token();
-        if (currentModule.find(name).isPresent()) {
+        if (container.find(name).isPresent()) {
+            if (container instanceof MiFunctionScope) {
+                parser.parserError("A local variable with the same name '" + name + "' already exists in this scope", ident, "Rename your variable, or move it to its own local scope.");
+                return;
+            }
             parser.parserError("A global variable with the same name '" + name + "' already exists in this module", ident, "Rename your variable to fix this issue.");
             return;
         }
         final MiDatatype type = MiDatatype.of(node.child(2).value().token(), modifiers.contains(MiModifier.NULLABLE));
-        final MiVariable variable = new MiVariable(currentModule, name, type, modifiers, true); // initialized because this is global, so using this is possible, but when not initialized it is null.
-
-        currentModule.add(variable);
+        final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope) || initialized);
+        // initialized when this is global, so using this is possible, but when not initialized it is null.
+        // when the variable is a local one, just use the initialized boolean for this
+        container.add(variable);
     }
 
     private Set<Map.Entry<Node, MiInternFunction>> defineModule(@NotNull final Node node) {

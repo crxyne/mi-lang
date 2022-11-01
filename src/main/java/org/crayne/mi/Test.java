@@ -26,6 +26,7 @@ STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
     fn main {
+        float i = 0.0d;
         std.println("hello, world!");
     }
     

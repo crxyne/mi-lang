@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class MiNativeFunction extends MiFunctionScope implements MiFunction {
+public class MiNativeFunction implements MiFunction {
 
     private final String name;
     private final MiDatatype returnType;
@@ -16,8 +16,6 @@ public class MiNativeFunction extends MiFunctionScope implements MiFunction {
     private final Method nativeMethod;
 
     public MiNativeFunction(@NotNull final Method nativeMethod, @NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final Collection<MiVariable> parameters) {
-        super();
-        addAll(parameters.stream().peek(v -> v.container(this)).toList());
         this.parameters = new HashSet<>(parameters);
         this.name = name;
         this.returnType = returnType;
@@ -27,8 +25,6 @@ public class MiNativeFunction extends MiFunctionScope implements MiFunction {
     }
 
     public MiNativeFunction(@NotNull final Method nativeMethod, @NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final MiVariable... parameters) {
-        super();
-        addAll(Arrays.stream(parameters).peek(v -> v.container(this)).toList());
         this.parameters = new HashSet<>(List.of(parameters));
         this.name = name;
         this.returnType = returnType;

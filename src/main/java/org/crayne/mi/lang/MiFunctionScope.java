@@ -8,19 +8,35 @@ public class MiFunctionScope implements MiContainer {
 
     private final Set<MiVariable> variables;
     private final MiFunctionScope parent;
+    private MiInternFunction function;
 
     public MiFunctionScope() {
         this.variables = new HashSet<>();
         this.parent = null;
     }
 
-    public MiFunctionScope(@NotNull final MiFunctionScope parent) {
+    public MiFunctionScope(@NotNull final MiInternFunction function) {
+        this.variables = new HashSet<>();
+        this.parent = null;
+        this.function = function;
+    }
+
+    public MiFunctionScope(@NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent) {
         this.variables = new HashSet<>();
         this.parent = parent;
+        this.function = function;
     }
 
     public Optional<MiFunctionScope> parent() {
         return Optional.ofNullable(parent);
+    }
+
+    public MiInternFunction function() {
+        return function;
+    }
+
+    public void function(@NotNull final MiInternFunction function) {
+        this.function = function;
     }
 
     public Set<MiVariable> variables() {

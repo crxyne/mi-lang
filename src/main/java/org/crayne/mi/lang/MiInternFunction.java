@@ -21,6 +21,7 @@ public class MiInternFunction extends MiFunctionScope implements MiFunction {
         this.returnType = returnType;
         this.module = module;
         this.modifiers = new HashSet<>(modifiers);
+        function(this);
     }
 
     public MiInternFunction(@NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final MiVariable... parameters) {
@@ -31,6 +32,7 @@ public class MiInternFunction extends MiFunctionScope implements MiFunction {
         this.returnType = returnType;
         this.module = module;
         this.modifiers = new HashSet<>(modifiers);
+        function(this);
     }
 
     public MiModule module() {

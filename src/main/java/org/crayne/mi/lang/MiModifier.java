@@ -10,6 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public enum MiModifier {
 
@@ -109,9 +110,44 @@ public enum MiModifier {
                                // if there is none (which is also valid) then the prot modifier is used
     }
 
-    public static boolean validAccess(@NotNull final Collection<MiModifier> modifiers, @NotNull final MiModule accessing, @NotNull final MiModule own) {
+    public static MiModifier effectiveMutabilityModifier(@NotNull final Collection<MiModifier> modifiers) {
+        return modifiers
+                .stream()
+                .filter(MiModifier::mutabilityModifier)
+                .findAny()
+                .orElse(CONST); // similar how in the above function, except with mutability modifiers.
+                                // default modifier for this one is "const", as every variable is constant by default
+    }
+
+    public static boolean invalidGlobalMutation(@NotNull final MiVariable variable, @NotNull final MiModule own) {
+        final Set<MiModifier> modifiers = variable.modifiers();
+        final MiModifier mmodifier = effectiveMutabilityModifier(modifiers);
+        return !switch (mmodifier) {
+            case MUT -> validMutAccess(variable, own);
+            case CONST -> validConstAccess(variable, own);
+            case OWN -> validOwnAccess(variable, own);
+            default -> // should never happen
+                    throw new RuntimeException("Invalid effective mutability modifier from given modifier collection (" + modifiers + ")");
+        };
+    }
+
+    public static boolean validMutAccess(@SuppressWarnings("unused") @NotNull final MiVariable variable, @SuppressWarnings("unused") @NotNull final MiModule own) {
+        return true;
+    }
+
+    public static boolean validConstAccess(@NotNull final MiVariable variable, @SuppressWarnings("unused") @NotNull final MiModule own) {
+        return !variable.initialized(); // only allow changing constants when they dont have a value yet
+    }
+
+    public static boolean validOwnAccess(@SuppressWarnings("unused") @NotNull final MiVariable variable, @SuppressWarnings("unused") @NotNull final MiModule own) {
+        final MiContainer container = variable.container();
+        if (!(container instanceof final MiModule module)) throw new RuntimeException("Unexpected error; global variable container is not a module");
+        return validProtAccess(module, own);
+    }
+
+    public static boolean invalidAccess(@NotNull final Collection<MiModifier> modifiers, @NotNull final MiModule accessing, @NotNull final MiModule own) {
         final MiModifier vmodifier = effectiveVisibilityModifier(modifiers);
-        return switch (vmodifier) {
+        return !switch (vmodifier) {
             case PUB -> validPubAccess(accessing, own); // no more work when accessing something public
             case PROT -> validProtAccess(accessing, own);
             case PRIV -> validPrivAccess(accessing, own);
@@ -120,7 +156,7 @@ public enum MiModifier {
         };
     }
 
-    public static boolean validPubAccess(@NotNull final MiModule accessing, @NotNull final MiModule own) {
+    public static boolean validPubAccess(@SuppressWarnings("unused") @NotNull final MiModule accessing, @SuppressWarnings("unused") @NotNull final MiModule own) {
         return true;
     }
 

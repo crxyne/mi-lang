@@ -96,11 +96,33 @@ public class ASTErrorChecker {
         return callModule.get().findFunction(ASTGenerator.identOf(name), callParams);
     }
 
+    private Optional<MiVariable> findGlobalVariableByAccess(@NotNull final Token ident, @NotNull final MiInternFunction accessedFrom) {
+        final String name = ident.token();
+        if (!name.contains(".")) {
+            // using a variable without specifying the module means either using
+            // a local variable, a global variable in the own module, or a variable in the root scope (standard library functionality)
+            return Optional.ofNullable(accessedFrom.module().find(name) // TODO local variables here
+                    .orElse(rootModule.find(name).orElse(null)));
+        }
+
+        final boolean searchAtRoot = name.startsWith(".");
+        final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
+        final Optional<MiModule> accessModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, accessedFrom, ident);
+        if (accessModule.isEmpty()) {
+            parser.parserError("Cannot find " + (!searchAtRoot ? "sub" : "") + "module '" + withoutFirstDotAndName + "' here", ident,
+                    "Make sure you spelled the module name correctly and have defined the module already.");
+            return Optional.empty();
+        }
+
+        return accessModule.get().find(ASTGenerator.identOf(name));
+    }
+
     private void checkLocal(@NotNull final Node scope, @NotNull final MiInternFunction function) {
         for (@NotNull final Node child : scope.children()) {
             if (parser.encounteredError()) return;
             switch (child.type()) {
                 case FUNCTION_CALL -> checkFunctionCall(child, function);
+                case MUTATE_VARIABLE -> checkVariableMutation(child, function);
                 case CREATE_MODULE -> parser.parserError("Unexpected module definition inside of a function", child.child(0).value(),
                         "Cannot create modules inside of functions, so move the module definition out of this scope");
                 case FUNCTION_DEFINITION, NATIVE_FUNCTION_DEFINITION -> parser.parserError("Unexpected function definition inside of another function", child.child(0).value(),
@@ -109,7 +131,46 @@ public class ASTErrorChecker {
         }
     }
 
-    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction function) {
+    private void checkVariableMutation(@NotNull final Node child, @NotNull final MiInternFunction function) {
+        final Token ident = child.child(0).value();
+        final Optional<MiVariable> globalVariable = findGlobalVariableByAccess(ident, function);
+        if (globalVariable.isEmpty()) {
+            parser.parserError("Cannot find any variable called '" + ident.token() + "' here", ident,
+                    "Are you sure you spelled the variable name correctly? Are you using the right module?");
+            return;
+        }
+        final MiModule ownModule = function.module();
+        checkInvalidGlobalVariableAccess(globalVariable.get(), ownModule, ident);
+        checkInvalidGlobalVariableMutation(globalVariable.get(), ownModule, ident);
+    }
+
+    private void checkInvalidGlobalVariableMutation(@NotNull final MiVariable globalVariable, @NotNull final MiModule ownModule, @NotNull final Token ident) {
+        final Set<MiModifier> modifiers = globalVariable.modifiers();
+        final MiModifier mmodifier = MiModifier.effectiveMutabilityModifier(modifiers);
+
+        if (MiModifier.invalidGlobalMutation(globalVariable, ownModule)) {
+            parser.parserError("Invalid variable mutation; Cannot change " + mmodifier.getName() + " global variable from here", ident,
+                    (mmodifier == MiModifier.CONST ?
+                            "Constants can only be initialized once, changing a constants value is not allowed." :
+                            "Variables marked as 'own' can only be modified inside of their own module, similar to the 'prot' modifier."));
+        }
+    }
+
+    private void checkInvalidGlobalVariableAccess(@NotNull final MiVariable globalVariable, @NotNull final MiModule ownModule, @NotNull final Token ident) {
+        final Set<MiModifier> modifiers = globalVariable.modifiers();
+        final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
+        final MiContainer variableContainer = globalVariable.container();
+        if (!(variableContainer instanceof final MiModule variableModule)) throw new RuntimeException("Unexpected error; global variable container is not a module");
+
+        if (MiModifier.invalidAccess(modifiers, variableModule, ownModule)) {
+            parser.parserError("Invalid access; Cannot access " + vmodifier.getName() + " global variable from here", ident,
+                    (vmodifier == MiModifier.PRIV ?
+                            "Private variables can only be accessed when the accessing module and the variable module are the same."
+                            : "Protected variables can only be accessed within their own module scope."));
+        }
+    }
+
+    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
         final Token ident = child.child(0).value();
         final List<MiDatatype> callParams = child
                 .child(1)
@@ -118,18 +179,18 @@ public class ASTErrorChecker {
                 .map(n -> MiDatatype.of(n.child(1).value().token()))
                 .toList();
 
-        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, function);
+        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom);
         if (callFunction.isEmpty()) {
-            parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident);
+            parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident,
+                    "Are you sure you spelled the function name correctly? Are you using the right module?");
             return;
         }
         final Set<MiModifier> modifiers = callFunction.get().modifiers();
         final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
-        if (!MiModifier.validAccess(modifiers, callFunction.get().module(), function.module())) {
+        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom.module())) {
             parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
                     (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
                             : "Protected functions can only be accessed within their own module scope"));
-            return;
         }
     }
 

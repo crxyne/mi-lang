@@ -43,10 +43,9 @@ public class ASTGenerator {
         if (tokens.size() == 2) { // ret ; are two tokens
             return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine());
         }
-        final ValueParser.TypedNode retVal = parseExpression(tokens.subList(1, tokens.size() - 1));
-        if (retVal == null || retVal.type() == null || retVal.node() == null) return null;
+        final Node retVal = parseExpression(ret, tokens.subList(1, tokens.size() - 1));
 
-        return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine(), new Node(NodeType.VALUE, ret.actualLine(), retVal.node()));
+        return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine(), new Node(NodeType.VALUE, ret.actualLine(), retVal));
     }
 
     private Node evalEnumMembers(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -100,12 +99,11 @@ public class ASTGenerator {
 
         if (Parser.anyNull(identifier, equal)) return null;
 
-        final ValueParser.TypedNode value = NodeType.of(equal).incrementDecrement() ? null : parseExpression(tokens.subList(2, tokens.size() - 1));
-
+        final Node value = NodeType.of(equal).incrementDecrement() ? null : parseExpression(equal, tokens.subList(2, tokens.size() - 1));
         return evalVariableChange(identifier, value, equal);
     }
 
-    public Node evalVariableChange(@NotNull final Token identifier, final ValueParser.TypedNode value, @NotNull final Token equal) {
+    public Node evalVariableChange(@NotNull final Token identifier, final Node value, @NotNull final Token equal) {
         if (value == null) { // inc / decrement variable
             return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(),
                     new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
@@ -115,7 +113,7 @@ public class ASTGenerator {
         return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 new Node(NodeType.OPERATOR, equal, equal.actualLine()),
-                new Node(NodeType.VALUE, equal.actualLine(), value.node())
+                new Node(NodeType.VALUE, equal.actualLine(), value)
         );
     }
 
@@ -133,25 +131,40 @@ public class ASTGenerator {
         final Token identifierTok = parser.getAndExpect(tokens, 0, NodeType.IDENTIFIER);
         if (Parser.anyNull(identifierTok)) return null;
 
-        final List<ValueParser.TypedNode> params = parseParametersCallFunction(tokens.subList(2, tokens.size() - 2));
+        final List<Node> params = parseParametersCallFunction(tokens.subList(2, tokens.size() - 2));
 
         return new Node(parser.currentNode(), NodeType.FUNCTION_CALL, identifierTok.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifierTok, identifierTok.actualLine()),
                 new Node(NodeType.PARAMETERS, tokens.get(1).actualLine(), params.stream().map(n ->
-                        new Node(NodeType.PARAMETER, n.lineDebugging(),
-                                new Node(NodeType.VALUE, -1, n.node()),
-                                new Node(NodeType.TYPE, Token.of(n.type().name()), n.lineDebugging())
-                        )
+                        new Node(NodeType.PARAMETER, n.lineDebugging(), n)
                 ).toList())
         );
     }
 
-    private String callArgsToString(@NotNull final List<ValueParser.TypedNode> params) {
-        return String.join(", ", params.stream().map(n -> n.type().toString()).toList());
-    }
+    public List<Node> parseParametersCallFunction(@NotNull final List<Token> tokens) {
+        final List<Node> result = new ArrayList<>();
 
-    public List<ValueParser.TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens) {
-        return ValueParser.parseParametersCallFunction(tokens, parser);
+        if (tokens.isEmpty()) return result;
+
+        final List<Token> currentArg = new ArrayList<>();
+        int paren = 0;
+        boolean addedNode = false;
+        for (@NotNull final Token token : tokens) {
+            final NodeType type = NodeType.of(token.token());
+
+            if (type == NodeType.LPAREN) paren++;
+            if (type == NodeType.RPAREN) paren--;
+            if (type == NodeType.COMMA && paren == 0) {
+                result.add(parseExpression(tokens.get(0), currentArg));
+                currentArg.clear();
+                addedNode = true;
+                continue;
+            }
+            addedNode = false;
+            currentArg.add(token);
+        }
+        if (!addedNode) result.add(parseExpression(tokens.get(0), currentArg));
+        return result;
     }
 
     private static List<Node> modifiers(@NotNull final Collection<Token> tokens) {
@@ -259,34 +272,22 @@ public class ASTGenerator {
                     new Node(NodeType.TYPE, datatype, datatype.actualLine())
             );
         }
-        final ValueParser.TypedNode value = parseExpression(tokens.subList(3, tokens.size() - 1));
-        if (value.type() == null || value.node() == null) return null;
-        if (NodeType.of(datatype) == NodeType.QUESTION_MARK && value.type() == MiDatatype.NULL) {
-            parser.parserError("Unexpected token '?', expected a definite datatype", datatype,
-                    "The '?' cannot be used as a datatype when there is a direct literal null specified, so change the datatype to a definite.");
-            return null;
-        }
+        final Node value = parseExpression(equalsOrSemi, tokens.subList(3, tokens.size() - 1));
 
         final Node finalType = indefinite
-                ? new Node(NodeType.TYPE, Token.of(value.type().name()), value.lineDebugging())
+                ? new Node(NodeType.TYPE, Token.of("void"), value.lineDebugging())
                 : new Node(NodeType.TYPE, datatype, datatype.actualLine());
-
-        final MiDatatype type = MiDatatype.of(
-                finalType.value().token(),
-                nullable(modifiers)
-        );
-        if (!indefinite && !MiDatatype.match(value.type(), type)) {
-            parser.parserError("Datatypes are not equal on both sides, trying to assign " + value.type() + " to a " + type + " variable.", datatype,
-                    "Change the datatype to the correct one, try casting values inside the expression to the needed datatype or set the variable type to '?'.");
-            return null;
-        }
 
         return new Node(parser.currentNode(), NodeType.DEFINE_VARIABLE, identifier.actualLine(),
                 new Node(NodeType.MODIFIERS, modifiers.isEmpty() ? -1 : modifiers.get(0).lineDebugging(), modifiers),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 finalType,
-                new Node(NodeType.VALUE, identifier.actualLine(), value.node())
+                new Node(NodeType.VALUE, identifier.actualLine(), value)
         );
+    }
+
+    protected static Node parseExpression(@NotNull final Token at, @NotNull final List<Token> tokens) {
+        return new Node(NodeType.VALUE, at.actualLine(), tokens.stream().map(Node::of).toList());
     }
 
     public Node evalBreak(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -305,10 +306,6 @@ public class ASTGenerator {
         if (Parser.anyNull(continueToken, semi)) return null;
 
         return new Node(parser.currentNode(), NodeType.CONTINUE_STATEMENT, continueToken.actualLine(), continueToken);
-    }
-
-    public ValueParser.TypedNode parseExpression(@NotNull final List<Token> tokens) {
-        return new ValueParser(tokens, parser).parse();
     }
 
     public List<Node> parseParametersDefineFunction(@NotNull final List<Token> tokens) {
@@ -517,13 +514,7 @@ public class ASTGenerator {
             parser.parserError("Expected variable definition", exprs.get(0).get(0));
             return null;
         }
-        final ValueParser.TypedNode condition = parseExpression(exprs.get(1).subList(0, exprs.get(1).size() - 1));
-
-        if (condition == null || condition.type() == null) return null;
-        if (!condition.type().equals(MiDatatype.BOOL)) {
-            parser.parserError("Expected boolean condition", exprs.get(1).get(0), "Cast condition to 'bool' or change the condition to be a bool on its own");
-            return null;
-        }
+        final Node condition = parseExpression(exprs.get(1).get(0), exprs.get(1).subList(0, exprs.get(1).size() - 1));
         final Node loopStatement = evalUnscoped(exprs.get(2));
 
         if (loopStatement == null) return null;
@@ -534,7 +525,7 @@ public class ASTGenerator {
         return new Node(parser.currentNode(), NodeType.FOR_FAKE_SCOPE, exprs.get(0).get(0).actualLine(),
                 new Node(NodeType.FOR_STATEMENT, exprs.get(0).get(0).actualLine(),
                         createVariable,
-                        new Node(NodeType.CONDITION, exprs.get(1).get(0).actualLine(), condition.node()),
+                        new Node(NodeType.CONDITION, exprs.get(1).get(0).actualLine(), condition),
                         new Node(NodeType.FOR_INSTRUCT, exprs.get(2).get(0).actualLine(), loopStatement)
                 )
         );
@@ -582,17 +573,11 @@ public class ASTGenerator {
         final Token first = parser.getAndExpect(tokens, 0, condType);
         if (Parser.anyNull(first)) return null;
 
-        final ValueParser.TypedNode expr = parseExpression(tokens.subList(1, tokens.size() - 1));
-        if (expr == null) return null;
+        final Node expr = parseExpression(first, tokens.subList(1, tokens.size() - 1));
 
-        if (!MiDatatype.match(expr.type(), MiDatatype.BOOL)) {
-            parser.parserError("Expected boolean condition after '" + condType.getAsString() + "', but got " + expr.type() + " instead", tokens.get(1),
-                    "Cast condition to 'bool' or change the expression to be a bool on its own");
-            return null;
-        }
         return new Node(parser.currentNode(), NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")), first.actualLine(),
                 new Node(NodeType.CONDITION, first.actualLine(),
-                        new Node(NodeType.VALUE, first.actualLine(), expr.node())
+                        new Node(NodeType.VALUE, first.actualLine(), expr)
                 )
         );
     }

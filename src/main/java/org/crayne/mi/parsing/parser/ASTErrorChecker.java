@@ -178,13 +178,26 @@ public class ASTErrorChecker {
         }
     }
 
+    private ValueParser.TypedNode parseExpression(@NotNull final Node value) {
+        if (value.type() != NodeType.VALUE) throw new RuntimeException("Expected value node for expression");
+
+        return new ValueParser(value.children().stream().map(Node::value).toList(), parser).parse();
+    }
+
     private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
         final Token ident = child.child(0).value();
-        final List<MiDatatype> callParams = child
-                .child(1)
+        final List<ValueParser.TypedNode> callParamNodes = child.
+                child(1)
                 .children()
                 .stream()
-                .map(n -> MiDatatype.of(n.child(1).value().token()))
+                .map(Node::children)
+                .flatMap(Collection::stream)
+                .map(this::parseExpression)
+                .toList();
+
+        final List<MiDatatype> callParams = callParamNodes
+                .stream()
+                .map(ValueParser.TypedNode::type)
                 .toList();
 
         final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom);

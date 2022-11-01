@@ -16,7 +16,7 @@ public class Test {
 """
 mod std {
 
-    pub own? Pi = 3.14159265358979323;
+    pub? Pi = 3.14159265358979323;
     pub? E = 2.7182818284;
     
     pub nat fn println(string s) -> "org.crayne.mi.stdlib.MiStandardLib";
@@ -27,7 +27,6 @@ mod main {
 
     fn main {
         std.println("hello, world!");
-        std.Pi = 4;
     }
     
 }

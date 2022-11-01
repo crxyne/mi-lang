@@ -113,6 +113,14 @@ public class ASTErrorChecker {
                         parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident);
                         return;
                     }
+                    final Set<MiModifier> modifiers = callFunction.get().modifiers();
+                    final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
+                    if (!MiModifier.validAccess(modifiers, callFunction.get().module(), function.module())) {
+                        parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
+                                (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
+                                        : "Protected functions can only be accessed within their own module scope"));
+                        return;
+                    }
                 }
             }
         }

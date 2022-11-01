@@ -47,7 +47,7 @@ public class MessageHandler {
         final String helperArrow = " ".repeat(column - 1) + "^";
 
         log((stdlib ? "StandardLib error encountered, please contact the developer of this standard library to fix this issue:" : "Encountered error while parsing mi (µ) program")
-                + "\n>>> at line " + (line + (stdlib ? 1 : 0)) + ", column " + column, LogHandler.Level.ERROR)
+                + "\n>>> at line " + (line + (stdlib ? 1 : -1)) + ", column " + column, LogHandler.Level.ERROR)
                 .extraInfo(msg)
                 .hints(atLine, helperArrow)
                 .possibleSolutions(quickFixes)
@@ -62,7 +62,7 @@ public class MessageHandler {
         if (column > atLine.length() || column <= 0) throw new RuntimeException("Column (" + column + ") is out of bounds of line " + line + " (" + atLine + ")" + this);
         final String helperArrow = " ".repeat(column - 1) + "^";
 
-        log("Encountered warning while parsing mi (µ) program\n>>> at line " + (line + (stdlib ? 1 : 0)) + ", column " + column, LogHandler.Level.WARN)
+        log("Encountered warning while parsing mi (µ) program\n>>> at line " + (line + (stdlib ? 1 : -1)) + ", column " + column, LogHandler.Level.WARN)
                 .extraInfo(msg)
                 .hints(atLine, helperArrow)
                 .possibleSolutions(quickFixes)

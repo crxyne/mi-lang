@@ -14,7 +14,7 @@ public class Test {
     public static void main(@NotNull final String... args) {
         final String code =
 """
-mod stda {
+mod std {
 
     pub? Pi = 3.14159265358979323;
     pub? E = 2.7182818284;
@@ -25,10 +25,8 @@ mod stda {
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
-    pub fn println(string s) {}
-
     fn main {
-        println("hello, world!");
+        std.println("hello, world!");
     }
     
 }

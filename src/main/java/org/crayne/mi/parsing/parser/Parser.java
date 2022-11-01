@@ -91,6 +91,7 @@ public class Parser {
     private Node lastScopedNode;
 
     public Node parse(@NotNull final List<Token> tokenList, @NotNull final String code) {
+        int openedBrace = 0;
         output.setProgram(code);
         if (stdlibFinishLine == -1) {
             parserError("Cannot find a STANDARDLIB_MI_FINISH_CODE statement anywhere", tokenList.get(tokenList.size() - 1),
@@ -116,6 +117,7 @@ public class Parser {
                     currentNode.addChildren(sm);
                     currentNode = scope;
                     lastScopedNode = sm;
+                    openedBrace++;
                 }
                 case SEMI -> {
                     final Node sm = astGenerator.evalUnscoped(statement);
@@ -134,8 +136,16 @@ public class Parser {
                     }
                     currentNode.addChildren(sm);
                 }
-                case RBRACE -> currentNode = currentNode.parent();
+                case RBRACE -> {
+                    currentNode = currentNode.parent();
+                    openedBrace--;
+                }
             }
+        }
+        if (openedBrace != 0) {
+            final List<Token> lastStatement = statements.get(statements.size() - 1);
+            final Token lastToken = lastStatement.get(lastStatement.size() - 1);
+            parserError("Missing '}'", lastToken, "Add the missing '}' where it belongs. Every scope {} must be complete in order to compile the program.");
         }
         final ASTErrorChecker checkErrs = new ASTErrorChecker(this);
         return checkErrs.checkAST(currentNode);

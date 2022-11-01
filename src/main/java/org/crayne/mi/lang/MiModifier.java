@@ -13,7 +13,26 @@ import java.util.Optional;
 
 public enum MiModifier {
 
-    PUB, PRIV, PROT, MUT, CONST, NONNULL, NULLABLE, OWN, NAT, INTERN;
+    PUB("public"),
+    PRIV("private"),
+    PROT("protected"),
+    MUT("mutable"),
+    CONST("constant"),
+    NONNULL("nonnull"),
+    NULLABLE("nullable"),
+    OWN("own"),
+    NAT("native"),
+    INTERN("internal");
+
+    private final String name;
+
+    MiModifier(@NotNull final String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
 
     public static Optional<MiModifier> of(@NotNull final NodeType nodeType) {
         return Optional.ofNullable(switch (nodeType) {
@@ -79,6 +98,43 @@ public enum MiModifier {
             final List<MiModifier> modifierSet = ASTErrorChecker.definiteModifiers(ASTGenerator.modifiersOfNodes(modifiers));
             return modifierSet.stream().filter(mod -> thisModif.isPresent() && mod == thisModif.get()).toList().size() > 1;
         }).map(Node::value).findFirst();
+    }
+
+    public static MiModifier effectiveVisibilityModifier(@NotNull final Collection<MiModifier> modifiers) {
+        return modifiers
+                .stream()
+                .filter(MiModifier::visibilityModifier)
+                .findAny()
+                .orElse(PROT); // remove any non-visibility modifiers and get the single one standing (there will definetly only be one, or none)
+                               // if there is none (which is also valid) then the prot modifier is used
+    }
+
+    public static boolean validAccess(@NotNull final Collection<MiModifier> modifiers, @NotNull final MiModule accessing, @NotNull final MiModule own) {
+        final MiModifier vmodifier = effectiveVisibilityModifier(modifiers);
+        return switch (vmodifier) {
+            case PUB -> validPubAccess(accessing, own); // no more work when accessing something public
+            case PROT -> validProtAccess(accessing, own);
+            case PRIV -> validPrivAccess(accessing, own);
+            default -> // should never happen
+                    throw new RuntimeException("Invalid effective visibility modifier from given modifier collection (" + modifiers + ")");
+        };
+    }
+
+    public static boolean validPubAccess(@NotNull final MiModule accessing, @NotNull final MiModule own) {
+        return true;
+    }
+
+    public static boolean validProtAccess(@NotNull final MiModule accessing, @NotNull final MiModule own) {
+        MiModule current = own;
+        while (current != null) { // check if the module we access from is either the module we want to access (shared module) or if were a submodule of given module
+            if (current == accessing) return true;
+            current = current.parent().orElse(null);
+        }
+        return false;
+    }
+
+    public static boolean validPrivAccess(@NotNull final MiModule accessing, @NotNull final MiModule own) {
+        return accessing == own;
     }
 
 }

@@ -12,7 +12,7 @@ public class Node {
     private final List<Node> children;
     private final Node parent;
     private final NodeType type;
-    private final Token value;
+    private Token value;
     private final int lineDebugging;
 
     public static Node of(@NotNull final NodeType type, final int lineDebugging) {
@@ -131,6 +131,10 @@ public class Node {
 
     public Token value() {
         return value;
+    }
+
+    public void value(@NotNull final Token token) {
+        this.value = token;
     }
 
     public NodeType type() {

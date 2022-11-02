@@ -26,9 +26,13 @@ mod std {
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
+    pub enum hi {
+        Test
+    }
+
     fn main {
-        int i = 0;
         std.println("hello, world!");
+        mut? h = hi::Test;
     }
     
 }

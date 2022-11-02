@@ -105,6 +105,7 @@ public class Parser {
             return null;
         }
         final List<List<Token>> statements = extractStatements(tokenList).stream().filter(l -> !l.isEmpty()).toList();
+        int i = 0;
 
         for (@NotNull final List<Token> statement : statements) {
             final Token lastToken = statement.get(statement.size() - 1);
@@ -143,10 +144,21 @@ public class Parser {
                     currentNode.addChildren(sm);
                 }
                 case RBRACE -> {
+                    final List<Token> previousStatement = i <= 0 ? new ArrayList<>() : statements.get(i - 1);
+                    final NodeType lastTokenPrevStatement = previousStatement.isEmpty() ? null : NodeType.of(previousStatement.get(previousStatement.size() - 1));
+                    if (!previousStatement.isEmpty() && lastTokenPrevStatement != NodeType.SEMI && lastTokenPrevStatement != NodeType.LBRACE && lastTokenPrevStatement != NodeType.RBRACE) {
+                        final Node sm = astGenerator.evalEnumMembers(previousStatement);
+                        if (sm == null) {
+                            parserError("Not a statement.", lastToken);
+                            return null;
+                        }
+                        currentNode.addChildren(sm);
+                    }
                     currentNode = currentNode.parent();
                     openedBrace--;
                 }
             }
+            i++;
         }
         if (openedBrace != 0) {
             final List<Token> lastStatement = statements.get(statements.size() - 1);

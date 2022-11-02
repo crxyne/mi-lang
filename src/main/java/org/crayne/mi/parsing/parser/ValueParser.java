@@ -13,6 +13,7 @@ public class ValueParser {
 
     private int parsingPosition = -1;
     private Token currentToken;
+    private final Token equalsToken;
     private final List<Token> expr;
     private final Parser parserParent;
 
@@ -25,8 +26,9 @@ public class ValueParser {
         }
     }
 
-    public ValueParser(@NotNull final List<Token> expr, @NotNull final Parser parserParent) {
+    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final Parser parserParent) {
         this.expr = expr;
+        this.equalsToken = equalsToken;
         this.parserParent = parserParent;
     }
 
@@ -232,6 +234,10 @@ public class ValueParser {
 
     private Optional<TypedNode> handleFactorPrefixes() {
         final Token prev = currentToken;
+        if (currentToken == null) {
+            parserParent.parserError("Expected value", equalsToken);
+            return Optional.of(TypedNode.empty());
+        }
 
         final NodeType tokenType = NodeType.of(prev);
         if (NodeType.of(prev).isDatatype()) return Optional.of(castFactor(prev));
@@ -334,7 +340,7 @@ public class ValueParser {
                 }
                 return evalVariable(nextPart);
             }
-            case LITERAL_NEW -> {
+            /*case LITERAL_NEW -> {
                 if (nextType != NodeType.IDENTIFIER) {
                     parserParent.parserError("Expected identifier after 'new'", currentToken);
                     return TypedNode.empty();
@@ -342,7 +348,7 @@ public class ValueParser {
                 nextPart();
                 nextPart();
                 return evalStructCreation(nextPart);
-            }
+            }*/
             case LPAREN -> {
                 nextPart();
                 final TypedNode result = parseExpression();
@@ -399,7 +405,12 @@ public class ValueParser {
             if (type == NodeType.LPAREN) paren++;
             if (type == NodeType.RPAREN) paren--;
             if (type == NodeType.COMMA && paren == 0) {
-                result.add(new ValueParser(currentArg, parserParent).parse());
+                if (currentArg.isEmpty()) {
+                    parserParent.parserError("Expected a parameter before ','", token);
+                    return new ArrayList<>();
+                }
+
+                result.add(new ValueParser(currentArg, token, parserParent).parse());
                 currentArg.clear();
                 addedNode = true;
                 continue;
@@ -407,7 +418,7 @@ public class ValueParser {
             addedNode = false;
             currentArg.add(token);
         }
-        if (!addedNode) result.add(new ValueParser(currentArg, parserParent).parse());
+        if (!addedNode) result.add(new ValueParser(currentArg, currentArg.get(0), parserParent).parse());
         return result;
     }
 

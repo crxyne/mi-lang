@@ -24,12 +24,13 @@ public class ASTGenerator {
     }
 
     public Node evalWithIdentifier(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
-        if (tokens.isEmpty() || tokens.size() == 1) return null;
-        final Token second = tokens.get(1);
-        return switch (NodeType.of(second)) {
+        if (tokens.isEmpty()) return null;
+        final Token second = tokens.size() == 1 ? null : tokens.get(1);
+        return second == null ? evalEnumMembers(tokens, modifiers) : switch (NodeType.of(second)) {
             case LPAREN -> evalFunctionCall(tokens, modifiers);
             case SET, SET_ADD, SET_AND, SET_OR, SET_DIV, SET_LSHIFT, SET_MOD, SET_MULT, SET_RSHIFT, SET_SUB, SET_XOR, INCREMENT_LITERAL, DECREMENT_LITERAL -> evalVariableChange(tokens, modifiers);
-            case COMMA -> evalEnumMembers(tokens, modifiers);
+            case COMMA, SEMI -> evalEnumMembers(tokens, modifiers);
+            case IDENTIFIER -> evalVariableDefinition(tokens, modifiers);
             default -> null;
         };
     }
@@ -45,13 +46,18 @@ public class ASTGenerator {
         }
         final Node retVal = parseExpression(ret, tokens.subList(1, tokens.size() - 1));
 
-        return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine(), new Node(NodeType.VALUE, ret.actualLine(), retVal));
+        return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine(), retVal);
     }
 
-    private Node evalEnumMembers(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+    public Node evalEnumMembers(@NotNull final List<Token> tokens) {
+        final List<Node> modifiers = modifiers(tokens);
+        return evalEnumMembers(tokens.subList(modifiers.size(), tokens.size()), modifiers);
+    }
+
+    public Node evalEnumMembers(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
 
-        final List<Token> children = extractIdentifiers(tokens.subList(0, tokens.size() - 1));
+        final List<Token> children = extractIdentifiers(tokens.get(tokens.size() - 1).token().equals(";") ? tokens.subList(0, tokens.size() - 1) : tokens);
         if (children == null) return null;
 
         return new Node(parser.currentNode(), NodeType.ENUM_VALUES, tokens.get(0).actualLine(),
@@ -72,16 +78,16 @@ public class ASTGenerator {
                     parser.parserError("Unexpected token ','", token);
                     return null;
                 }
-                if (currentType != NodeType.IDENTIFIER) {
-                    parser.parserError("Expected identifier", token);
-                    return null;
-                }
                 result.add(current);
                 current = null;
                 continue;
             }
             if (current != null) {
                 parser.parserError("Expected ','", token);
+                return null;
+            }
+            if (tokenType != NodeType.IDENTIFIER) {
+                parser.parserError("Expected identifier", token);
                 return null;
             }
             current = token;
@@ -113,7 +119,7 @@ public class ASTGenerator {
         return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 new Node(NodeType.OPERATOR, equal, equal.actualLine()),
-                new Node(NodeType.VALUE, equal.actualLine(), value)
+                value
         );
     }
 
@@ -210,8 +216,14 @@ public class ASTGenerator {
             case LITERAL_ENUM -> evalEnumDefinition(withoutModifiers, modifiers);
             case LITERAL_MODULE -> evalModuleDefinition(withoutModifiers, modifiers);
             case LITERAL_DO -> evalDoStatement(withoutModifiers, modifiers);
+            case LBRACE -> evalLocalScope(withoutModifiers, modifiers);
             default -> null;
         };
+    }
+
+    public Node evalLocalScope(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers) || tokens.size() != 1) return null;
+        return new Node(NodeType.SCOPE, tokens.get(0).actualLine(), tokens.get(0), Collections.emptyList());
     }
 
     public static boolean nullable(@NotNull final Collection<Node> modifiers) {
@@ -262,7 +274,7 @@ public class ASTGenerator {
         if (NodeType.of(equalsOrSemi) == NodeType.SEMI) {
             if (indefinite) {
                 parser.parserError("Unexpected token '?', expected a definite datatype", datatype,
-                        "The '?' cannot be used as a datatype when there is no value directly specified, so change the datatype to a definite.");
+                        "The '?' cannot be used as a datatype when there is no value specified upon declaration, so change the datatype to a definite.");
                 return null;
             }
 
@@ -274,20 +286,18 @@ public class ASTGenerator {
         }
         final Node value = parseExpression(equalsOrSemi, tokens.subList(3, tokens.size() - 1));
 
-        final Node finalType = indefinite
-                ? new Node(NodeType.TYPE, Token.of("void"), value.lineDebugging())
-                : new Node(NodeType.TYPE, datatype, datatype.actualLine());
+        final Node finalType = new Node(NodeType.TYPE, datatype, datatype.actualLine());
 
         return new Node(parser.currentNode(), NodeType.DEFINE_VARIABLE, identifier.actualLine(),
                 new Node(NodeType.MODIFIERS, modifiers.isEmpty() ? -1 : modifiers.get(0).lineDebugging(), modifiers),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 finalType,
-                new Node(NodeType.VALUE, identifier.actualLine(), value)
+                value
         );
     }
 
     protected static Node parseExpression(@NotNull final Token at, @NotNull final List<Token> tokens) {
-        return new Node(NodeType.VALUE, at.actualLine(), tokens.stream().map(Node::of).toList());
+        return new Node(NodeType.VALUE, at.actualLine(), at, tokens.stream().map(Node::of).toList());
     }
 
     public Node evalBreak(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -584,7 +594,7 @@ public class ASTGenerator {
 
     private boolean unexpectedModifiers(@NotNull final List<Node> modifiers) {
         if (!modifiers.isEmpty()) {
-            parser.parserError("Unexpected modifiers", modifiers.get(0).value());
+            parser.parserError("Unexpected modifiers.", modifiers.get(0).value(), "Remove any modifiers here to fix this issue.");
             return true;
         }
         return false;

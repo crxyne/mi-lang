@@ -38,6 +38,7 @@ public class MiDatatype {
     public static final MiDatatype BOOL = new MiDatatype("bool");
     public static final MiDatatype VOID = new MiDatatype("void");
     public static final MiDatatype NULL = new MiDatatype("null");
+    public static final MiDatatype AUTO = new MiDatatype("?");
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
         this.put(MiDatatype.NULL.name(), 0);
@@ -68,7 +69,7 @@ public class MiDatatype {
     }
 
     public static boolean match(@NotNull final MiDatatype newType, @NotNull final MiDatatype oldType) {
-        if (newType == oldType) return true;
+        if (newType == oldType || (newType.name.equals(oldType.name) && newType.nullable == oldType.nullable)) return true;
         if (newType.name.equals(NULL.name) || newType.nullable) return oldType.nullable;
 
         if ((newType.primitive() && !oldType.primitive()) || (!newType.primitive() && oldType.primitive())) return false;
@@ -82,6 +83,10 @@ public class MiDatatype {
 
     public String name() {
         return name;
+    }
+
+    public boolean equals(@NotNull final MiDatatype other, final boolean ignoreNullable) {
+        return ignoreNullable ? other.name.equals(name) : (other.name.equals(name) && other.nullable == nullable);
     }
 
     public boolean equals(Object o) {

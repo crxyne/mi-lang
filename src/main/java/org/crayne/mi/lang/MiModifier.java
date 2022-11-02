@@ -123,19 +123,30 @@ public enum MiModifier {
         final Set<MiModifier> modifiers = variable.modifiers();
         final MiModifier mmodifier = effectiveMutabilityModifier(modifiers);
         return !switch (mmodifier) {
-            case MUT -> validMutAccess(variable, own);
-            case CONST -> validConstAccess(variable, own);
+            case MUT -> validMutAccess(variable);
+            case CONST -> validConstAccess(variable);
             case OWN -> validOwnAccess(variable, own);
             default -> // should never happen
-                    throw new RuntimeException("Invalid effective mutability modifier from given modifier collection (" + modifiers + ")");
+                    throw new RuntimeException("Invalid effective mutability modifier for global variable from given modifier set (" + modifiers + ")");
         };
     }
 
-    public static boolean validMutAccess(@SuppressWarnings("unused") @NotNull final MiVariable variable, @SuppressWarnings("unused") @NotNull final MiModule own) {
+    public static boolean invalidLocalMutation(@NotNull final MiVariable variable) {
+        final Set<MiModifier> modifiers = variable.modifiers();
+        final MiModifier mmodifier = effectiveMutabilityModifier(modifiers);
+        return !switch (mmodifier) {
+            case MUT -> validMutAccess(variable);
+            case CONST -> validConstAccess(variable);
+            default -> // should never happen
+            throw new RuntimeException("Invalid effective mutability modifier for local variable from given modifier set (" + modifiers + ")");
+        };
+    }
+
+    public static boolean validMutAccess(@SuppressWarnings("unused") @NotNull final MiVariable variable) {
         return true;
     }
 
-    public static boolean validConstAccess(@NotNull final MiVariable variable, @SuppressWarnings("unused") @NotNull final MiModule own) {
+    public static boolean validConstAccess(@NotNull final MiVariable variable) {
         return !variable.initialized(); // only allow changing constants when they dont have a value yet
     }
 

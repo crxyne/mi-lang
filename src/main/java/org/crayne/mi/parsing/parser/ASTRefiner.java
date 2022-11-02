@@ -9,14 +9,14 @@ import org.jetbrains.annotations.NotNull;
 import java.lang.reflect.Method;
 import java.util.*;
 
-public class ASTErrorChecker {
+public class ASTRefiner {
 
     private final Parser parser;
     private Node AST;
     private MiModule currentModule = new MiModule("!PARENT");
     private final MiModule rootModule = currentModule;
 
-    public ASTErrorChecker(@NotNull final Parser parser) {
+    public ASTRefiner(@NotNull final Parser parser) {
         this.parser = parser;
     }
 
@@ -43,6 +43,7 @@ public class ASTErrorChecker {
                     if (entry == null) return new HashSet<>();
                     functionScopes.add(entry);
                 }
+                case CREATE_ENUM -> defineEnum(child);
                 case ENUM_VALUES -> {
                     final Token ident = child.child(0).value();
                     parser.parserError("Unexpected token '" + ident.token() + "'", ident);
@@ -68,10 +69,10 @@ public class ASTErrorChecker {
         function.pop();
     }
 
-    private Optional<MiModule> findModuleByName(@NotNull final String dotted, final boolean goFromRoot, @NotNull final MiInternFunction usedAt, @NotNull final Token ident) {
+    private Optional<MiModule> findModuleByName(@NotNull final String dotted, final boolean goFromRoot, @NotNull final MiModule usedAt) {
         // calling a function with the . as the first character means explicitly going from
         // root and checking all submodules from there
-        MiModule current = goFromRoot ? rootModule : usedAt.module();
+        MiModule current = goFromRoot ? rootModule : usedAt;
 
         for (@NotNull final String subMod : dotted.split("\\.")) {
             if (subMod.isEmpty()) continue;
@@ -79,7 +80,24 @@ public class ASTErrorChecker {
             final Optional<MiModule> submodule = current.findSubmoduleByName(subMod);
             current = submodule.orElse(null);
         }
-        return current == null && !goFromRoot ? findModuleByName(dotted, true, usedAt, ident) : Optional.ofNullable(current);
+        return current == null && !goFromRoot ? findModuleByName(dotted, true, usedAt) : Optional.ofNullable(current);
+    }
+
+    private Optional<MiEnum> findEnumByName(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
+        final String name = ident.token();
+        if (!name.contains(".")) return Optional.ofNullable(accessedFrom.findEnumByName(name)
+                .orElse(rootModule.findEnumByName(name)
+                        .orElse(null)));
+
+        final boolean searchAtRoot = name.startsWith(".");
+        final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
+        final Optional<MiModule> enumModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, accessedFrom);
+        if (enumModule.isEmpty()) {
+            parser.parserError("Cannot find " + (!searchAtRoot ? "sub" : "") + "module '" + withoutFirstDotAndName + "' here", ident,
+                    "Make sure you spelled the module name correctly and have defined the module already.");
+            return Optional.empty();
+        }
+        return enumModule.get().findEnumByName(ASTGenerator.identOf(name));
     }
 
     private Optional<MiFunction> findFunctionByCall(@NotNull final Token ident, @NotNull final List<MiDatatype> callParams, @NotNull final MiInternFunction calledFrom) {
@@ -92,7 +110,7 @@ public class ASTErrorChecker {
         }
         final boolean searchAtRoot = name.startsWith(".");
         final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
-        final Optional<MiModule> callModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, calledFrom, ident);
+        final Optional<MiModule> callModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, calledFrom.module());
         if (callModule.isEmpty()) {
             parser.parserError("Cannot find " + (!searchAtRoot ? "sub" : "") + "module '" + withoutFirstDotAndName + "' here", ident,
                     "Make sure you spelled the module name correctly and have defined the module already.");
@@ -101,18 +119,18 @@ public class ASTErrorChecker {
         return callModule.get().findFunction(ASTGenerator.identOf(name), callParams);
     }
 
-    private Optional<MiVariable> findGlobalVariableByAccess(@NotNull final Token ident, @NotNull final MiInternFunction accessedFrom) {
+    private Optional<MiVariable> findGlobalVariableByAccess(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
         final String name = ident.token();
         if (!name.contains(".")) {
             // using a variable without specifying the module means either using
             // a local variable, a global variable in the own module, or a variable in the root scope (standard library functionality)
-            return Optional.ofNullable(accessedFrom.module().find(name) // TODO local variables here
+            return Optional.ofNullable(accessedFrom.find(name)
                     .orElse(rootModule.find(name).orElse(null)));
         }
 
         final boolean searchAtRoot = name.startsWith(".");
         final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
-        final Optional<MiModule> accessModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, accessedFrom, ident);
+        final Optional<MiModule> accessModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, accessedFrom);
         if (accessModule.isEmpty()) {
             parser.parserError("Cannot find " + (!searchAtRoot ? "sub" : "") + "module '" + withoutFirstDotAndName + "' here", ident,
                     "Make sure you spelled the module name correctly and have defined the module already.");
@@ -142,6 +160,8 @@ public class ASTErrorChecker {
                 case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
                 case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
                 case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function);
+                case CREATE_ENUM -> parser.parserError("Unexpected enum definition inside of a function", child.child(0).value(),
+                        "Cannot create enums inside of functions, so move the enum definition out of this scope");
                 case CREATE_MODULE -> parser.parserError("Unexpected module definition inside of a function", child.child(0).value(),
                         "Cannot create modules inside of functions, so move the module definition out of this scope");
                 case FUNCTION_DEFINITION, NATIVE_FUNCTION_DEFINITION -> parser.parserError("Unexpected function definition inside of another function", child.child(0).value(),
@@ -154,7 +174,7 @@ public class ASTErrorChecker {
         if (checkLocalVariableMutation(child, scope)) return;
         final Token ident = child.child(0).value();
 
-        final Optional<MiVariable> globalVariable = findGlobalVariableByAccess(ident, function);
+        final Optional<MiVariable> globalVariable = findGlobalVariableByAccess(ident, function.module());
 
         if (globalVariable.isEmpty()) {
             parser.parserError("Cannot find any variable called '" + ident.token() + "' here", ident,
@@ -173,6 +193,7 @@ public class ASTErrorChecker {
         if (variable.isEmpty()) return false;
         final Token operator = child.child(1).value();
         final ValueParser.TypedNode value = NodeType.of(operator).incrementDecrement() ? null : parseExpression(child.child(2), operator);
+        if (value == null) return false;
 
         final Set<MiModifier> modifiers = variable.get().modifiers();
         final MiModifier mmodifier = MiModifier.effectiveMutabilityModifier(modifiers);
@@ -180,6 +201,10 @@ public class ASTErrorChecker {
         if (MiModifier.invalidLocalMutation(variable.get())) {
             parser.parserError("Invalid variable mutation; Cannot change " + mmodifier.getName() + " local variable here", ident,
                     "Constants can only be initialized once, changing a constants value is not allowed.");
+        }
+        if (!MiDatatype.match(value.type(), variable.get().type())) {
+            parser.parserError("Invalid value type; Cannot assign " + value.type().name() + " values to " + variable.get().type().name() + " variables", operator,
+                    "Change the variable type to " + value.type().name() + " or cast the value to " + variable.get().type().name() + ".");
         }
         variable.get().initialize();
         return true;
@@ -214,7 +239,12 @@ public class ASTErrorChecker {
     private ValueParser.TypedNode parseExpression(@NotNull final Node value, @NotNull final Token equalsToken) {
         if (value.type() != NodeType.VALUE) throw new RuntimeException("Expected value node for expression");
 
-        return new ValueParser(value.children().stream().map(Node::value).toList(), equalsToken, parser).parse();
+        final ValueParser.TypedNode result = new ValueParser(value.children().stream().map(Node::value).toList(), equalsToken, parser).parse();
+        if (result != null && result.node() != null) {
+            value.children().clear();
+            value.addChildren(result.node());
+        }
+        return result;
     }
 
     private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
@@ -278,12 +308,12 @@ public class ASTErrorChecker {
         }
         final Token originalType = node.child(2).value();
         final MiDatatype type = MiDatatype.of(originalType.token(), modifiers.contains(MiModifier.NULLABLE));
-        final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope) || initialized);
         final Node valueNode = node.child(3);
-        final ValueParser.TypedNode value = parseExpression(valueNode, valueNode.value());
 
-        final MiDatatype valueType = value.type();
-        if (valueType == null) return;
+        final ValueParser.TypedNode value = parseExpression(valueNode, valueNode.value()); if (value == null) return;
+        final MiDatatype valueType = value.type(); if (valueType == null) return;
+
+        final MiVariable variable = new MiVariable(container, name, valueType, modifiers, !(container instanceof MiFunctionScope) || initialized);
 
         if (type.equals(MiDatatype.AUTO, true)) {
             node.child(2).value(Token.of(valueType.name())); // set datatype for ? at compile time
@@ -303,6 +333,31 @@ public class ASTErrorChecker {
         // initialized when this is global, so using this is possible, but when not initialized it is null.
         // when the variable is a local one, just use the initialized boolean for this
         container.add(variable);
+    }
+
+    private void defineEnum(@NotNull final Node node) {
+        final Token ident = node.child(0).value();
+        if (currentModule.findEnumByName(ident.token()).isPresent()) {
+            parser.parserError("An enum with the name '" + ident.token() + "' already exists in this module", ident,
+                    "Rename the enum or move it to another module.");
+            return;
+        }
+        final List<MiModifier> modifiers = enumModifiers(node, ident); if (modifiers == null) return;
+
+        final Node scope = node.child(2);
+        if (scope.children().size() != 1 && !scope.children().isEmpty()) {
+            parser.parserError("Enum has more than one member definition list", scope.child(1).child(0).value(),
+                    "Remove the extra enum definitions and only keep one.");
+            return;
+        }
+        final List<String> members;
+        if (scope.children().isEmpty()) {
+            members = new ArrayList<>();
+        } else {
+            members = scope.child(0).children().stream().map(n -> n.value().token()).toList();
+        }
+        final MiEnum miEnum = new MiEnum(ident.token(), currentModule, modifiers, members);
+        currentModule.enums().add(miEnum);
     }
 
     private Set<Map.Entry<Node, MiInternFunction>> defineModule(@NotNull final Node node) {
@@ -360,7 +415,7 @@ public class ASTErrorChecker {
             final List<? extends Class<?>> paramTypesClasses = params
                     .stream()
                     .map(MiVariable::type)
-                    .map(ASTErrorChecker::primitiveToJavaType)
+                    .map(ASTRefiner::primitiveToJavaType)
                     .toList();
 
             return nativeMethodClass.getMethod(ident.token(), paramTypesClasses.toArray(new Class<?>[0]));
@@ -395,18 +450,25 @@ public class ASTErrorChecker {
 
     private boolean checkInvalidModifiers(@NotNull final List<Node> modifiers) {
         final Optional<Token> firstDuplicate = MiModifier.firstDuplicate(modifiers);
-        firstDuplicate.ifPresent(token -> parser.parserError("A duplicate function modifier was found", token,
+        firstDuplicate.ifPresent(token -> parser.parserError("A duplicate modifier was found", token,
                 "Duplicate modifiers don't make sense to have, so remove any duplicate to resolve this issue."));
         final Optional<Token> firstConflicting = MiModifier.firstConflicting(modifiers);
-        firstConflicting.ifPresent(token -> parser.parserError("A conflicting function modifier was found", token,
+        firstConflicting.ifPresent(token -> parser.parserError("A conflicting modifier was found", token,
                 "Some modifiers conflict with others and don't really make any sense when combined, so remove the conflicting modifier and keep the one you really need."));
 
         return parser.encounteredError();
     }
 
+    private List<MiModifier> enumModifiers(@NotNull final Node node, @NotNull final Token ident) {
+        final List<Node> modifiers = node.child(1).children();
+        if (checkInvalidModifiers(modifiers) || checkInvalidEnumModifiers(modifiers, ident)) return null;
+        final List<Optional<MiModifier>> modifs = ASTGenerator.modifiersOfNodes(modifiers);
+        return definiteModifiers(modifs);
+    }
+
     private List<MiModifier> variableModifiers(@NotNull final Node node, final boolean initialized, @NotNull final Token ident, final boolean global) {
         final List<Node> modifiers = node.child(0).children();
-        if (checkInvalidModifiers(modifiers) || (global && checkInvalidGlobalVariableModifiers(modifiers, initialized, ident))) return null;
+        if (checkInvalidModifiers(modifiers) || (global ? checkInvalidGlobalVariableModifiers(modifiers, initialized, ident) : checkInvalidLocalVariableModifiers(modifiers))) return null;
         final List<Optional<MiModifier>> modifs = ASTGenerator.modifiersOfNodes(modifiers);
         return definiteModifiers(modifs);
     }
@@ -487,13 +549,58 @@ public class ASTErrorChecker {
                 parser.parserError("Invalid variable modifier found", modifNodes.get(i).value());
                 return true;
             }
-            if (modifier.get() == MiModifier.MUT || modifier.get() == MiModifier.OWN) constVar = false;
+            switch (modifier.get()) {
+                case MUT, OWN -> constVar = false;
+                case NAT, INTERN -> {
+                    parser.parserError("Invalid variable modifier; only allowed modifiers for global variables are mut, const, own, nullable, nonnull, pub, priv and prot", modifNodes.get(i).value());
+                    return true;
+                }
+            }
             i++;
         }
         if (constVar && !initialized) {
             parser.parserError("Invalid global constant; Cannot have an immutable global constant without an initial value", ident,
                     "Make your global constant a variable by adding the 'mut' modifier, or give it an initial value.");
             return true;
+        }
+        return false;
+    }
+
+    private boolean checkInvalidLocalVariableModifiers(@NotNull final List<Node> modifNodes) {
+        final List<Optional<MiModifier>> modifs = ASTGenerator.modifiersOfNodes(modifNodes);
+        int i = 0;
+        for (@NotNull final Optional<MiModifier> modifier : modifs) {
+            if (modifier.isEmpty()) {
+                parser.parserError("Invalid variable modifier found", modifNodes.get(i).value());
+                return true;
+            }
+            switch (modifier.get()) {
+                case NAT, INTERN, PUB, PRIV, PROT, OWN -> {
+                    parser.parserError("Invalid variable modifier; only allowed modifiers for local variables are mut, const, nullable and nonnull", modifNodes.get(i).value());
+                    return true;
+                }
+            }
+            i++;
+        }
+        return false;
+    }
+
+    private boolean checkInvalidEnumModifiers(@NotNull final List<Node> modifNodes, @NotNull final Token ident) {
+        final List<Optional<MiModifier>> modifs = ASTGenerator.modifiersOfNodes(modifNodes);
+        int i = 0;
+        for (@NotNull final Optional<MiModifier> modifier : modifs) {
+            if (modifier.isEmpty()) {
+                parser.parserError("Invalid enum modifier found", modifNodes.get(i).value());
+                return true;
+            }
+            switch (modifier.get()) {
+                case MUT, NAT, OWN, CONST, INTERN, NULLABLE, NONNULL -> {
+                    parser.parserError("Invalid enum modifier; only allowed modifiers for enums are pub, priv and prot", modifNodes.get(i).value(),
+                            "Remove the invalid modifier(s)");
+                    return true;
+                }
+            }
+            i++;
         }
         return false;
     }

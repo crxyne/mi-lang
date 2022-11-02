@@ -75,13 +75,22 @@ public class Parser {
                     if (paren == 0) {
                         statements.add(current);
                         current = new ArrayList<>();
+                    } else {
+                        parserError("Expected ')'", tok);
+                        return new ArrayList<>();
                     }
                     parsingValue = false;
                 }
                 case SET, SET_ADD, SET_AND, SET_OR, SET_DIV, SET_LSHIFT,
                         SET_MOD, SET_MULT, SET_RSHIFT, SET_SUB, SET_XOR -> parsingValue = true;
                 case LPAREN -> paren++;
-                case RPAREN -> paren--;
+                case RPAREN -> {
+                    if (paren == 0) {
+                        parserError("Unexpected token ')'", tok);
+                        return new ArrayList<>();
+                    }
+                    paren--;
+                }
                 case LBRACE -> {
                     if (!parsingValue) {
                         statements.add(current);
@@ -165,7 +174,7 @@ public class Parser {
             final Token lastToken = lastStatement.get(lastStatement.size() - 1);
             parserError("Missing '}'", lastToken, "Add the missing '}' where it belongs. Every scope {} must be complete in order to compile the program.");
         }
-        final ASTErrorChecker checkErrs = new ASTErrorChecker(this);
+        final ASTRefiner checkErrs = new ASTRefiner(this);
         return checkErrs.checkAST(currentNode);
     }
 

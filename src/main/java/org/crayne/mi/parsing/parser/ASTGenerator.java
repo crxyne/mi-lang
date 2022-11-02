@@ -199,6 +199,7 @@ public class ASTGenerator {
             case LITERAL_WHILE -> evalWhileStatement(withoutModifiers, modifiers, true);
             case LITERAL_USE -> evalUseStatement(withoutModifiers, modifiers);
             case IDENTIFIER -> evalWithIdentifier(withoutModifiers, modifiers);
+            case SEMI -> evalNoop(withoutModifiers, modifiers);
             default -> null;
         };
     }
@@ -221,9 +222,14 @@ public class ASTGenerator {
         };
     }
 
+    public Node evalNoop(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
+        if (unexpectedModifiers(modifiers) || tokens.size() != 1) return null;
+        return new Node(NodeType.NOOP, tokens.get(0).actualLine(), tokens.get(0), Collections.emptyList());
+    }
+
     public Node evalLocalScope(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers) || tokens.size() != 1) return null;
-        return new Node(NodeType.SCOPE, tokens.get(0).actualLine(), tokens.get(0), Collections.emptyList());
+        return new Node(NodeType.NOOP, tokens.get(0).actualLine(), new Node(NodeType.SCOPE, tokens.get(0).actualLine(), tokens.get(0), Collections.emptyList()));
     }
 
     public static boolean nullable(@NotNull final Collection<Node> modifiers) {

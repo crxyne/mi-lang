@@ -3,7 +3,7 @@ package org.crayne.mi.lang;
 import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
-import org.crayne.mi.parsing.parser.ASTErrorChecker;
+import org.crayne.mi.parsing.parser.ASTRefiner;
 import org.crayne.mi.parsing.parser.ASTGenerator;
 import org.jetbrains.annotations.NotNull;
 
@@ -96,7 +96,7 @@ public enum MiModifier {
     public static Optional<Token> firstDuplicate(@NotNull final Collection<Node> modifiers) {
         return modifiers.stream().filter(m -> {
             final Optional<MiModifier> thisModif = MiModifier.of(m.type());
-            final List<MiModifier> modifierSet = ASTErrorChecker.definiteModifiers(ASTGenerator.modifiersOfNodes(modifiers));
+            final List<MiModifier> modifierSet = ASTRefiner.definiteModifiers(ASTGenerator.modifiersOfNodes(modifiers));
             return modifierSet.stream().filter(mod -> thisModif.isPresent() && mod == thisModif.get()).toList().size() > 1;
         }).map(Node::value).findFirst();
     }

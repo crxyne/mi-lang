@@ -11,6 +11,7 @@ public class MiModule implements MiContainer {
     private final Set<MiModule> submodules;
     private final Set<MiVariable> variables;
     private final Set<MiFunction> functions;
+    private final Set<MiEnum> enums;
 
     public MiModule(@NotNull final String name, @NotNull final MiModule parent) {
         this.variables = new HashSet<>();
@@ -18,6 +19,7 @@ public class MiModule implements MiContainer {
         this.parent = parent;
         this.submodules = new HashSet<>();
         this.functions = new HashSet<>();
+        this.enums = new HashSet<>();
     }
 
     public MiModule(@NotNull final String name) {
@@ -26,6 +28,7 @@ public class MiModule implements MiContainer {
         this.parent = null;
         this.submodules = new HashSet<>();
         this.functions = new HashSet<>();
+        this.enums = new HashSet<>();
     }
 
     public String name() {
@@ -38,6 +41,10 @@ public class MiModule implements MiContainer {
 
     public Set<MiFunction> functions() {
         return functions;
+    }
+
+    public Set<MiEnum> enums() {
+        return enums;
     }
 
     public Optional<MiModule> parent() {
@@ -70,6 +77,10 @@ public class MiModule implements MiContainer {
 
     public Optional<MiModule> findSubmoduleByName(@NotNull final String name) {
         return submodules.stream().filter(m -> m.name.equals(name)).findAny();
+    }
+
+    public Optional<MiEnum> findEnumByName(@NotNull final String name) {
+        return enums.stream().filter(e -> e.name().equals(name)).findAny();
     }
 
     public List<MiFunction> filterFunctionsByName(@NotNull final String name) {

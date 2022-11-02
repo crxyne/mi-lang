@@ -129,6 +129,10 @@ public class Node {
         return children.get(index);
     }
 
+    public void child(final int index, @NotNull final Node child) {
+        children.set(index, child);
+    }
+
     public Token value() {
         return value;
     }

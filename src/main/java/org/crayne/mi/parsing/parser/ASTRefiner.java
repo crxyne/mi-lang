@@ -204,7 +204,7 @@ public class ASTRefiner {
         final Optional<MiVariable> variable = function.find(ident.token());
         if (variable.isEmpty()) return false;
         final Token operator = child.child(1).value();
-        final ValueParser.TypedNode value = NodeType.of(operator).incrementDecrement() ? null : parseExpression(child.child(2), operator, function);
+        final ASTExpressionParser.TypedNode value = NodeType.of(operator).incrementDecrement() ? null : parseExpression(child.child(2), operator, function);
         if (value == null) return false;
 
         final Set<MiModifier> modifiers = variable.get().modifiers();
@@ -252,10 +252,10 @@ public class ASTRefiner {
         }
     }
 
-    private ValueParser.TypedNode parseExpression(@NotNull final Node value, @NotNull final Token equalsToken, @NotNull final MiContainer container) {
+    private ASTExpressionParser.TypedNode parseExpression(@NotNull final Node value, @NotNull final Token equalsToken, @NotNull final MiContainer container) {
         if (value.type() != NodeType.VALUE) throw new RuntimeException("Expected value node for expression");
 
-        final ValueParser.TypedNode result = new ValueParser(value.children().stream().map(Node::value).toList(), equalsToken, this, container).parse();
+        final ASTExpressionParser.TypedNode result = new ASTExpressionParser(value.children().stream().map(Node::value).toList(), equalsToken, this, container).parse();
         if (result != null && result.node() != null) {
             value.children().clear();
             value.addChildren(result.node());
@@ -265,7 +265,7 @@ public class ASTRefiner {
 
     private void checkFunctionCall(@NotNull final Node child, @NotNull final MiModule calledFrom) {
         final Token ident = child.child(0).value();
-        final List<ValueParser.TypedNode> callParamNodes = child
+        final List<ASTExpressionParser.TypedNode> callParamNodes = child
                 .child(1)
                 .children()
                 .stream()
@@ -276,7 +276,7 @@ public class ASTRefiner {
 
         final List<MiDatatype> callParams = callParamNodes
                 .stream()
-                .map(ValueParser.TypedNode::type)
+                .map(ASTExpressionParser.TypedNode::type)
                 .toList();
 
         final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom);
@@ -326,7 +326,7 @@ public class ASTRefiner {
         final MiDatatype type = MiDatatype.of(originalType.token(), modifiers.contains(MiModifier.NULLABLE));
         final Node valueNode = node.child(3);
 
-        final ValueParser.TypedNode value = parseExpression(valueNode, valueNode.value(), container); if (value == null) return;
+        final ASTExpressionParser.TypedNode value = parseExpression(valueNode, valueNode.value(), container); if (value == null) return;
         final MiDatatype valueType = value.type(); if (valueType == null) return;
 
         final MiVariable variable = new MiVariable(container, name, valueType, modifiers, !(container instanceof MiFunctionScope) || initialized);

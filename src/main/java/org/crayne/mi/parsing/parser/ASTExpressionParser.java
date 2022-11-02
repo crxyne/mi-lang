@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.stream.Stream;
 
-public class ValueParser {
+public class ASTExpressionParser {
 
     private int parsingPosition = -1;
     private Token currentToken;
@@ -28,8 +28,8 @@ public class ValueParser {
         }
     }
 
-    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
-                       @NotNull final MiModule module) {
+    public ASTExpressionParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
+                               @NotNull final MiModule module) {
         this.expr = expr;
         this.equalsToken = equalsToken;
         this.refiner = refiner;
@@ -37,8 +37,8 @@ public class ValueParser {
         this.function = null;
     }
 
-    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
-                       @NotNull final MiInternFunction internFunction) {
+    public ASTExpressionParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
+                               @NotNull final MiInternFunction internFunction) {
         this.expr = expr;
         this.equalsToken = equalsToken;
         this.refiner = refiner;
@@ -46,8 +46,8 @@ public class ValueParser {
         this.function = internFunction;
     }
 
-    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
-                       @NotNull final MiContainer container) {
+    public ASTExpressionParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
+                               @NotNull final MiContainer container) {
         this.expr = expr;
         this.equalsToken = equalsToken;
         this.refiner = refiner;
@@ -484,7 +484,7 @@ public class ValueParser {
                     return new ArrayList<>();
                 }
 
-                result.add(new ValueParser(currentArg, token, refiner, container).parse());
+                result.add(new ASTExpressionParser(currentArg, token, refiner, container).parse());
                 currentArg.clear();
                 addedNode = true;
                 continue;
@@ -492,7 +492,7 @@ public class ValueParser {
             addedNode = false;
             currentArg.add(token);
         }
-        if (!addedNode) result.add(new ValueParser(currentArg, currentArg.get(0), refiner, container).parse());
+        if (!addedNode) result.add(new ASTExpressionParser(currentArg, currentArg.get(0), refiner, container).parse());
         return result;
     }
 

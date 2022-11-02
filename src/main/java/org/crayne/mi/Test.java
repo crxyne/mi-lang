@@ -27,8 +27,6 @@ mod std {
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
-    double d = std.cos(2);
-
     fn main {
         
     }

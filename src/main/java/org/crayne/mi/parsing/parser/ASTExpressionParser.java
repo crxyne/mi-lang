@@ -6,8 +6,10 @@ import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 public class ASTExpressionParser {
 
@@ -131,6 +133,7 @@ public class ASTExpressionParser {
 
     private TypedNode evalExpression(final TypedNode x, final TypedNode y, final Token op) {
         if (NodeType.of(op) == NodeType.QUESTION_MARK) return evalTernaryOperator(x, y);
+        if (x.type == null || y.type == null) return TypedNode.empty();
 
         return new TypedNode(
                 isComparator(op.token()) ? MiDatatype.BOOL : MiDatatype.heavier(x.type, y.type),
@@ -167,6 +170,10 @@ public class ASTExpressionParser {
                     final Token op = currentToken;
                     nextPart();
                     final TypedNode nodeY = parseExpression(precendece - 1);
+
+                    if (nodeX.type == null || cannotUseOperator(nodeX, op)) return TypedNode.empty();
+                    if (nodeY.type == null || cannotUseOperator(nodeY, op)) return TypedNode.empty();
+
                     nodeX = evalExpression(nodeX, nodeY, op);
                 } else {
                     return nodeX;
@@ -177,32 +184,16 @@ public class ASTExpressionParser {
         }
     }
 
-    private static boolean noTypeMatches(@NotNull final TypedNode factor, @NotNull final MiDatatype... types) {
-        return Stream.of(types).noneMatch(factor.type::equals);
-    }
-
     private void cannotUseOperatorError(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        refiner.parser().parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
+        refiner.parser().parserError("Cannot use operator '" + prev.token() + "' for " + fact.type + " values", prev);
     }
 
-    private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev, @NotNull final MiDatatype... types) {
-        if (noTypeMatches(fact, types)) {
+    private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
+        if (!MiDatatype.operatorDefined(prev.token(), fact.type.name())) {
             cannotUseOperatorError(fact, prev);
             return true;
         }
         return false;
-    }
-
-    private boolean cannotUseNumberOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        return cannotUseOperator(fact, prev, MiDatatype.INT, MiDatatype.LONG, MiDatatype.DOUBLE, MiDatatype.FLOAT);
-    }
-
-    private boolean cannotUseBitwiseOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        return cannotUseOperator(fact, prev, MiDatatype.INT, MiDatatype.LONG, MiDatatype.CHAR);
-    }
-
-    private boolean cannotUseBooleanOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        return cannotUseOperator(fact, prev, MiDatatype.BOOL);
     }
 
     private static TypedNode embraceFactor(@NotNull final TypedNode factor, @NotNull final NodeType nodeType) {
@@ -220,7 +211,7 @@ public class ASTExpressionParser {
         nextPart();
 
         final TypedNode fact = parseFactor();
-        return cannotUseNumberOperator(fact, prev) ? TypedNode.empty() : fact;
+        return cannotUseOperator(fact, prev) ? TypedNode.empty() : fact;
     }
 
     private TypedNode negateNumberFactor(@NotNull final Token prev) {
@@ -229,7 +220,7 @@ public class ASTExpressionParser {
 
         final TypedNode fact = parseFactor();
         final TypedNode negated = embraceFactor(fact, NodeType.NEGATE);
-        return cannotUseNumberOperator(fact, prev) ? TypedNode.empty() : negated;
+        return cannotUseOperator(fact, prev) ? TypedNode.empty() : negated;
     }
 
     private TypedNode invertBooleanFactor(@NotNull final Token prev) {
@@ -238,7 +229,7 @@ public class ASTExpressionParser {
 
         final TypedNode fact = parseFactor();
         final TypedNode inverted = embraceFactor(fact, NodeType.BOOL_NOT);
-        return cannotUseBooleanOperator(fact, prev) ? TypedNode.empty() : inverted;
+        return cannotUseOperator(fact, prev) ? TypedNode.empty() : inverted;
     }
 
     private TypedNode bitwiseInvertIntegerFactor(@NotNull final Token prev) {
@@ -247,7 +238,7 @@ public class ASTExpressionParser {
 
         final TypedNode fact = parseFactor();
         final TypedNode inverted = embraceFactor(fact, NodeType.BIT_NOT);
-        return cannotUseBitwiseOperator(fact, prev) ? TypedNode.empty() : inverted;
+        return cannotUseOperator(fact, prev) ? TypedNode.empty() : inverted;
     }
 
     private TypedNode castFactor(@NotNull final Token prev) {
@@ -274,7 +265,7 @@ public class ASTExpressionParser {
         }
 
         final NodeType tokenType = NodeType.of(prev);
-        if (NodeType.of(prev).isDatatype()) return Optional.of(castFactor(prev));
+        if (tokenType.isDatatype() && tokenType != NodeType.QUESTION_MARK) return Optional.of(castFactor(prev));
 
         return Optional.ofNullable(switch (tokenType) {
             case ADD, INCREMENT_LITERAL, DECREMENT_LITERAL -> parseNumberFactor(prev); // +, ++ and -- as PREFIXES do not change a number, but they only make sense when used on any number datatype
@@ -367,6 +358,11 @@ public class ASTExpressionParser {
                 final TypedNode val = NodeType.of(nextPart).incrementDecrement() ? null : parseExpression();
                 final Node varMutation = new Node(NodeType.MUTATE_VARIABLE, nextPart.actualLine(),
                         ASTGenerator.variableChange(identifier, val == null ? null : new Node(NodeType.VALUE, val.lineDebugging(), val.node), nextPart));
+
+                if (!MiDatatype.operatorDefined(nextPart.token(), variable.get().type().name())) {
+                    refiner.parser().parserError("Cannot use operator '" + nextPart.token() + "' for " + variable.get().type() + " values.", nextPart);
+                    return TypedNode.empty();
+                }
 
                 refiner.checkVariableMutation(varMutation, function, module);
                 if (refiner.parser().encounteredError()) return TypedNode.empty();

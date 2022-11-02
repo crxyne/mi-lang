@@ -3,6 +3,7 @@ package org.crayne.mi.lang;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -37,7 +38,7 @@ public class MiDatatype {
     public static final MiDatatype CHAR = new MiDatatype("char");
     public static final MiDatatype BOOL = new MiDatatype("bool");
     public static final MiDatatype VOID = new MiDatatype("void");
-    public static final MiDatatype NULL = new MiDatatype("null");
+    public static final MiDatatype NULL = new MiDatatype("null", false);
     public static final MiDatatype AUTO = new MiDatatype("?");
 
     private static final Map<String, Integer> datatypeRanking = new HashMap<>() {{
@@ -66,6 +67,49 @@ public class MiDatatype {
         final Integer r2 = datatypeRanking.get(d2.name());
         if (r1 == null || r2 == null) return null;
         return r1 < r2 ? d1 : d2;
+    }
+
+    private static final Map<String, List<String>> operatorsDefined = new HashMap<>() {{
+        this.put("+", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
+        this.put("-", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("*", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("/", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("%", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+
+        this.put("+=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
+        this.put("-=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("*=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("/=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("%=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+
+        this.put(">", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
+        this.put("<", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
+        this.put(">=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
+        this.put("<=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
+
+        this.put("&", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+        this.put("|", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+        this.put("^", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+        this.put("~", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+
+        this.put("&=", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+        this.put("|=", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+        this.put("^=", List.of(INT.name, CHAR.name, LONG.name, BOOL.name));
+
+        this.put("<<", List.of(INT.name, CHAR.name, LONG.name));
+        this.put(">>", List.of(INT.name, CHAR.name, LONG.name));
+
+        this.put("<<=", List.of(INT.name, CHAR.name, LONG.name));
+        this.put(">>=", List.of(INT.name, CHAR.name, LONG.name));
+
+        this.put("&&", List.of(BOOL.name));
+        this.put("||", List.of(BOOL.name));
+        this.put("!", List.of(BOOL.name));
+    }};
+
+    public static boolean operatorDefined(@NotNull final String operator, @NotNull final String type) {
+        return (operator.equals("==") || operator.equals("!=") || operator.equals("="))
+                || (operatorsDefined.containsKey(operator) && operatorsDefined.get(operator).stream().anyMatch(d -> match(MiDatatype.of(type), MiDatatype.of(d))));
     }
 
     public static boolean match(@NotNull final MiDatatype newType, @NotNull final MiDatatype oldType) {

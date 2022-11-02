@@ -196,6 +196,10 @@ public class ASTRefiner {
                     "Give the variable an explicit value by using the normal set (=) operator");
             return;
         }
+        if (!MiDatatype.operatorDefined(operator.token(), globalVariable.get().type().name())) {
+            parser.parserError("Cannot use operator '" + operator.token() + "' for " + globalVariable.get().type() + " values.", operator);
+            return;
+        }
         checkInvalidGlobalVariableAccess(globalVariable.get(), module, ident);
         checkInvalidGlobalVariableMutation(globalVariable.get(), module, ident);
         globalVariable.get().initialize();
@@ -226,6 +230,10 @@ public class ASTRefiner {
                     "Give the variable an explicit value by using the normal set (=) operator");
             return true;
         }
+        if (!MiDatatype.operatorDefined(operator.token(), variable.get().type().name())) {
+            parser.parserError("Cannot use operator '" + operator.token() + "' for " + variable.get().type() + " values.", operator);
+            return true;
+        }
 
         final boolean incDec = NodeType.of(operator).incrementDecrement();
         final ASTExpressionParser.TypedNode value = incDec ? null : parseExpression(child.child(2), operator, function);
@@ -243,8 +251,10 @@ public class ASTRefiner {
         if (valueType == null) return false;
 
         if (!MiDatatype.match(valueType, varType)) {
-            parser.parserError("Invalid value type; Cannot assign " + valueType.name() + " values to " + varType.name() + " variables", operator,
-                    "Change the variable type to " + valueType.name() + " or cast the value to " + varType.name() + ".");
+            parser.parserError("Invalid value type; Cannot assign " + valueType + " values to " + varType + " variables", operator,
+                    (valueType != MiDatatype.NULL
+                            ? "Cast the value to " + varType.name() + " or change the variable datatype to " + valueType + "."
+                            : "Mark your variable as nullable or use std.to_nonnull() to safely convert a null-value to a nonnull-value."));
         }
         variable.get().initialize();
         return true;
@@ -348,8 +358,9 @@ public class ASTRefiner {
         }
         final Token originalType = node.child(2).value();
         final MiDatatype type = MiDatatype.of(originalType.token(), modifiers.contains(MiModifier.NULLABLE));
+
         if (!initialized) {
-            final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope) || initialized);
+            final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope));
             container.add(variable);
             return;
         }
@@ -358,7 +369,7 @@ public class ASTRefiner {
         final ASTExpressionParser.TypedNode value = parseExpression(valueNode, valueNode.value(), container); if (value == null) return;
         final MiDatatype valueType = value.type(); if (valueType == null) return;
 
-        final MiVariable variable = new MiVariable(container, name, valueType, modifiers, !(container instanceof MiFunctionScope) || initialized);
+        final MiVariable variable = new MiVariable(container, name, valueType.name().equals("null") ? type : valueType, modifiers, true);
 
         if (type.equals(MiDatatype.AUTO, true)) {
             node.child(2).value(Token.of(valueType.name())); // set datatype for ? at compile time
@@ -372,8 +383,10 @@ public class ASTRefiner {
             return;
         }
         if (!MiDatatype.match(valueType, type)) {
-            parser.parserError("Cannot assign " + valueType.name() + " values to " + type.name() + " variables.", node.child(3).child(0).value(),
-                    "Cast the value to " + type.name() + " or change the variable datatype to " + valueType.name());
+            parser.parserError("Cannot assign " + valueType + " values to " + type + " variables.", node.child(3).child(0).value(),
+                    (valueType != MiDatatype.NULL
+                            ? "Cast the value to " + type.name() + " or change the variable datatype to " + valueType + "."
+                            : "Mark your variable as nullable or use std.to_nonnull() to safely convert a null-value to a nonnull-value."));
         }
         // initialized when this is global, so using this is possible, but when not initialized it is null.
         // when the variable is a local one, just use the initialized boolean for this

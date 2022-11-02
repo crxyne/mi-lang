@@ -150,7 +150,7 @@ public class ASTRefiner {
         for (@NotNull final Node child : scope.children()) {
             if (parser.encounteredError()) return;
             switch (child.type()) {
-                case FUNCTION_CALL -> checkFunctionCall(child, function.module());
+                case FUNCTION_CALL -> checkFunctionCall(child, function);
                 case SCOPE -> {
                     final MiFunctionScope localScope = new MiFunctionScope(function, functionScope);
                     checkLocal(child, localScope);
@@ -177,12 +177,23 @@ public class ASTRefiner {
     protected void checkVariableMutation(@NotNull final Node child, final MiFunctionScope scope, @NotNull final MiModule module) {
         if (checkLocalVariableMutation(child, scope)) return;
         final Token ident = child.child(0).value();
+        final Token operator = child.child(1).value();
+        final Optional<MiEqualOperator> equalOperator = MiEqualOperator.of(operator.token());
+        if (equalOperator.isEmpty()) {
+            parser.parserError("Fatal parsing error; Equal operation is invalid '" + operator.token() + "'", operator);
+            return;
+        }
 
         final Optional<MiVariable> globalVariable = findGlobalVariableByAccess(ident, module);
 
         if (globalVariable.isEmpty()) {
             parser.parserError("Cannot find any variable called '" + ident.token() + "' here", ident,
                     "Are you sure you spelled the variable name correctly?" + (ident.token().contains(".") ? " Are you using the right module?" : ""));
+            return;
+        }
+        if (equalOperator.get() != MiEqualOperator.SET && !globalVariable.get().initialized()) {
+            parser.parserError("Variable '" + ident.token() + "' might have not been initialized yet", ident,
+                    "Give the variable an explicit value by using the normal set (=) operator");
             return;
         }
         checkInvalidGlobalVariableAccess(globalVariable.get(), module, ident);
@@ -203,9 +214,22 @@ public class ASTRefiner {
         final Token ident = child.child(0).value();
         final Optional<MiVariable> variable = function.find(ident.token());
         if (variable.isEmpty()) return false;
+
         final Token operator = child.child(1).value();
-        final ASTExpressionParser.TypedNode value = NodeType.of(operator).incrementDecrement() ? null : parseExpression(child.child(2), operator, function);
-        if (value == null) return false;
+        final Optional<MiEqualOperator> equalOperator = MiEqualOperator.of(operator.token());
+        if (equalOperator.isEmpty()) {
+            parser.parserError("Fatal parsing error; Equal operation is invalid '" + operator.token() + "'", operator);
+            return true;
+        }
+        if (equalOperator.get() != MiEqualOperator.SET && !variable.get().initialized()) {
+            parser.parserError("Variable '" + ident.token() + "' might have not been initialized yet", ident,
+                    "Give the variable an explicit value by using the normal set (=) operator");
+            return true;
+        }
+
+        final boolean incDec = NodeType.of(operator).incrementDecrement();
+        final ASTExpressionParser.TypedNode value = incDec ? null : parseExpression(child.child(2), operator, function);
+        if (value == null && !incDec) return false;
 
         final Set<MiModifier> modifiers = variable.get().modifiers();
         final MiModifier mmodifier = MiModifier.effectiveMutabilityModifier(modifiers);
@@ -214,7 +238,7 @@ public class ASTRefiner {
             parser.parserError("Invalid variable mutation; Cannot change " + mmodifier.getName() + " local variable here", ident,
                     "Constants can only be initialized once, changing a constants value is not allowed.");
         }
-        final MiDatatype valueType = value.type();
+        final MiDatatype valueType = incDec ? variable.get().type() : value.type();
         final MiDatatype varType = variable.get().type();
         if (valueType == null) return false;
 
@@ -263,7 +287,7 @@ public class ASTRefiner {
         return result;
     }
 
-    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiModule calledFrom) {
+    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
         final Token ident = child.child(0).value();
         final List<ASTExpressionParser.TypedNode> callParamNodes = child
                 .child(1)
@@ -279,7 +303,7 @@ public class ASTRefiner {
                 .map(ASTExpressionParser.TypedNode::type)
                 .toList();
 
-        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom);
+        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom.module());
         if (callFunction.isEmpty()) {
             parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident,
                     "Are you sure you spelled the function name correctly? Are you using the right module?");
@@ -287,7 +311,7 @@ public class ASTRefiner {
         }
         final Set<MiModifier> modifiers = callFunction.get().modifiers();
         final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
-        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom)) {
+        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom.module())) {
             parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
                     (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
                             : "Protected functions can only be accessed within their own module scope"));
@@ -324,6 +348,11 @@ public class ASTRefiner {
         }
         final Token originalType = node.child(2).value();
         final MiDatatype type = MiDatatype.of(originalType.token(), modifiers.contains(MiModifier.NULLABLE));
+        if (!initialized) {
+            final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope) || initialized);
+            container.add(variable);
+            return;
+        }
         final Node valueNode = node.child(3);
 
         final ASTExpressionParser.TypedNode value = parseExpression(valueNode, valueNode.value(), container); if (value == null) return;

@@ -3,6 +3,8 @@ package org.crayne.mi.lang;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class MiModule implements MiContainer {
 
@@ -87,10 +89,20 @@ public class MiModule implements MiContainer {
         return functions.stream().filter(f -> f.name().equals(name)).toList();
     }
 
-    public Optional<MiFunction> findFunction(@NotNull final String name, @NotNull final Collection<MiDatatype> parameters) {
+    public Optional<MiFunction> findFunction(@NotNull final String name, @NotNull final List<MiDatatype> parameters) {
         return filterFunctionsByName(name).stream().filter(f -> {
-            final Set<MiDatatype> funcParams = f.parameterTypes();
-            return new HashSet<>(parameters).containsAll(funcParams) && new HashSet<>(funcParams).containsAll(parameters);
+            final List<MiDatatype> funcParams = f.parameterTypes();
+            if (funcParams.size() == parameters.size()) {
+                final Map<MiDatatype, MiDatatype> matchTypes = IntStream.range(0, funcParams.size())
+                        .boxed()
+                        .collect(Collectors.toMap(funcParams::get, parameters::get));
+
+                return matchTypes // make sure every datatype matches
+                        .keySet()
+                        .stream()
+                        .allMatch(d -> MiDatatype.match(matchTypes.get(d), d));
+            }
+            return false;
         }).findAny();
     }
 

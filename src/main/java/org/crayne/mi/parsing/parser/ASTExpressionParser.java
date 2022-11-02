@@ -374,6 +374,11 @@ public class ASTExpressionParser {
                 return new TypedNode(variable.get().type(), varMutation);
             }
         }
+        if (!variable.get().initialized()) {
+            refiner.parser().parserError("Variable '" + identifier.token() + "' might have not been initialized yet", identifier,
+                    "Give the variable an explicit value by using the normal set (=) operator");
+            return TypedNode.empty();
+        }
         final TypedNode result = new TypedNode(variable.get().type(), new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()));
         nextPart();
         return result;
@@ -461,7 +466,7 @@ public class ASTExpressionParser {
             return null;
         }
         nextPart();
-        return parseParametersCallFunction(expr.subList(start + 1, foundEndingParen), function);
+        return parseParametersCallFunction(expr.subList(start + 1, foundEndingParen), module);
     }
 
     public static List<TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens, @NotNull final ASTRefiner refiner,

@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public enum MiEqualOperator {
 
-    ADD, SUB, MULT, DIV, MOD, LSHIFT, RSHIFT, OR, XOR, AND, SET;
+    ADD, SUB, MULT, DIV, MOD, LSHIFT, RSHIFT, OR, XOR, AND, SET, INC, DEC;
 
     public static Optional<MiEqualOperator> of(@NotNull final String token) {
         return Optional.ofNullable(switch (NodeType.of(token)) {
@@ -22,6 +22,8 @@ public enum MiEqualOperator {
             case SET_OR -> OR;
             case SET_RSHIFT -> RSHIFT;
             case SET_XOR -> XOR;
+            case INCREMENT, INCREMENT_LITERAL -> INC;
+            case DECREMENT, DECREMENT_LITERAL -> DEC;
             default -> null;
         });
     }

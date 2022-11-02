@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class MiNativeFunction implements MiFunction {
 
@@ -12,11 +11,11 @@ public class MiNativeFunction implements MiFunction {
     private final MiDatatype returnType;
     private final MiModule module;
     private final Set<MiModifier> modifiers;
-    private final Set<MiVariable> parameters;
+    private final List<MiVariable> parameters;
     private final Method nativeMethod;
 
     public MiNativeFunction(@NotNull final Method nativeMethod, @NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final Collection<MiVariable> parameters) {
-        this.parameters = new HashSet<>(parameters);
+        this.parameters = new ArrayList<>(parameters);
         this.name = name;
         this.returnType = returnType;
         this.module = module;
@@ -25,7 +24,7 @@ public class MiNativeFunction implements MiFunction {
     }
 
     public MiNativeFunction(@NotNull final Method nativeMethod, @NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final MiVariable... parameters) {
-        this.parameters = new HashSet<>(List.of(parameters));
+        this.parameters = new ArrayList<>(List.of(parameters));
         this.name = name;
         this.returnType = returnType;
         this.module = module;
@@ -49,12 +48,12 @@ public class MiNativeFunction implements MiFunction {
         return name;
     }
 
-    public Set<MiVariable> parameters() {
+    public List<MiVariable> parameters() {
         return parameters;
     }
 
-    public Set<MiDatatype> parameterTypes() {
-        return parameters.stream().map(MiVariable::type).collect(Collectors.toSet());
+    public List<MiDatatype> parameterTypes() {
+        return parameters.stream().map(MiVariable::type).toList();
     }
 
     public Method nativeMethod() {

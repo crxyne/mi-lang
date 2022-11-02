@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import java.util.List;
 import java.util.Set;
 
 public interface MiFunction {
@@ -12,8 +13,8 @@ public interface MiFunction {
 
     String name();
 
-    Set<MiVariable> parameters();
-    Set<MiDatatype> parameterTypes();
+    List<MiVariable> parameters();
+    List<MiDatatype> parameterTypes();
 
 
 }

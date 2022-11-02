@@ -27,12 +27,10 @@ mod std {
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
-    pub enum hi {
-        Test, Test2
-    }
+    double d = std.cos(2);
 
     fn main {
-        mut? h = hi::Test2;
+        
     }
     
 }

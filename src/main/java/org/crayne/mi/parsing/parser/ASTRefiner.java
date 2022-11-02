@@ -31,6 +31,10 @@ public class ASTRefiner {
         return parser.encounteredError() ? null : this.AST;
     }
 
+    public Parser parser() {
+        return parser;
+    }
+
     private Set<Map.Entry<Node, MiInternFunction>> defineAllGlobal(@NotNull final Node node) {
         final Set<Map.Entry<Node, MiInternFunction>> functionScopes = new HashSet<>();
         for (@NotNull final Node child : node.children()) {
@@ -83,7 +87,7 @@ public class ASTRefiner {
         return current == null && !goFromRoot ? findModuleByName(dotted, true, usedAt) : Optional.ofNullable(current);
     }
 
-    private Optional<MiEnum> findEnumByName(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
+    protected Optional<MiEnum> findEnumByName(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
         final String name = ident.token();
         if (!name.contains(".")) return Optional.ofNullable(accessedFrom.findEnumByName(name)
                 .orElse(rootModule.findEnumByName(name)
@@ -100,17 +104,17 @@ public class ASTRefiner {
         return enumModule.get().findEnumByName(ASTGenerator.identOf(name));
     }
 
-    private Optional<MiFunction> findFunctionByCall(@NotNull final Token ident, @NotNull final List<MiDatatype> callParams, @NotNull final MiInternFunction calledFrom) {
+    protected Optional<MiFunction> findFunctionByCall(@NotNull final Token ident, @NotNull final List<MiDatatype> callParams, @NotNull final MiModule calledFrom) {
         final String name = ident.token();
         if (!name.contains(".")) {
             // calling a function without specifying the module means either using
             // a local function in the current scope, or a function in the root scope (standard library functions)
-            return Optional.ofNullable(calledFrom.module().findFunction(name, callParams)
+            return Optional.ofNullable(calledFrom.findFunction(name, callParams)
                     .orElse(rootModule.findFunction(name, callParams).orElse(null)));
         }
         final boolean searchAtRoot = name.startsWith(".");
         final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
-        final Optional<MiModule> callModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, calledFrom.module());
+        final Optional<MiModule> callModule = findModuleByName(withoutFirstDotAndName, searchAtRoot, calledFrom);
         if (callModule.isEmpty()) {
             parser.parserError("Cannot find " + (!searchAtRoot ? "sub" : "") + "module '" + withoutFirstDotAndName + "' here", ident,
                     "Make sure you spelled the module name correctly and have defined the module already.");
@@ -119,7 +123,7 @@ public class ASTRefiner {
         return callModule.get().findFunction(ASTGenerator.identOf(name), callParams);
     }
 
-    private Optional<MiVariable> findGlobalVariableByAccess(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
+    protected Optional<MiVariable> findGlobalVariableByAccess(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
         final String name = ident.token();
         if (!name.contains(".")) {
             // using a variable without specifying the module means either using
@@ -146,7 +150,7 @@ public class ASTRefiner {
         for (@NotNull final Node child : scope.children()) {
             if (parser.encounteredError()) return;
             switch (child.type()) {
-                case FUNCTION_CALL -> checkFunctionCall(child, function);
+                case FUNCTION_CALL -> checkFunctionCall(child, function.module());
                 case SCOPE -> {
                     final MiFunctionScope localScope = new MiFunctionScope(function, functionScope);
                     checkLocal(child, localScope);
@@ -159,7 +163,7 @@ public class ASTRefiner {
                 }
                 case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
                 case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
-                case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function);
+                case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
                 case CREATE_ENUM -> parser.parserError("Unexpected enum definition inside of a function", child.child(0).value(),
                         "Cannot create enums inside of functions, so move the enum definition out of this scope");
                 case CREATE_MODULE -> parser.parserError("Unexpected module definition inside of a function", child.child(0).value(),
@@ -170,29 +174,37 @@ public class ASTRefiner {
         }
     }
 
-    private void checkVariableMutation(@NotNull final Node child, @NotNull final MiFunctionScope scope, @NotNull final MiInternFunction function) {
+    protected void checkVariableMutation(@NotNull final Node child, final MiFunctionScope scope, @NotNull final MiModule module) {
         if (checkLocalVariableMutation(child, scope)) return;
         final Token ident = child.child(0).value();
 
-        final Optional<MiVariable> globalVariable = findGlobalVariableByAccess(ident, function.module());
+        final Optional<MiVariable> globalVariable = findGlobalVariableByAccess(ident, module);
 
         if (globalVariable.isEmpty()) {
             parser.parserError("Cannot find any variable called '" + ident.token() + "' here", ident,
                     "Are you sure you spelled the variable name correctly?" + (ident.token().contains(".") ? " Are you using the right module?" : ""));
             return;
         }
-        final MiModule ownModule = function.module();
-        checkInvalidGlobalVariableAccess(globalVariable.get(), ownModule, ident);
-        checkInvalidGlobalVariableMutation(globalVariable.get(), ownModule, ident);
+        checkInvalidGlobalVariableAccess(globalVariable.get(), module, ident);
+        checkInvalidGlobalVariableMutation(globalVariable.get(), module, ident);
         globalVariable.get().initialize();
     }
 
-    private boolean checkLocalVariableMutation(@NotNull final Node child, @NotNull final MiFunctionScope function) {
+    protected Optional<MiVariable> findVariable(@NotNull final Token ident, @NotNull final MiModule module, final MiInternFunction function) {
+        if (function == null) return findGlobalVariableByAccess(ident, module);
+        final Optional<MiVariable> localVariable = function.find(ident.token());
+        if (localVariable.isPresent()) return localVariable;
+
+        return findGlobalVariableByAccess(ident, module);
+    }
+
+    private boolean checkLocalVariableMutation(@NotNull final Node child, final MiFunctionScope function) {
+        if (function == null) return false;
         final Token ident = child.child(0).value();
         final Optional<MiVariable> variable = function.find(ident.token());
         if (variable.isEmpty()) return false;
         final Token operator = child.child(1).value();
-        final ValueParser.TypedNode value = NodeType.of(operator).incrementDecrement() ? null : parseExpression(child.child(2), operator);
+        final ValueParser.TypedNode value = NodeType.of(operator).incrementDecrement() ? null : parseExpression(child.child(2), operator, function);
         if (value == null) return false;
 
         final Set<MiModifier> modifiers = variable.get().modifiers();
@@ -202,9 +214,13 @@ public class ASTRefiner {
             parser.parserError("Invalid variable mutation; Cannot change " + mmodifier.getName() + " local variable here", ident,
                     "Constants can only be initialized once, changing a constants value is not allowed.");
         }
-        if (!MiDatatype.match(value.type(), variable.get().type())) {
-            parser.parserError("Invalid value type; Cannot assign " + value.type().name() + " values to " + variable.get().type().name() + " variables", operator,
-                    "Change the variable type to " + value.type().name() + " or cast the value to " + variable.get().type().name() + ".");
+        final MiDatatype valueType = value.type();
+        final MiDatatype varType = variable.get().type();
+        if (valueType == null) return false;
+
+        if (!MiDatatype.match(valueType, varType)) {
+            parser.parserError("Invalid value type; Cannot assign " + valueType.name() + " values to " + varType.name() + " variables", operator,
+                    "Change the variable type to " + valueType.name() + " or cast the value to " + varType.name() + ".");
         }
         variable.get().initialize();
         return true;
@@ -236,10 +252,10 @@ public class ASTRefiner {
         }
     }
 
-    private ValueParser.TypedNode parseExpression(@NotNull final Node value, @NotNull final Token equalsToken) {
+    private ValueParser.TypedNode parseExpression(@NotNull final Node value, @NotNull final Token equalsToken, @NotNull final MiContainer container) {
         if (value.type() != NodeType.VALUE) throw new RuntimeException("Expected value node for expression");
 
-        final ValueParser.TypedNode result = new ValueParser(value.children().stream().map(Node::value).toList(), equalsToken, parser).parse();
+        final ValueParser.TypedNode result = new ValueParser(value.children().stream().map(Node::value).toList(), equalsToken, this, container).parse();
         if (result != null && result.node() != null) {
             value.children().clear();
             value.addChildren(result.node());
@@ -247,7 +263,7 @@ public class ASTRefiner {
         return result;
     }
 
-    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
+    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiModule calledFrom) {
         final Token ident = child.child(0).value();
         final List<ValueParser.TypedNode> callParamNodes = child
                 .child(1)
@@ -255,7 +271,7 @@ public class ASTRefiner {
                 .stream()
                 .map(Node::children)
                 .flatMap(Collection::stream)
-                .map(n -> parseExpression(n, ident))
+                .map(n -> parseExpression(n, ident, calledFrom))
                 .toList();
 
         final List<MiDatatype> callParams = callParamNodes
@@ -271,7 +287,7 @@ public class ASTRefiner {
         }
         final Set<MiModifier> modifiers = callFunction.get().modifiers();
         final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
-        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom.module())) {
+        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom)) {
             parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
                     (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
                             : "Protected functions can only be accessed within their own module scope"));
@@ -310,7 +326,7 @@ public class ASTRefiner {
         final MiDatatype type = MiDatatype.of(originalType.token(), modifiers.contains(MiModifier.NULLABLE));
         final Node valueNode = node.child(3);
 
-        final ValueParser.TypedNode value = parseExpression(valueNode, valueNode.value()); if (value == null) return;
+        final ValueParser.TypedNode value = parseExpression(valueNode, valueNode.value(), container); if (value == null) return;
         final MiDatatype valueType = value.type(); if (valueType == null) return;
 
         final MiVariable variable = new MiVariable(container, name, valueType, modifiers, !(container instanceof MiFunctionScope) || initialized);
@@ -354,8 +370,17 @@ public class ASTRefiner {
         if (scope.children().isEmpty()) {
             members = new ArrayList<>();
         } else {
+            final Set<String> temp = new HashSet<>();
+            final Optional<Token> firstDup = scope.child(0).children().stream().map(Node::value).filter(n -> !temp.add(n.token())).findFirst();
+            if (firstDup.isPresent()) {
+                parser.parserError("A duplicate enum member was found '" + firstDup.get().token() + "'", firstDup.get(),
+                        "Remove the duplicate enum member or rename it.");
+                return;
+            }
+
             members = scope.child(0).children().stream().map(n -> n.value().token()).toList();
         }
+
         final MiEnum miEnum = new MiEnum(ident.token(), currentModule, modifiers, members);
         currentModule.enums().add(miEnum);
     }
@@ -382,7 +407,7 @@ public class ASTRefiner {
         final Token ident = functionName(node);
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return null;
         final List<MiVariable> params = functionParameters(node); if (params == null) return null;
-        final MiDatatype type = functionReturnType(node, modifiers);
+        final MiDatatype type = functionReturnType(node, ident, modifiers);
 
         final MiInternFunction function = new MiInternFunction(modifiers, ident.token(), type, currentModule, params);
         tryAddFunction(function, ident);
@@ -393,7 +418,7 @@ public class ASTRefiner {
         final Token ident = functionName(node);
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return;
         final List<MiVariable> params = functionParameters(node); if (params == null) return;
-        final MiDatatype type = functionReturnType(node, modifiers);
+        final MiDatatype type = functionReturnType(node, ident, modifiers);
 
         final Method nativeMethod = functionNativeMethod(node, params, ident); if (nativeMethod == null) return;
 
@@ -428,8 +453,16 @@ public class ASTRefiner {
         }
     }
 
-    private MiDatatype functionReturnType(@NotNull final Node node, @NotNull final List<MiModifier> modifiers) {
-        return MiDatatype.of(node.child(1).value().token(), ASTGenerator.nullableModifiers(modifiers));
+    private MiDatatype functionReturnType(@NotNull final Node node, @NotNull final Token ident, @NotNull final List<MiModifier> modifiers) {
+        final Token datatypeToken = node.child(1).value();
+        if (NodeType.of(datatypeToken) == NodeType.LITERAL_VOID) {
+            final Optional<MiModifier> firstNullability = modifiers.stream().filter(m -> m == MiModifier.NULLABLE || m == MiModifier.NONNULL).findFirst();
+            if (firstNullability.isPresent()) {
+                parser.parserError("Cannot mark void functions as nullable, nor as nonnull; No value is returned, marking no value as nullable or nonnull does not make sense", ident,
+                        "Remove the nonnull / nullable modifier to fix this issue.");
+            }
+        }
+        return MiDatatype.of(datatypeToken.token(), ASTGenerator.nullableModifiers(modifiers));
     }
 
     private List<MiVariable> functionParameters(@NotNull final Node node) {

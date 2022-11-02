@@ -116,7 +116,16 @@ public class ASTGenerator {
                     new Node(NodeType.OPERATOR, equal, equal.actualLine())
             );
         }
-        return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(),
+        return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(), variableChange(identifier, value, equal));
+    }
+
+    public static List<Node> variableChange(@NotNull final Token identifier, final Node value, @NotNull final Token equal) {
+        if (value == null) { // inc / decrement variable
+            return List.of(
+                    new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
+                    new Node(NodeType.OPERATOR, equal, equal.actualLine()));
+        }
+        return List.of(
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 new Node(NodeType.OPERATOR, equal, equal.actualLine()),
                 value

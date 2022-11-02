@@ -15,7 +15,9 @@ public class ValueParser {
     private Token currentToken;
     private final Token equalsToken;
     private final List<Token> expr;
-    private final Parser parserParent;
+    private final ASTRefiner refiner;
+    private final MiModule module;
+    private final MiInternFunction function;
 
     public record TypedNode(MiDatatype type, Node node) {
         public static TypedNode empty() {
@@ -26,10 +28,42 @@ public class ValueParser {
         }
     }
 
-    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final Parser parserParent) {
+    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
+                       @NotNull final MiModule module) {
         this.expr = expr;
         this.equalsToken = equalsToken;
-        this.parserParent = parserParent;
+        this.refiner = refiner;
+        this.module = module;
+        this.function = null;
+    }
+
+    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
+                       @NotNull final MiInternFunction internFunction) {
+        this.expr = expr;
+        this.equalsToken = equalsToken;
+        this.refiner = refiner;
+        this.module = internFunction.module();
+        this.function = internFunction;
+    }
+
+    public ValueParser(@NotNull final List<Token> expr, @NotNull final Token equalsToken, @NotNull final ASTRefiner refiner,
+                       @NotNull final MiContainer container) {
+        this.expr = expr;
+        this.equalsToken = equalsToken;
+        this.refiner = refiner;
+
+        if (container instanceof final MiInternFunction internFunction) {
+            this.module = internFunction.module();
+            this.function = internFunction;
+            return;
+        }
+        if (container instanceof final MiModule miModule) {
+            this.module = miModule;
+            this.function = null;
+            return;
+        }
+        this.module = null;
+        this.function = null;
     }
 
     private void nextPart() {
@@ -42,14 +76,14 @@ public class ValueParser {
         final TypedNode x = parseExpression();
         if (parsingPosition < expr.size()) {
             final Token val = expr.get(parsingPosition);
-            parserParent.parserError("Unexpected token '" + expr.get(parsingPosition).token() + "', couldn't parse expression", val);
+            if (val != null) refiner.parser().parserError("Unexpected token '" + val.token() + "', couldn't parse expression", val);
         }
         return x;
     }
 
     private boolean ternaryExpectColon(@NotNull final TypedNode y) {
         if (NodeType.of(currentToken) != NodeType.COLON) {
-            parserParent.parserError("Expected ':' after ternary 'if'", y.node.value());
+            refiner.parser().parserError("Expected ':' after ternary 'if'", y.node.value());
             return true;
         }
         return false;
@@ -57,7 +91,7 @@ public class ValueParser {
 
     private boolean ternaryIfElseNotEqual(@NotNull final TypedNode z, @NotNull final TypedNode y) {
         if (!z.type.equals(y.type)) {
-            parserParent.parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator", z.node.value(),
+            refiner.parser().parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator", z.node.value(),
                     "'if' part is of type " + y.type + ", while 'else' part is " + z.type + ". Use std.to_nonnull() to explicitely convert nullable types into nonnull types");
             return true;
         }
@@ -66,7 +100,7 @@ public class ValueParser {
 
     private boolean ternaryConditionNotBoolean(@NotNull final TypedNode x) {
         if (!MiDatatype.match(x.type, MiDatatype.BOOL)) {
-            parserParent.parserError("Ternary operator condition should be of type 'nonnull bool' but is instead '" + x.type + "'", x.node.value());
+            refiner.parser().parserError("Ternary operator condition should be of type 'nonnull bool' but is instead '" + x.type + "'", x.node.value());
             return true;
         }
         return false;
@@ -124,7 +158,7 @@ public class ValueParser {
     private TypedNode parseExpression(final int precendece) {
         TypedNode nodeX = precendece > 0 ? parseExpression(precendece - 1) : parseFactor();
         if (nodeX == null) {
-            parserParent.parserError("Unexpected parsing error", currentToken);
+            refiner.parser().parserError("Unexpected parsing error", currentToken);
             return TypedNode.empty();
         }
         for (; ; ) {
@@ -148,7 +182,7 @@ public class ValueParser {
     }
 
     private void cannotUseOperatorError(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        parserParent.parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
+        refiner.parser().parserError("Cannot use '" + prev.token() + "' operator on type '" + fact.type + "'", prev);
     }
 
     private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev, @NotNull final MiDatatype... types) {
@@ -226,7 +260,7 @@ public class ValueParser {
 
     private boolean expectValue(@NotNull final Token prev) {
         if (parsingPosition + 1 >= expr.size()) {
-            parserParent.parserError("Expected value after '" + prev.token() + "'", prev);
+            refiner.parser().parserError("Expected value after '" + prev.token() + "'", prev);
             return true;
         }
         return false;
@@ -235,7 +269,7 @@ public class ValueParser {
     private Optional<TypedNode> handleFactorPrefixes() {
         final Token prev = currentToken;
         if (currentToken == null) {
-            parserParent.parserError("Expected value", equalsToken);
+            refiner.parser().parserError("Expected value", equalsToken);
             return Optional.of(TypedNode.empty());
         }
 
@@ -255,10 +289,21 @@ public class ValueParser {
         final Token enumMember = expr.get(parsingPosition + 2);
         if (NodeType.of(enumMember) == NodeType.IDENTIFIER) {
             final Token enumName = currentToken;
+            nextPart();
+            nextPart();
+            nextPart();
+            final Optional<MiEnum> foundEnum = refiner.findEnumByName(enumName, module);
+            if (foundEnum.isEmpty()) {
+                refiner.parser().parserError("Cannot find an enum called '" + enumName.token() + "' here", enumName,
+                        "Did you spell the enum name correctly? Are you sure you are using the right module?");
+                return TypedNode.empty();
+            }
+            if (!foundEnum.get().members().contains(enumMember.token())) {
+                refiner.parser().parserError("Cannot find an enum member with the name '" + enumMember.token() + "' in the specified enum '" + enumName.token() + "'", enumMember,
+                        "Did you spell the enum member name correctly? Are you sure you are using the right enum?");
+                return TypedNode.empty();
+            }
 
-            nextPart();
-            nextPart();
-            nextPart();
             final MiDatatype miDatatype = new MiDatatype(enumName.token(), false);
 
             return new TypedNode(miDatatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
@@ -266,7 +311,7 @@ public class ValueParser {
                     new Node(NodeType.MEMBER, enumMember, enumMember.actualLine())
             ));
         } else {
-            parserParent.parserError("Unexpected token '::'", nextPart);
+            refiner.parser().parserError("Unexpected token '::'", nextPart);
             return TypedNode.empty();
         }
     }
@@ -274,10 +319,28 @@ public class ValueParser {
     private TypedNode evalFunctionCall() {
         final Token identifier = currentToken;
         final List<TypedNode> parsedArgs = parseArgs();
+        if (parsedArgs == null) {
+            refiner.parser().parserError("Could not parse function call parameters", identifier);
+            return TypedNode.empty();
+        }
+        final List<MiDatatype> callParams = parsedArgs.stream().map(TypedNode::type).toList();
 
-        return new TypedNode(MiDatatype.VOID, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
+        final Optional<MiFunction> foundFunction = refiner.findFunctionByCall(identifier, callParams, module);
+        if (foundFunction.isEmpty()) {
+            refiner.parser().parserError("Cannot find any function called '" + identifier.token() + "' with the specified arguments " + callParams + " here", identifier,
+                    "Are you sure you spelled the function name correctly? Are you using the right module?");
+            return TypedNode.empty();
+        }
+        final MiDatatype returnType = foundFunction.get().returnType();
+        if (returnType.equals(MiDatatype.VOID, true)) {
+            refiner.parser().parserError("Cannot use void functions as values in expressions", identifier,
+                    "Extract the function call into a seperate statement");
+            return TypedNode.empty();
+        }
+
+        return new TypedNode(returnType, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
-                new Node(NodeType.PARAMETERS, identifier.actualLine(), parsedArgs == null ? Collections.emptyList() : parsedArgs.stream().map(n ->
+                new Node(NodeType.PARAMETERS, identifier.actualLine(), parsedArgs.stream().map(n ->
                         new Node(NodeType.PARAMETER, n.lineDebugging(),
                                 new Node(NodeType.VALUE, n.lineDebugging(), n.node()),
                                 new Node(NodeType.TYPE, Token.of(n.type().name()), n.lineDebugging())
@@ -287,8 +350,14 @@ public class ValueParser {
     }
 
     private TypedNode evalVariable(final Token nextPart) {
-
         final Token identifier = currentToken;
+        final Optional<MiVariable> variable = refiner.findVariable(identifier, module, function);
+        if (variable.isEmpty()) {
+            refiner.parser().parserError("Cannot find variable '" + identifier.token() + "'", identifier,
+                    "Did you spell the variable name correctly?");
+            return TypedNode.empty();
+        }
+
         if (nextPart != null) {
             final Optional<MiEqualOperator> eq = MiEqualOperator.of(nextPart.token());
             if (eq.isPresent()) {
@@ -296,11 +365,16 @@ public class ValueParser {
                 nextPart();
 
                 final TypedNode val = NodeType.of(nextPart).incrementDecrement() ? null : parseExpression();
+                final Node varMutation = new Node(NodeType.MUTATE_VARIABLE, nextPart.actualLine(),
+                        ASTGenerator.variableChange(identifier, val == null ? null : new Node(NodeType.VALUE, val.lineDebugging(), val.node), nextPart));
 
-                return new TypedNode(MiDatatype.VOID, null);
+                refiner.checkVariableMutation(varMutation, function, module);
+                if (refiner.parser().encounteredError()) return TypedNode.empty();
+
+                return new TypedNode(variable.get().type(), varMutation);
             }
         }
-        final TypedNode result = new TypedNode(MiDatatype.VOID, new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()));
+        final TypedNode result = new TypedNode(variable.get().type(), new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()));
         nextPart();
         return result;
     }
@@ -317,7 +391,7 @@ public class ValueParser {
         if (prefixed.isPresent()) return prefixed.get();
 
         if (currentToken == null) {
-            parserParent.parserError("Unexpected parsing error", expr.get(0));
+            refiner.parser().parserError("Unexpected parsing error", expr.get(0));
             return TypedNode.empty();
         }
         final Token nextPart = parsingPosition + 1 < expr.size() ? expr.get(parsingPosition + 1) : null;
@@ -329,7 +403,7 @@ public class ValueParser {
                 if (nextType != null) switch (nextType) {
                     case DOUBLE_COLON -> {
                         if (parsingPosition + 2 >= expr.size()) {
-                            parserParent.parserError("Expected enum ordinal identifier after '::'", currentToken);
+                            refiner.parser().parserError("Expected enum ordinal identifier after '::'", currentToken);
                             return TypedNode.empty();
                         }
                         return evalEnumMember(nextPart);
@@ -352,8 +426,7 @@ public class ValueParser {
             case LPAREN -> {
                 nextPart();
                 final TypedNode result = parseExpression();
-                if (!currentToken.token().equals(")"))
-                    parserParent.parserError("Expected ')' after expression in parenthesis", expr.get(expr.size() - 1));
+                if (!currentToken.token().equals(")")) refiner.parser().parserError("Expected ')' after expression in parenthesis", expr.get(expr.size() - 1));
                 nextPart();
                 return result;
             }
@@ -384,14 +457,15 @@ public class ValueParser {
             nextPart();
         }
         if (foundEndingParen == -1) {
-            parserParent.parserError("Expected ')' after arguments of function call", currentToken);
+            refiner.parser().parserError("Expected ')' after arguments of function call", currentToken);
             return null;
         }
         nextPart();
-        return parseParametersCallFunction(expr.subList(start + 1, foundEndingParen));
+        return parseParametersCallFunction(expr.subList(start + 1, foundEndingParen), function);
     }
 
-    public static List<TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens, @NotNull final Parser parserParent) {
+    public static List<TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens, @NotNull final ASTRefiner refiner,
+                                                              @NotNull final MiContainer container) {
         final List<TypedNode> result = new ArrayList<>();
 
         if (tokens.isEmpty()) return result;
@@ -406,11 +480,11 @@ public class ValueParser {
             if (type == NodeType.RPAREN) paren--;
             if (type == NodeType.COMMA && paren == 0) {
                 if (currentArg.isEmpty()) {
-                    parserParent.parserError("Expected a parameter before ','", token);
+                    refiner.parser().parserError("Expected a parameter before ','", token);
                     return new ArrayList<>();
                 }
 
-                result.add(new ValueParser(currentArg, token, parserParent).parse());
+                result.add(new ValueParser(currentArg, token, refiner, container).parse());
                 currentArg.clear();
                 addedNode = true;
                 continue;
@@ -418,12 +492,12 @@ public class ValueParser {
             addedNode = false;
             currentArg.add(token);
         }
-        if (!addedNode) result.add(new ValueParser(currentArg, currentArg.get(0), parserParent).parse());
+        if (!addedNode) result.add(new ValueParser(currentArg, currentArg.get(0), refiner, container).parse());
         return result;
     }
 
-    private List<TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens) {
-        return parseParametersCallFunction(tokens, parserParent);
+    private List<TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens, @NotNull final MiContainer container) {
+        return parseParametersCallFunction(tokens, refiner, container);
     }
 
     private TypedNode castValue(final TypedNode value, final Token castType) {

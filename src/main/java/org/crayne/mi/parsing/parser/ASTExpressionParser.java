@@ -59,6 +59,11 @@ public class ASTExpressionParser {
             this.function = internFunction;
             return;
         }
+        if (container instanceof final MiFunctionScope functionScope) {
+            this.module = functionScope.function().module();
+            this.function = functionScope.function();
+            return;
+        }
         if (container instanceof final MiModule miModule) {
             this.module = miModule;
             this.function = null;

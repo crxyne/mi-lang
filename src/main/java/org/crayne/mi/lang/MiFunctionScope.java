@@ -86,7 +86,7 @@ public class MiFunctionScope implements MiContainer {
     public boolean hasReachedScopeEnd() {
         return hasReachedScopeEndSingle() || children
                 .stream()
-                .anyMatch(MiFunctionScope::hasReachedScopeEndSingle);
+                .anyMatch(MiFunctionScope::hasReachedScopeEnd);
     }
 
     public Optional<MiVariable> find(@NotNull final String name) {

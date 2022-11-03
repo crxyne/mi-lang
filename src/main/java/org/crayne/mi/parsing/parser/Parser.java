@@ -33,6 +33,7 @@ public class Parser {
     }
 
     public void parserError(@NotNull final String message, @NotNull final Token token, final boolean skipToEndOfToken, @NotNull final String... quickFixes) {
+        if (encounteredError) return;
         if (!stdlib) {
             output.astHelperError(message, token.line(), token.column() + (skipToEndOfToken ? token.token().length() : 0), stdlibFinishLine, false, quickFixes);
         } else {
@@ -128,7 +129,7 @@ public class Parser {
                         return null;
                     }
 
-                    final Node scope = new Node(currentNode, NodeType.SCOPE, lastToken.actualLine());
+                    final Node scope = new Node(currentNode, NodeType.SCOPE, lastToken.actualLine(), lastToken);
                     sm.addChildren(scope);
                     currentNode.addChildren(sm);
                     currentNode = scope;

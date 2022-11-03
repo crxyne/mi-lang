@@ -168,6 +168,10 @@ public class ASTRefiner {
                 }
             }
         }
+        if (functionScope.parent().isEmpty() && !functionScope.hasReachedScopeEnd() && !function.returnType().equals(MiDatatype.VOID)) {
+            parser.parserError("Missing return statement", scope.value(),
+                    "Add a return statement at the end of the function definition scope");
+        }
     }
 
     private void checkInnerScope(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
@@ -175,7 +179,7 @@ public class ASTRefiner {
 
         final MiFunctionScope localScope = new MiFunctionScope(function, scope);
         scope.childScope(localScope);
-        checkLocal(child.child(1), localScope);
+        checkLocal(child.child(0), localScope);
         localScope.pop();
     }
 

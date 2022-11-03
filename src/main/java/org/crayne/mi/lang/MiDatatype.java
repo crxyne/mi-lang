@@ -66,7 +66,7 @@ public class MiDatatype {
         final Integer r1 = datatypeRanking.get(d1.name());
         final Integer r2 = datatypeRanking.get(d2.name());
         if (r1 == null || r2 == null) return null;
-        return r1 < r2 ? d1 : d2;
+        return r1.equals(r2) ? d1 : r1 < r2 ? d1 : d2;
     }
 
     private static final Map<String, List<String>> operatorsDefined = new HashMap<>() {{

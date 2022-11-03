@@ -38,7 +38,7 @@ public class ASTGenerator {
     public Node evalReturnStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
         if (unexpectedModifiers(modifiers)) return null;
 
-        final Token ret = parser.getAndExpect(tokens, 0, NodeType.LITERAL_RET, NodeType.DOUBLE_COLON);
+        final Token ret = parser.getAndExpect(tokens, 0, NodeType.LITERAL_RETURN, NodeType.DOUBLE_COLON);
         if (ret == null) return null;
 
         if (tokens.size() == 2) { // ret ; are two tokens
@@ -200,7 +200,7 @@ public class ASTGenerator {
             case STANDARDLIB_MI_FINISH_CODE -> evalStdLibFinish(withoutModifiers, modifiers);
             case LITERAL_BREAK -> evalBreak(withoutModifiers, modifiers);
             case LITERAL_CONTINUE -> evalContinue(withoutModifiers, modifiers);
-            case LITERAL_RET, DOUBLE_COLON -> evalReturnStatement(withoutModifiers, modifiers);
+            case LITERAL_RETURN -> evalReturnStatement(withoutModifiers, modifiers);
             case LITERAL_INT, LITERAL_DOUBLE, LITERAL_LONG, LITERAL_FLOAT,
                     LITERAL_CHAR, LITERAL_STRING, LITERAL_BOOL, QUESTION_MARK ->
                     evalVariableDefinition(withoutModifiers, modifiers);

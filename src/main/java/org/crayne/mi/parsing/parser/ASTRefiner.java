@@ -48,7 +48,8 @@ public class ASTRefiner {
                     functionScopes.add(entry);
                 }
                 case CREATE_ENUM -> defineEnum(child);
-                case ENUM_VALUES -> {
+                case NOOP -> {}
+                default -> {
                     final Token ident = child.child(0).value();
                     parser.parserError("Unexpected token '" + ident.token() + "'", ident);
                     return new HashSet<>();
@@ -156,22 +157,23 @@ public class ASTRefiner {
                     checkLocal(child, localScope);
                     localScope.pop();
                 }
-                case ENUM_VALUES -> {
+                case NOOP -> {}
+                case RETURN_STATEMENT -> checkReturnStatement(child, functionScope);
+                case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
+                case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
+                case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
+                default -> {
                     final Token ident = child.child(0).value();
                     parser.parserError("Unexpected token '" + ident.token() + "'", ident);
                     return;
                 }
-                case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
-                case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
-                case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
-                case CREATE_ENUM -> parser.parserError("Unexpected enum definition inside of a function", child.child(0).value(),
-                        "Cannot create enums inside of functions, so move the enum definition out of this scope");
-                case CREATE_MODULE -> parser.parserError("Unexpected module definition inside of a function", child.child(0).value(),
-                        "Cannot create modules inside of functions, so move the module definition out of this scope");
-                case FUNCTION_DEFINITION, NATIVE_FUNCTION_DEFINITION -> parser.parserError("Unexpected function definition inside of another function", child.child(0).value(),
-                        "Cannot create nested functions, so move the function definition out of this scope");
             }
         }
+    }
+
+    private void checkReturnStatement(@NotNull final Node child, @NotNull final MiFunctionScope scope) {
+        final Node valueNode = child.children().isEmpty() ? null : child.child(0);
+        final ASTExpressionParser.TypedNode value = valueNode == null ? null : parseExpression(valueNode, valueNode.value(), scope);
     }
 
     protected void checkVariableMutation(@NotNull final Node child, final MiFunctionScope scope, @NotNull final MiModule module) {

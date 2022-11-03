@@ -47,7 +47,7 @@ public enum NodeType {
     LITERAL_CONTINUE("continue"),
     LITERAL_MUT("mut"),
     LITERAL_CONST("const"),
-    LITERAL_RET("ret"),
+    LITERAL_RETURN("return"),
     LITERAL_ENUM("enum"),
     LITERAL_USE("use"),
     LITERAL_NAT("nat"),
@@ -209,7 +209,7 @@ public enum NodeType {
 
     public boolean isKeyword() {
         return switch (this) {
-            case LITERAL_FN, LITERAL_PUB, LITERAL_RET, LITERAL_BOOL, LITERAL_BREAK,
+            case LITERAL_FN, LITERAL_PUB, LITERAL_RETURN, LITERAL_BOOL, LITERAL_BREAK,
                     LITERAL_CHAR, LITERAL_CONST, LITERAL_ELSE, LITERAL_CONTINUE,
                     LITERAL_IF, LITERAL_DOUBLE, LITERAL_FLOAT, LITERAL_FOR,
                     LITERAL_INT, LITERAL_NAT, LITERAL_LONG, LITERAL_MODULE,

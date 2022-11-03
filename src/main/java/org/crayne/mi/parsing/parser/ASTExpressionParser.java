@@ -105,7 +105,7 @@ public class ASTExpressionParser {
             return true;
         }
         if (!z.type.equals(y.type)) {
-            refiner.parser().parserError("'if' part of ternary operator should have the same type as the 'else' part of the ternary operator", z.node.value(),
+            refiner.parser().parserError("'if' part of ternary operator should have the same type as the 'else' part of the ternary operator", equalsToken,
                     "'if' part is of type " + y.type + ", while 'else' part is " + z.type + ".",
                     "Cast either of the two values to one shared datatype to fix the issue.",
                     "Use std.to_nonnull() to explicitely convert nullable types to nonnull types."

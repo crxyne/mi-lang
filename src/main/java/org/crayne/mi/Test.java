@@ -23,18 +23,12 @@ mod std {
     pub nat fn println(string s) -> "org.crayne.mi.stdlib.MiStandardLib";
     
     pub fn to_nonnull :: double (nullable double d) {
-        ret d == null ? 0 : 0 + d;
+        return d == null ? double(0) : double(0) + d;
     }
     
 }
 STANDARDLIB_MI_FINISH_CODE;
-mod main {
 
-    fn main {
-        double i = std.to_nonnull(3 == 3 ? null : null);
-    }
-    
-}
 """;
         final MessageHandler out = new MessageHandler(System.out, true);
         final Tokenizer tokenizer = new Tokenizer(out, Arrays.asList("<<", ">>", "->", "&&", "||", "==", "!=", "::", "<=", ">=", "++", "--", "+=", "*=", "/=", "-=", "%=", "<<=", ">>=", "&=", "|="));

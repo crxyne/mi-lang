@@ -381,6 +381,11 @@ public class ASTRefiner {
 
     private void defineVariable(@NotNull final Node node, @NotNull final MiContainer container, final boolean initialized, final boolean global) {
         final Token ident = node.child(1).value();
+        if (ident.token().contains(".")) {
+            parser.parserError("Variable identifiers may not contain dot characters", ident, "Remove any '.' characters in the variable name");
+            return;
+        }
+
         final List<MiModifier> modifiers = variableModifiers(node, initialized, ident, global); if (modifiers == null) return;
 
         final String name = ident.token();
@@ -431,6 +436,11 @@ public class ASTRefiner {
 
     private void defineEnum(@NotNull final Node node) {
         final Token ident = node.child(0).value();
+        if (ident.token().contains(".")) {
+            parser.parserError("Enum identifiers may not contain dot characters", ident, "Remove any '.' characters in the enum name");
+            return;
+        }
+
         if (currentModule.findEnumByName(ident.token()).isPresent()) {
             parser.parserError("An enum with the name '" + ident.token() + "' already exists in this module", ident,
                     "Rename the enum or move it to another module.");
@@ -465,6 +475,11 @@ public class ASTRefiner {
 
     private Set<Map.Entry<Node, MiInternFunction>> defineModule(@NotNull final Node node) {
         final Token ident = node.child(0).value();
+        if (ident.token().contains(".")) {
+            parser.parserError("Module identifiers may not contain dot characters", ident, "Remove any '.' characters in the module name");
+            return new HashSet<>();
+        }
+
         final String name = ident.token();
         final MiModule sub = new MiModule(name, currentModule);
         if (currentModule.findSubmoduleByName(name).isPresent()) {
@@ -483,6 +498,11 @@ public class ASTRefiner {
 
     private Map.Entry<Node, MiInternFunction> defineInternFunction(@NotNull final Node node) {
         final Token ident = functionName(node);
+        if (ident.token().contains(".")) {
+            parser.parserError("Function identifiers may not contain dot characters", ident, "Remove any '.' characters in the function name");
+            return null;
+        }
+
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return null;
         final List<MiVariable> params = functionParameters(node); if (params == null) return null;
         final MiDatatype type = functionReturnType(node, ident, modifiers);
@@ -494,6 +514,11 @@ public class ASTRefiner {
 
     private void defineNativeFunction(@NotNull final Node node) {
         final Token ident = functionName(node);
+        if (ident.token().contains(".")) {
+            parser.parserError("Function identifiers may not contain dot characters", ident, "Remove any '.' characters in the function name");
+            return;
+        }
+
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return;
         final List<MiVariable> params = functionParameters(node); if (params == null) return;
         final MiDatatype type = functionReturnType(node, ident, modifiers);

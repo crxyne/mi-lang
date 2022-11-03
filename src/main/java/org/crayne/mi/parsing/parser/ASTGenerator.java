@@ -42,7 +42,7 @@ public class ASTGenerator {
         if (ret == null) return null;
 
         if (tokens.size() == 2) { // ret ; are two tokens
-            return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine());
+            return new Node(parser.currentNode(), NodeType.RETURN_STATEMENT, ret.actualLine(), ret);
         }
         final Node retVal = parseExpression(ret, tokens.subList(1, tokens.size() - 1));
 
@@ -293,7 +293,7 @@ public class ASTGenerator {
                 return null;
             }
 
-            return new Node(parser.currentNode(), NodeType.DECLARE_VARIABLE, identifier.actualLine(),
+            return new Node(parser.currentNode(), NodeType.DECLARE_VARIABLE, identifier.actualLine(), datatype,
                     new Node(NodeType.MODIFIERS, modifiers.isEmpty() ? -1 : modifiers.get(0).lineDebugging(), modifiers),
                     new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                     new Node(NodeType.TYPE, datatype, datatype.actualLine())
@@ -303,7 +303,7 @@ public class ASTGenerator {
 
         final Node finalType = new Node(NodeType.TYPE, datatype, datatype.actualLine());
 
-        return new Node(parser.currentNode(), NodeType.DEFINE_VARIABLE, identifier.actualLine(),
+        return new Node(parser.currentNode(), NodeType.DEFINE_VARIABLE, identifier.actualLine(), datatype,
                 new Node(NodeType.MODIFIERS, modifiers.isEmpty() ? -1 : modifiers.get(0).lineDebugging(), modifiers),
                 new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
                 finalType,

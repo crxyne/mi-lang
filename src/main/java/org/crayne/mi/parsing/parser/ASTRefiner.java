@@ -150,30 +150,60 @@ public class ASTRefiner {
 
         for (@NotNull final Node child : scope.children()) {
             if (parser.encounteredError()) return;
+            final Token first = child.value() == null ? child.child(0).value() : child.value();
+            if (functionScope.hasReachedScopeEnd()) {
+                parser.parserError("Unreachable statement", first,
+                        "Delete the unreachable statement or move it above a return statement.");
+            }
             switch (child.type()) {
                 case FUNCTION_CALL -> checkFunctionCall(child, function);
-                case SCOPE -> {
-                    final MiFunctionScope localScope = new MiFunctionScope(function, functionScope);
-                    checkLocal(child, localScope);
-                    localScope.pop();
-                }
-                case NOOP -> {}
+                case NOOP -> checkInnerScope(child, function, functionScope);
                 case RETURN_STATEMENT -> checkReturnStatement(child, functionScope);
                 case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
                 case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
                 case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
                 default -> {
-                    final Token ident = child.child(0).value();
-                    parser.parserError("Unexpected token '" + ident.token() + "'", ident);
+                    parser.parserError("Not a statement.", first);
                     return;
                 }
             }
         }
     }
 
+    private void checkInnerScope(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
+        if (child.children().isEmpty()) return; // normal noop, no scope here
+
+        final MiFunctionScope localScope = new MiFunctionScope(function, scope);
+        scope.childScope(localScope);
+        checkLocal(child.child(1), localScope);
+        localScope.pop();
+    }
+
     private void checkReturnStatement(@NotNull final Node child, @NotNull final MiFunctionScope scope) {
         final Node valueNode = child.children().isEmpty() ? null : child.child(0);
         final ASTExpressionParser.TypedNode value = valueNode == null ? null : parseExpression(valueNode, valueNode.value(), scope);
+        final MiDatatype returnDatatype = value == null ? MiDatatype.VOID : value.type();
+        final MiDatatype functionReturnType = scope.function().returnType();
+
+        if (!MiDatatype.match(returnDatatype, functionReturnType)) {
+            final String err = "Return statement returns value of type " + returnDatatype + " while function return type is " + functionReturnType;
+            final Token at = child.value() == null && valueNode != null ? valueNode.value() : child.value();
+
+            if (returnDatatype.equals(MiDatatype.VOID)) {
+                parser.parserError(err, at, "Return an 'empty' " + functionReturnType + " value or change the function return type to void.");
+                return;
+            }
+            if (functionReturnType.equals(MiDatatype.VOID)) {
+                parser.parserError(err, at, "Don't return any value or change the function return type to " + returnDatatype + ".");
+                return;
+            }
+
+            parser.parserError(err, at, "Cast the return value to " + functionReturnType + " or change the function return type to fix this problem.");
+            return;
+        }
+        scope.reachedScopeEnd();
+        // TODO missing return statements & unreachable statement checking
+        // TODO add conditional scopes, break and continue for those and make it all work together
     }
 
     protected void checkVariableMutation(@NotNull final Node child, final MiFunctionScope scope, @NotNull final MiModule module) {

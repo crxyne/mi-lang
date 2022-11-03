@@ -7,24 +7,40 @@ import java.util.*;
 public class MiFunctionScope implements MiContainer {
 
     private final Set<MiVariable> variables;
+    private final List<MiFunctionScope> children;
     private final MiFunctionScope parent;
     private MiInternFunction function;
+    private boolean reachedScopeEnd;
 
     public MiFunctionScope() {
         this.variables = new HashSet<>();
+        this.children = new ArrayList<>();
         this.parent = null;
+        reachedScopeEnd = false;
     }
 
     public MiFunctionScope(@NotNull final MiInternFunction function) {
         this.variables = new HashSet<>();
+        this.children = new ArrayList<>();
         this.parent = null;
         this.function = function;
+        reachedScopeEnd = false;
     }
 
     public MiFunctionScope(@NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent) {
         this.variables = new HashSet<>();
+        this.children = new ArrayList<>();
         this.parent = parent;
         this.function = function;
+        reachedScopeEnd = false;
+    }
+
+    public void childScope(@NotNull final MiFunctionScope scope) {
+        children.add(scope);
+    }
+
+    public List<MiFunctionScope> children() {
+        return children;
     }
 
     public Optional<MiFunctionScope> parent() {
@@ -57,6 +73,20 @@ public class MiFunctionScope implements MiContainer {
 
     public void pop() {
         variables.clear();
+    }
+
+    public void reachedScopeEnd() {
+        reachedScopeEnd = true;
+    }
+
+    public boolean hasReachedScopeEndSingle() {
+        return reachedScopeEnd;
+    }
+
+    public boolean hasReachedScopeEnd() {
+        return hasReachedScopeEndSingle() || children
+                .stream()
+                .anyMatch(MiFunctionScope::hasReachedScopeEndSingle);
     }
 
     public Optional<MiVariable> find(@NotNull final String name) {

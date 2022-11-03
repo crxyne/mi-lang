@@ -152,6 +152,6 @@ public class MiDatatype {
 
     @Override
     public String toString() {
-        return (!name.equals("null") ? (nullable ? "nullable" : "nonnull") + " " : "") + name;
+        return (!name.equals("null") && !name.equals("void") ? (nullable ? "nullable" : "nonnull") + " " : "") + name;
     }
 }

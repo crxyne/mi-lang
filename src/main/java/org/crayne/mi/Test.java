@@ -28,7 +28,13 @@ mod std {
     
 }
 STANDARDLIB_MI_FINISH_CODE;
+mod main {
 
+    fn main {
+        
+    }
+
+}
 """;
         final MessageHandler out = new MessageHandler(System.out, true);
         final Tokenizer tokenizer = new Tokenizer(out, Arrays.asList("<<", ">>", "->", "&&", "||", "==", "!=", "::", "<=", ">=", "++", "--", "+=", "*=", "/=", "-=", "%=", "<<=", ">>=", "&=", "|="));

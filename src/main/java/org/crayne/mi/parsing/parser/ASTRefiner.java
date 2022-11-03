@@ -196,7 +196,7 @@ public class ASTRefiner {
                     "Give the variable an explicit value by using the normal set (=) operator");
             return;
         }
-        if (!MiDatatype.operatorDefined(operator.token(), globalVariable.get().type().name())) {
+        if (MiDatatype.operatorUndefined(operator.token(), globalVariable.get().type().name())) {
             parser.parserError("Cannot use operator '" + operator.token() + "' for " + globalVariable.get().type() + " values.", operator);
             return;
         }
@@ -230,7 +230,7 @@ public class ASTRefiner {
                     "Give the variable an explicit value by using the normal set (=) operator");
             return true;
         }
-        if (!MiDatatype.operatorDefined(operator.token(), variable.get().type().name())) {
+        if (MiDatatype.operatorUndefined(operator.token(), variable.get().type().name())) {
             parser.parserError("Cannot use operator '" + operator.token() + "' for " + variable.get().type() + " values.", operator);
             return true;
         }

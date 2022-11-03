@@ -14,12 +14,12 @@ public class MiDatatype {
 
     public MiDatatype(@NotNull final String name) {
         this.name = name;
-        this.nullable = false;
+        this.nullable = name.equals("null");
     }
 
     public MiDatatype(@NotNull final String name, final boolean nullable) {
         this.name = name;
-        this.nullable = nullable;
+        this.nullable = name.equals("null") || nullable;
     }
 
     public static MiDatatype of(@NotNull final String name) {
@@ -105,11 +105,17 @@ public class MiDatatype {
         this.put("&&", List.of(BOOL.name));
         this.put("||", List.of(BOOL.name));
         this.put("!", List.of(BOOL.name));
+
+        this.put("?", List.of(BOOL.name));
     }};
 
-    public static boolean operatorDefined(@NotNull final String operator, @NotNull final String type) {
-        return (operator.equals("==") || operator.equals("!=") || operator.equals("="))
-                || (operatorsDefined.containsKey(operator) && operatorsDefined.get(operator).stream().anyMatch(d -> match(MiDatatype.of(type), MiDatatype.of(d))));
+    public static boolean operatorUndefined(@NotNull final String operator, @NotNull final String type) {
+        return (!operator.equals("==") && !operator.equals("!=") && !operator.equals("="))
+                && (!operatorsDefined.containsKey(operator) || operatorsDefined.get(operator).stream().noneMatch(d -> match(MiDatatype.of(type), MiDatatype.of(d))));
+    }
+
+    public boolean nullable() {
+        return nullable;
     }
 
     public static boolean match(@NotNull final MiDatatype newType, @NotNull final MiDatatype oldType) {
@@ -146,6 +152,6 @@ public class MiDatatype {
 
     @Override
     public String toString() {
-        return (nullable ? "nullable" : "nonnull") + " " + name;
+        return (!name.equals("null") ? (nullable ? "nullable" : "nonnull") + " " : "") + name;
     }
 }

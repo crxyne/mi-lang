@@ -21,14 +21,17 @@ mod std {
     pub? E = 2.7182818284;
     
     pub nat fn println(string s) -> "org.crayne.mi.stdlib.MiStandardLib";
-    pub nat fn cos :: double (double d) -> "org.crayne.mi.stdlib.MiStandardLib";
+    
+    pub fn to_nonnull :: double (nullable double d) {
+        ret d == null ? 0 : 0 + d;
+    }
     
 }
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
     fn main {
-        
+        double i = std.to_nonnull(3 == 3 ? null : null);
     }
     
 }

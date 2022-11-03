@@ -1,7 +1,6 @@
 package org.crayne.mi.stdlib;
 
 import org.crayne.mi.lang.MiCallable;
-import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
 import java.util.UUID;
@@ -131,12 +130,6 @@ STANDARDLIB_MI_FINISH_CODE;
     @Nonnull
     public static Long random_uuid_long() {
         return UUID.randomUUID().getMostSignificantBits();
-    }
-
-    @MiCallable
-    @Nonnull
-    public static Double cos(@NotNull final Double d) {
-        return Math.cos(d);
     }
 
 }

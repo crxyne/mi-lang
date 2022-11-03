@@ -84,17 +84,32 @@ public class ASTExpressionParser {
     }
 
     private boolean ternaryExpectColon(@NotNull final TypedNode y) {
+        if (currentToken == null) {
+            refiner.parser().parserError("Expected else-value after ternary 'if'", y.node.value());
+            return true;
+        }
+
         if (NodeType.of(currentToken) != NodeType.COLON) {
-            refiner.parser().parserError("Expected ':' after ternary 'if'", y.node.value());
+            final boolean expectValue = y.node.value() != null && NodeType.of(y.node.value()) == NodeType.COLON;
+            refiner.parser().parserError(
+                    expectValue ? "Expected if-value after ternary condition" : "Expected ':' after ternary 'if'",
+                    y.node.value());
             return true;
         }
         return false;
     }
 
     private boolean ternaryIfElseNotEqual(@NotNull final TypedNode z, @NotNull final TypedNode y) {
+        if (z.type == null) {
+            refiner.parser().parserError("Expected value after ':'", y.node.value());
+            return true;
+        }
         if (!z.type.equals(y.type)) {
-            refiner.parser().parserError("'if' part of ternary operator should (atleast implicitly) have the same type as the 'else' part of the ternary operator", z.node.value(),
-                    "'if' part is of type " + y.type + ", while 'else' part is " + z.type + ". Use std.to_nonnull() to explicitely convert nullable types into nonnull types");
+            refiner.parser().parserError("'if' part of ternary operator should have the same type as the 'else' part of the ternary operator", z.node.value(),
+                    "'if' part is of type " + y.type + ", while 'else' part is " + z.type + ".",
+                    "Cast either of the two values to one shared datatype to fix the issue.",
+                    "Use std.to_nonnull() to explicitely convert nullable types to nonnull types."
+            );
             return true;
         }
         return false;
@@ -117,10 +132,10 @@ public class ASTExpressionParser {
         if (ternaryIfElseNotEqual(z, y)) return TypedNode.empty();
         if (ternaryConditionNotBoolean(x)) return TypedNode.empty();
 
-        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, -1,
-                new Node(NodeType.CONDITION, -1, x.node),
-                new Node(NodeType.TERNARY_OPERATOR_IF, -1, y.node),
-                new Node(NodeType.TERNARY_OPERATOR_ELSE, -1, z.node)
+        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, x.node.child(0).value(), x.lineDebugging(),
+                new Node(NodeType.CONDITION, x.node.child(0).value(), x.lineDebugging(), x.node),
+                new Node(NodeType.TERNARY_OPERATOR_IF, y.lineDebugging(), y.node),
+                new Node(NodeType.TERNARY_OPERATOR_ELSE, z.lineDebugging(), z.node)
         ));
     }
 
@@ -172,7 +187,7 @@ public class ASTExpressionParser {
                     final TypedNode nodeY = parseExpression(precendece - 1);
 
                     if (nodeX.type == null || cannotUseOperator(nodeX, op)) return TypedNode.empty();
-                    if (nodeY.type == null || cannotUseOperator(nodeY, op)) return TypedNode.empty();
+                    if (nodeY.type == null || (NodeType.of(op) != NodeType.QUESTION_MARK && cannotUseOperator(nodeY, op))) return TypedNode.empty();
 
                     nodeX = evalExpression(nodeX, nodeY, op);
                 } else {
@@ -189,7 +204,7 @@ public class ASTExpressionParser {
     }
 
     private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        if (!MiDatatype.operatorDefined(prev.token(), fact.type.name())) {
+        if (MiDatatype.operatorUndefined(prev.token(), fact.type.name())) {
             cannotUseOperatorError(fact, prev);
             return true;
         }
@@ -245,8 +260,9 @@ public class ASTExpressionParser {
         final String datatype = prev.token();
         if (expectValue(prev)) return TypedNode.empty();
         nextPart();
+        final TypedNode factor = parseFactor();
 
-        return castValue(parseFactor(), Token.of(datatype));
+        return castValue(factor, Token.of(datatype), factor.type.nullable() || factor.type.name().equals("null"));
     }
 
     private boolean expectValue(@NotNull final Token prev) {
@@ -260,7 +276,7 @@ public class ASTExpressionParser {
     private Optional<TypedNode> handleFactorPrefixes() {
         final Token prev = currentToken;
         if (currentToken == null) {
-            refiner.parser().parserError("Expected value", equalsToken);
+            refiner.parser().parserError("Expected value", expr.isEmpty() ? equalsToken : expr.get(expr.size() - 1));
             return Optional.of(TypedNode.empty());
         }
 
@@ -359,7 +375,7 @@ public class ASTExpressionParser {
                 final Node varMutation = new Node(NodeType.MUTATE_VARIABLE, nextPart.actualLine(),
                         ASTGenerator.variableChange(identifier, val == null ? null : new Node(NodeType.VALUE, val.lineDebugging(), val.node), nextPart));
 
-                if (!MiDatatype.operatorDefined(nextPart.token(), variable.get().type().name())) {
+                if (MiDatatype.operatorUndefined(nextPart.token(), variable.get().type().name())) {
                     refiner.parser().parserError("Cannot use operator '" + nextPart.token() + "' for " + variable.get().type() + " values.", nextPart);
                     return TypedNode.empty();
                 }
@@ -501,8 +517,8 @@ public class ASTExpressionParser {
         return parseParametersCallFunction(tokens, refiner, container);
     }
 
-    private TypedNode castValue(final TypedNode value, final Token castType) {
-        return new TypedNode(MiDatatype.of(castType.token(), false), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
+    private TypedNode castValue(@NotNull final TypedNode value, @NotNull final Token castType, final boolean nullable) {
+        return new TypedNode(MiDatatype.of(castType.token(), nullable), new Node(NodeType.CAST_VALUE, castType, castType.actualLine(), value.node));
     }
 
 }

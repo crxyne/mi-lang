@@ -1,4 +1,4 @@
-module testing {
+mod testing {
 
 	mut? r = 255;
 	mut? g = 0;
@@ -22,7 +22,7 @@ module testing {
 		}
 	}
 	
-	pub fn setCursorVisible~ (bool v) {
+	pub fn setCursorVisible(bool v) {
 		if v {
 			std.print("\u001b[?25h");
 			ret;
@@ -30,7 +30,7 @@ module testing {
 		std.print("\u001b[?25l");
 	}
 	
-	pub fn executeRainbow~ (long wait_long, string text) {
+	pub fn executeRainbow(long wait_long, string text) {
 		use std;
 		use termion;
 				

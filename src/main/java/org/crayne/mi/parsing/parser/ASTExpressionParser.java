@@ -345,7 +345,7 @@ public class ASTExpressionParser {
         }
         final List<MiDatatype> callParams = parsedArgs.stream().map(TypedNode::type).toList();
 
-        final Optional<MiFunction> foundFunction = refiner.findFunctionByCall(identifier, callParams, module);
+        final Optional<MiFunction> foundFunction = refiner.findFunctionByCall(identifier, callParams, module, function != null ? function.using() : Collections.emptyList());
         if (foundFunction.isEmpty()) {
             refiner.parser().parserError("Cannot find any function called '" + identifier.token() + "' with the specified arguments " + callParams + " here", identifier,
                     "Are you sure you spelled the function name correctly? Are you using the right module?");

@@ -2,6 +2,7 @@ package org.crayne.mi;
 
 import org.apache.commons.lang3.StringUtils;
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
+import org.crayne.mi.bytecode.communication.MiCommunicator;
 import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.crayne.mi.log.MessageHandler;
@@ -133,7 +134,8 @@ public class MiLang {
         try {
             final List<ByteCodeInstruction> instrs = ByteCodeReader.read(new File(inputFile.get()), messageHandler);
             final ByteCodeInterpreter interpreter = new ByteCodeInterpreter(instrs, messageHandler);
-            interpreter.prepare();
+            final MiCommunicator c = interpreter.newCommunicator();
+            c.invoke(mainFunc);
         } catch (final Throwable e) {
             e.printStackTrace();
         }

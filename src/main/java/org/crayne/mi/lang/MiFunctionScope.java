@@ -16,10 +16,12 @@ public class MiFunctionScope implements MiContainer {
     private final boolean conditional;
     private boolean ifReachedEnd;
     private final MiScopeType scopeType;
+    private final List<MiModule> using;
 
     public MiFunctionScope(@NotNull final MiScopeType scopeType) {
         this.variables = new HashSet<>();
         this.children = new ArrayList<>();
+        this.using = new ArrayList<>();
         this.parent = null;
         reachedScopeEnd = false;
         conditional = false;
@@ -29,6 +31,7 @@ public class MiFunctionScope implements MiContainer {
     public MiFunctionScope(@NotNull final MiScopeType scopeType, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent) {
         this.variables = new HashSet<>();
         this.children = new ArrayList<>();
+        this.using = new ArrayList<>();
         this.parent = parent;
         this.function = function;
         reachedScopeEnd = false;
@@ -91,6 +94,7 @@ public class MiFunctionScope implements MiContainer {
 
     public void pop() {
         variables.clear();
+        using.clear();
     }
 
     public void reachedScopeEnd() {
@@ -139,6 +143,16 @@ public class MiFunctionScope implements MiContainer {
 
     public Token identifier() {
         return function.identifier();
+    }
+
+    public void use(@NotNull final MiModule module) {
+        using.add(module);
+    }
+
+    public List<MiModule> using() {
+        final List<MiModule> result = new ArrayList<>(using);
+        if (parent().isPresent()) result.addAll(parent().get().using());
+        return result;
     }
 
     public Optional<MiVariable> find(@NotNull final String name) {

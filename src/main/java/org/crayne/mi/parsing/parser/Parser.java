@@ -144,13 +144,14 @@ public class Parser {
                         }
                         sm.child(0).addChildren(scope);
                         lastScopedNode.addChildren(sm);
+                        lastScopedNode = sm.child(0);
                     } else {
                         sm.addChildren(scope);
                         currentNode.addChildren(sm);
+                        lastScopedNode = sm;
                     }
 
                     currentNode = scope;
-                    lastScopedNode = sm;
                     openedBrace++;
                 }
                 case SEMI -> {

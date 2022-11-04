@@ -106,13 +106,22 @@ public class ASTRefiner {
         return enumModule.get().findEnumByName(ASTGenerator.identOf(name));
     }
 
-    protected Optional<MiFunction> findFunctionByCall(@NotNull final Token ident, @NotNull final List<MiDatatype> callParams, @NotNull final MiModule calledFrom) {
+    protected Optional<MiFunction> findFunctionByCall(@NotNull final Token ident, @NotNull final List<MiDatatype> callParams, @NotNull final MiModule calledFrom, @NotNull final List<MiModule> using) {
         final String name = ident.token();
         if (!name.contains(".")) {
             // calling a function without specifying the module means either using
             // a local function in the current scope, or a function in the root scope (standard library functions)
-            return Optional.ofNullable(calledFrom.findFunction(name, callParams, false)
+            // or by trying to call it after having put a use statement
+            final Optional<MiFunction> found = Optional.ofNullable(calledFrom.findFunction(name, callParams, false)
                     .orElse(rootModule.findFunction(name, callParams, false).orElse(null)));
+
+            if (found.isEmpty()) {
+                for (@NotNull final MiModule use : using) {
+                    final Optional<MiFunction> foundUsing = use.findFunction(name, callParams, false);
+                    if (foundUsing.isPresent()) return foundUsing;
+                }
+            }
+            return found;
         }
         final boolean searchAtRoot = name.startsWith(".");
         final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
@@ -168,6 +177,7 @@ public class ASTRefiner {
                 case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
                 case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
                 case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
+                case USE_STATEMENT -> checkUseStatement(child, functionScope);
                 default -> {
                     parser.parserError("Not a statement.", first);
                     return;
@@ -194,6 +204,17 @@ public class ASTRefiner {
             return true;
         }
         return false;
+    }
+
+    private void checkUseStatement(@NotNull final Node child, @NotNull final MiFunctionScope scope) {
+        final Token ident = child.child(0).value();
+        final Optional<MiModule> foundModule = findModuleByName(ident.token(), ident.token().startsWith("."), scope.function().module());
+        if (foundModule.isEmpty()) {
+            parser.parserError("Cannot find any module called '" + ident.token() + "' here", ident,
+                    "Did you spell the module name correctly?");
+            return;
+        }
+        scope.use(foundModule.get());
     }
 
     private void checkLoopStop(@NotNull final Node child, @NotNull final MiFunctionScope scope) {
@@ -451,7 +472,7 @@ public class ASTRefiner {
                 .map(ASTExpressionParser.TypedNode::type)
                 .toList();
 
-        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom.function().module());
+        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom.function().module(), calledFrom.using());
         if (callFunction.isEmpty()) {
             parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident,
                     "Are you sure you spelled the function name correctly? Are you using the right module?");

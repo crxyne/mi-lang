@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -44,6 +45,10 @@ public class MiEnum {
     public void members(@NotNull final List<String> members) {
         this.members.clear();
         this.members.addAll(members);
+    }
+
+    public Token identifier() {
+        return Token.of(module.identifier().token() + "." + name);
     }
 
 }

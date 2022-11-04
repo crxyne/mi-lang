@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -49,8 +50,8 @@ public class MiVariable {
         return modifiers;
     }
 
-    public boolean initialized() {
-        return initialized;
+    public boolean uninitialized() {
+        return !initialized;
     }
 
     public MiDatatype type() {
@@ -64,4 +65,9 @@ public class MiVariable {
     public void initialize() {
         this.initialized = true;
     }
+
+    public Token identifier() {
+        return Token.of((container instanceof MiModule ? container.identifier().token() + "." : "") + name);
+    }
+
 }

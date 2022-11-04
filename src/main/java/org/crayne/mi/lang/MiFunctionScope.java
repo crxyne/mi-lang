@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -134,6 +135,10 @@ public class MiFunctionScope implements MiContainer {
 
     public boolean looping() {
         return scopeType.looping() || parent().isPresent() && parent().get().scopeType != MiScopeType.FUNCTION_LOCAL && parent().get().looping();
+    }
+
+    public Token identifier() {
+        return function.identifier();
     }
 
     public Optional<MiVariable> find(@NotNull final String name) {

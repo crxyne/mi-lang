@@ -3,8 +3,10 @@ package org.crayne.mi;
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.bytecode.writer.ByteCodeCompiler;
 import org.crayne.mi.log.MessageHandler;
+import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.lexer.Token;
 import org.crayne.mi.parsing.lexer.Tokenizer;
+import org.crayne.mi.parsing.parser.Parser;
 import org.crayne.mi.util.SyntaxTree;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,8 +37,9 @@ public class Mi {
         final List<Token> tokenList = tokenizer.tokenize(actualCode);
         if (tokenizer.encounteredError()) return Optional.empty();
 
-        //final Parser parser = new Parser(out, tokenList, tokenizer.stdlibFinishLine(), actualCode, inputFile);
-        return Optional.empty();//Optional.ofNullable(parser.parse());
+        final Parser parser = new Parser(out, tokenizer.stdlibFinishLine());
+        final Node node = parser.parse(tokenList, actualCode);
+        return node == null ? Optional.empty() : Optional.of(new SyntaxTree(node, out, actualCode, tokenizer.stdlibFinishLine(), inputFile));
     }
 
     public List<ByteCodeInstruction> compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {

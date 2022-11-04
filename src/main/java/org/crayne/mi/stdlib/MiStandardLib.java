@@ -12,28 +12,28 @@ public class MiStandardLib {
 pub? true = 1b;
 pub? false = 0b;
 
-module std {
+mod std {
 
-	pub nat fn println~ (string s) -> "$stdclass";
-    pub nat fn print~ (string s) -> "$stdclass";
-    pub nat fn println~ (int i) -> "$stdclass";
-    pub nat fn print~ (int i) -> "$stdclass";
-    pub nat fn println~ (double d) -> "$stdclass";
-    pub nat fn print~ (double d) -> "$stdclass";
-    pub nat fn println~ (float f) -> "$stdclass";
-    pub nat fn print~ (float f) -> "$stdclass";
-    pub nat fn println~ (long l) -> "$stdclass";
-    pub nat fn print~ (long l) -> "$stdclass";
-    pub nat fn println~ (bool b) -> "$stdclass";
-    pub nat fn print~ (bool b) -> "$stdclass";
-    pub nat fn println~ (char c) -> "$stdclass";
-    pub nat fn print~ (char c) -> "$stdclass";
-    pub nat fn sleep~ (long millis) -> "$stdclass";
+	pub nat fn println(string s) -> "$stdclass";
+    pub nat fn print(string s) -> "$stdclass";
+    pub nat fn println(int i) -> "$stdclass";
+    pub nat fn print(int i) -> "$stdclass";
+    pub nat fn println(double d) -> "$stdclass";
+    pub nat fn print(double d) -> "$stdclass";
+    pub nat fn println(float f) -> "$stdclass";
+    pub nat fn print(float f) -> "$stdclass";
+    pub nat fn println(long l) -> "$stdclass";
+    pub nat fn print(long l) -> "$stdclass";
+    pub nat fn println(bool b) -> "$stdclass";
+    pub nat fn print(bool b) -> "$stdclass";
+    pub nat fn println(char c) -> "$stdclass";
+    pub nat fn print(char c) -> "$stdclass";
+    pub nat fn sleep(long millis) -> "$stdclass";
     pub nullable nat fn random_uuid_long :: long () -> "$stdclass";
 
 }
 
-module termion {
+mod termion {
 
 	pub nat fn color_fg :: string (int r, int g, int b) -> "$stdtermion";
 	pub nat fn color_bg :: string (int r, int g, int b) -> "$stdtermion";

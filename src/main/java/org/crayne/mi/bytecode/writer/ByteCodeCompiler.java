@@ -202,7 +202,7 @@ public class ByteCodeCompiler {
         final Node ifScope = instr.child(1);
         final boolean hasElse = instr.children().size() > 2;
 
-        compileExpression(condition, result);
+        compileExpression(condition.child(0), result);
         rawInstruction(new ByteCodeInstruction(NOT.code()), result); // push the condition and invert it
         // the plan is to jump to the else scope if the condition was false, otherwise just keep going (execute if scope)
         // then, after the if scope, jump to whenever the else scope ends
@@ -264,7 +264,7 @@ public class ByteCodeCompiler {
     private int compileLoopStatement(@NotNull final Node condition, @NotNull final Node scope, final Node forLoopInstr, @NotNull final List<ByteCodeInstruction> result) {
         final int loopBeginLabel = label + 1;
 
-        compileExpression(condition, result);
+        compileExpression(condition.child(0), result);
         rawInstruction(new ByteCodeInstruction(NOT.code()), result); // while loops will work similarly like if statements
         // the plan is to jump out of the loop once the condition is false (once the inverted condition is true)
         // but if the condition is false, there will be an unconditional jump back to the condition check (after the entire loop "scope")
@@ -320,7 +320,7 @@ public class ByteCodeCompiler {
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
             return;
         }
-        compileExpression(instr.child(0), result);
+        compileExpression(instr.child(0).child(0), result);
         rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
     }
 
@@ -331,11 +331,13 @@ public class ByteCodeCompiler {
     private void compileVariableMutation(@NotNull final Node instr, final boolean pushMutated, @NotNull final List<ByteCodeInstruction> result) {
         final String identifier = instr.child(0).value().token();
         final String operator = instr.child(1).value().token();
-        final Node value = instr.child(2);
+        final Node value = instr.children().size() > 2 ? instr.child(2) : null;
 
         final MiEqualOperator equalOperation = MiEqualOperator.of(operator).orElse(null);
-        if (equalOperation != MiEqualOperator.SET) compileExpression(instr.child(0), result);
-        compileExpression(value, result);
+
+        if (equalOperation != MiEqualOperator.SET && value != null) compileExpression(instr.child(0).child(0), result);
+        if (value != null) compileExpression(value.child(0), result);
+
         if (equalOperation != null) switch (equalOperation) {
             case ADD -> singleInstruction(PLUS, result);
             case SUB -> singleInstruction(MINUS, result);
@@ -356,7 +358,11 @@ public class ByteCodeCompiler {
             push(result, ByteCode.integer(relativeAddress));
             rawInstruction(new ByteCodeInstruction(RELATIVE_TO_ABSOLUTE_ADDRESS.code()), result);
         }
-
+        if (value == null) {
+            final ByteCode incOrDec = operator.equals("++") ? (pushMutated ? INC_VARIABLE_AND_PUSH : INC_VARIABLE) : (pushMutated ? DEC_VARIABLE_AND_PUSH : DEC_VARIABLE);
+            rawInstruction(new ByteCodeInstruction(incOrDec.code()), result);
+            return;
+        }
         rawInstruction(new ByteCodeInstruction((pushMutated ? MUTATE_VARIABLE_AND_PUSH : MUTATE_VARIABLE).code()), result);
     }
 
@@ -366,7 +372,7 @@ public class ByteCodeCompiler {
 
     private void compileFunctionCall(@NotNull final String identifier, @NotNull final List<Node> inputArgs, @NotNull final List<ByteCodeInstruction> result) {
         final long id = findFunctionId(identifier, inputArgs);
-        inputArgs.stream().toList().forEach(n -> compileExpression(n.child(0), result));
+        inputArgs.stream().toList().forEach(n -> compileExpression(n.child(0).child(0), result));
         rawInstruction(ByteCode.call(id), result);
     }
 
@@ -374,7 +380,7 @@ public class ByteCodeCompiler {
         final List<ByteDatatype> args = inputArgs
                 .stream()
                 .map(n -> {
-                    final String type = n.child(1).value().token();
+                    final String type = n.child(0).child(1).value().token();
                     return ByteDatatype.of(type, findEnumId(type));
                 })
                 .toList();
@@ -499,7 +505,7 @@ public class ByteCodeCompiler {
     }
 
     private void compileVariableDefinition(@NotNull final Node definition, @NotNull final List<ByteCodeInstruction> result) {
-        compileExpression(definition.child(3), !compilingFunction() ? globalVariables : result);
+        compileExpression(definition.child(3).child(0), !compilingFunction() ? globalVariables : result);
         final ByteDatatype type = variableDeclarationCommon(definition);
         rawInstruction(defineVariable(type), !compilingFunction() ? globalVariables : result);
     }

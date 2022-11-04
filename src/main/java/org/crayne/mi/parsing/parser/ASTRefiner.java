@@ -111,8 +111,8 @@ public class ASTRefiner {
         if (!name.contains(".")) {
             // calling a function without specifying the module means either using
             // a local function in the current scope, or a function in the root scope (standard library functions)
-            return Optional.ofNullable(calledFrom.findFunction(name, callParams)
-                    .orElse(rootModule.findFunction(name, callParams).orElse(null)));
+            return Optional.ofNullable(calledFrom.findFunction(name, callParams, false)
+                    .orElse(rootModule.findFunction(name, callParams, false).orElse(null)));
         }
         final boolean searchAtRoot = name.startsWith(".");
         final String withoutFirstDotAndName = ASTGenerator.moduleOf(searchAtRoot ? name.substring(1) : name);
@@ -122,7 +122,7 @@ public class ASTRefiner {
                     "Make sure you spelled the module name correctly and have defined the module already.");
             return Optional.empty();
         }
-        return callModule.get().findFunction(ASTGenerator.identOf(name), callParams);
+        return callModule.get().findFunction(ASTGenerator.identOf(name), callParams, false);
     }
 
     protected Optional<MiVariable> findGlobalVariableByAccess(@NotNull final Token ident, @NotNull final MiModule accessedFrom) {
@@ -157,7 +157,7 @@ public class ASTRefiner {
                         "Delete the unreachable statement or move it above a return statement.");
             }
             switch (child.type()) {
-                case FUNCTION_CALL -> checkFunctionCall(child, function);
+                case FUNCTION_CALL -> checkFunctionCall(child, functionScope);
                 case NOOP -> checkInnerScope(child, function, functionScope, false, false);
                 case RETURN_STATEMENT -> checkReturnStatement(child, functionScope);
                 case IF_STATEMENT -> checkConditionalStatement(child, function, functionScope, MiScopeType.IF);
@@ -324,7 +324,8 @@ public class ASTRefiner {
                     "Are you sure you spelled the variable name correctly?" + (ident.token().contains(".") ? " Are you using the right module?" : ""));
             return;
         }
-        if (equalOperator.get() != MiEqualOperator.SET && !globalVariable.get().initialized()) {
+        child.child(0).value(globalVariable.get().identifier());
+        if (equalOperator.get() != MiEqualOperator.SET && globalVariable.get().uninitialized()) {
             parser.parserError("Variable '" + ident.token() + "' might have not been initialized yet", ident,
                     "Give the variable an explicit value by using the normal set (=) operator");
             return;
@@ -352,13 +353,14 @@ public class ASTRefiner {
         final Optional<MiVariable> variable = function.find(ident.token());
         if (variable.isEmpty()) return false;
 
+        child.child(0).value(variable.get().identifier());
         final Token operator = child.child(1).value();
         final Optional<MiEqualOperator> equalOperator = MiEqualOperator.of(operator.token());
         if (equalOperator.isEmpty()) {
             parser.parserError("Fatal parsing error; Equal operation is invalid '" + operator.token() + "'", operator);
             return true;
         }
-        if (equalOperator.get() != MiEqualOperator.SET && !variable.get().initialized()) {
+        if (equalOperator.get() != MiEqualOperator.SET && variable.get().uninitialized()) {
             parser.parserError("Variable '" + ident.token() + "' might have not been initialized yet", ident,
                     "Give the variable an explicit value by using the normal set (=) operator");
             return true;
@@ -425,12 +427,13 @@ public class ASTRefiner {
         final ASTExpressionParser.TypedNode result = new ASTExpressionParser(value.children().stream().map(Node::value).toList(), equalsToken, this, container).parse();
         if (result != null && result.node() != null) {
             value.children().clear();
-            value.addChildren(result.node());
+            value.addChildren(new Node(NodeType.VALUE, -1, result.node()));
+            value.addChildren(new Node(NodeType.TYPE, Token.of(result.type().name()), -1));
         }
         return result;
     }
 
-    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiInternFunction calledFrom) {
+    private void checkFunctionCall(@NotNull final Node child, @NotNull final MiFunctionScope calledFrom) {
         final Token ident = child.child(0).value();
         final List<ASTExpressionParser.TypedNode> callParamNodes = child
                 .child(1)
@@ -446,15 +449,16 @@ public class ASTRefiner {
                 .map(ASTExpressionParser.TypedNode::type)
                 .toList();
 
-        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom.module());
+        final Optional<MiFunction> callFunction = findFunctionByCall(ident, callParams, calledFrom.function().module());
         if (callFunction.isEmpty()) {
             parser.parserError("Cannot find any function called '" + ident.token() + "' with the specified arguments " + callParams + " here", ident,
                     "Are you sure you spelled the function name correctly? Are you using the right module?");
             return;
         }
+        child.child(0).value(callFunction.get().identifier());
         final Set<MiModifier> modifiers = callFunction.get().modifiers();
         final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(modifiers);
-        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom.module())) {
+        if (MiModifier.invalidAccess(modifiers, callFunction.get().module(), calledFrom.function().module())) {
             parser.parserError("Invalid access error; Cannot access " + vmodifier.getName() + " function from here", ident,
                     (vmodifier == MiModifier.PRIV ? "Private functions can only be accessed when the accessing module and the function module are the same."
                             : "Protected functions can only be accessed within their own module scope"));
@@ -499,6 +503,7 @@ public class ASTRefiner {
 
         if (!initialized) {
             final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope));
+            node.child(1).value(variable.identifier());
             container.add(variable);
             return;
         }
@@ -508,6 +513,7 @@ public class ASTRefiner {
         final MiDatatype valueType = value.type(); if (valueType == null) return;
 
         final MiVariable variable = new MiVariable(container, name, valueType.name().equals("null") ? type : valueType, modifiers, true);
+        node.child(1).value(variable.identifier());
 
         if (type.equals(MiDatatype.AUTO, true)) {
             node.child(2).value(Token.of(valueType.name())); // set datatype for ? at compile time
@@ -672,7 +678,7 @@ public class ASTRefiner {
     }
 
     private boolean checkFunctionAlreadyExists(@NotNull final MiFunction function, @NotNull final Token ident) {
-        if (currentModule.findFunction(function.name(), function.parameterTypes()).isPresent()) {
+        if (currentModule.findFunction(function.name(), function.parameterTypes(), true).isPresent()) {
             final String args = function.parameterTypes().toString();
             parser.parserError("This function already exists in this module: " + function.name() + "(" + args.substring(1, args.length() - 1) + ")", ident,
                     "Rename your function, change up the parameters or move the function to another module to fix this problem.");

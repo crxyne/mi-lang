@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
@@ -58,6 +59,10 @@ public class MiNativeFunction implements MiFunction {
 
     public Method nativeMethod() {
         return nativeMethod;
+    }
+
+    public Token identifier() {
+        return Token.of(module.identifier().token() + "." + name);
     }
 
 }

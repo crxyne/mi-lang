@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -89,7 +90,7 @@ public class MiModule implements MiContainer {
         return functions.stream().filter(f -> f.name().equals(name)).toList();
     }
 
-    public Optional<MiFunction> findFunction(@NotNull final String name, @NotNull final List<MiDatatype> parameters) {
+    public Optional<MiFunction> findFunction(@NotNull final String name, @NotNull final List<MiDatatype> parameters, final boolean exactMatch) {
         return filterFunctionsByName(name).stream().filter(f -> {
             final List<MiDatatype> funcParams = f.parameterTypes();
             if (funcParams.size() == parameters.size()) {
@@ -100,10 +101,20 @@ public class MiModule implements MiContainer {
                 return matchTypes // make sure every datatype matches
                         .keySet()
                         .stream()
-                        .allMatch(d -> MiDatatype.match(matchTypes.get(d), d));
+                        .allMatch(d -> exactMatch ? matchTypes.get(d).name().equals(d.name()) : MiDatatype.match(matchTypes.get(d), d));
             }
             return false;
         }).findAny();
+    }
+
+    public Token identifier() {
+        final StringBuilder result = new StringBuilder(name);
+        MiModule currentParent = parent;
+        while (currentParent != null) {
+            result.insert(0, currentParent.name + ".");
+            currentParent = currentParent.parent;
+        }
+        return Token.of(result.toString());
     }
 
 }

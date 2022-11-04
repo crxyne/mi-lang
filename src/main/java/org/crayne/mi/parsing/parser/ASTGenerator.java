@@ -3,6 +3,7 @@ package org.crayne.mi.parsing.parser;
 import org.apache.commons.lang3.StringUtils;
 import org.crayne.mi.lang.MiDatatype;
 import org.crayne.mi.lang.MiModifier;
+import org.crayne.mi.lang.MiVariable;
 import org.crayne.mi.parsing.ast.Node;
 import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
@@ -116,17 +117,17 @@ public class ASTGenerator {
                     new Node(NodeType.OPERATOR, equal, equal.actualLine())
             );
         }
-        return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(), variableChange(identifier, value, equal));
+        return new Node(parser.currentNode(), NodeType.MUTATE_VARIABLE, equal.actualLine(), variableChange(null, identifier, value, equal));
     }
 
-    public static List<Node> variableChange(@NotNull final Token identifier, final Node value, @NotNull final Token equal) {
+    public static List<Node> variableChange(final MiVariable variable, @NotNull final Token identifier, final Node value, @NotNull final Token equal) {
         if (value == null) { // inc / decrement variable
             return List.of(
-                    new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
+                    new Node(NodeType.IDENTIFIER, variable == null ? identifier : variable.identifier(), identifier.actualLine()),
                     new Node(NodeType.OPERATOR, equal, equal.actualLine()));
         }
         return List.of(
-                new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
+                new Node(NodeType.IDENTIFIER, variable == null ? identifier : variable.identifier(), identifier.actualLine()),
                 new Node(NodeType.OPERATOR, equal, equal.actualLine()),
                 value
         );

@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -14,5 +15,6 @@ public interface MiContainer { // anything container-like tbh, like modules, str
     void addAll(@NotNull final MiVariable... var);
     void pop();
     Optional<MiVariable> find(@NotNull final String name);
+    Token identifier();
 
 }

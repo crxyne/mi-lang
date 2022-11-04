@@ -205,6 +205,10 @@ public class ByteCodeInterpreter {
             case RELATIVE_TO_ABSOLUTE_ADDRESS -> evalRelToAbsAddr();
             case MUTATE_VARIABLE -> evalVariableMut(false);
             case MUTATE_VARIABLE_AND_PUSH -> evalVariableMut(true);
+            case INC_VARIABLE -> evalVariableIncDec(false, true);
+            case INC_VARIABLE_AND_PUSH -> evalVariableIncDec(true, true);
+            case DEC_VARIABLE -> evalVariableIncDec(false, false);
+            case DEC_VARIABLE_AND_PUSH -> evalVariableIncDec(true, false);
             case TRACEBACK -> evalTraceback(instr);
             case NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO, BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, BITSHIFT_LEFT, BITSHIFT_RIGHT, LOGICAL_AND, LOGICAL_OR,
                     EQUALS, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> evalOperator(instr);
@@ -442,6 +446,24 @@ public class ByteCodeInterpreter {
         final int addr = readInt(addrBytes.value());
         //popPushStack();
         final ByteCodeValue newValue = pushTop(1).orElseThrow(() -> new ByteCodeException("No new value specified for mutate variable opcode"));
+        variableStack.set(addr - 1, newValue);
+        popPushStack(2);
+        if (push) push(newValue);
+    }
+
+    private void evalVariableIncDec(final boolean push, final boolean inc) {
+        final ByteCodeValue addrBytes = pushTop().orElseThrow(() -> new ByteCodeException("No address specified for " + (inc ? "inc" : "dec") + " variable opcode"));
+        final int addr = readInt(addrBytes.value());
+        //popPushStack();
+        final Byte[] intValueRaw = ByteCode.integer(inc ? 1 : -1).codes();
+        final Byte[] intVal = Arrays.stream(intValueRaw)
+                .toList()
+                .subList(1, intValueRaw.length - 1)
+                .stream()
+                .toList()
+                .toArray(new Byte[0]);
+
+        final ByteCodeValue newValue = variableStack.get(addr - 1).plus(new ByteCodeValue(ByteDatatype.INT, intVal, this));
         variableStack.set(addr - 1, newValue);
         popPushStack(2);
         if (push) push(newValue);

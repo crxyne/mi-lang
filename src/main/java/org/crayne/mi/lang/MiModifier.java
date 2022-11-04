@@ -147,7 +147,7 @@ public enum MiModifier {
     }
 
     public static boolean validConstAccess(@NotNull final MiVariable variable) {
-        return !variable.initialized(); // only allow changing constants when they dont have a value yet
+        return variable.uninitialized(); // only allow changing constants when they dont have a value yet
     }
 
     public static boolean validOwnAccess(@SuppressWarnings("unused") @NotNull final MiVariable variable, @SuppressWarnings("unused") @NotNull final MiModule own) {

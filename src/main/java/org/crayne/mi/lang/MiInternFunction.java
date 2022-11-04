@@ -1,5 +1,6 @@
 package org.crayne.mi.lang;
 
+import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -56,6 +57,10 @@ public class MiInternFunction extends MiFunctionScope implements MiFunction {
 
     public List<MiDatatype> parameterTypes() {
         return parameters.stream().map(MiVariable::type).toList();
+    }
+
+    public Token identifier() {
+        return Token.of(module.identifier().token() + "." + name);
     }
 
 }

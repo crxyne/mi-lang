@@ -319,7 +319,7 @@ public class ASTExpressionParser {
             final MiDatatype miDatatype = new MiDatatype(enumName.token(), false);
 
             return new TypedNode(miDatatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
-                    new Node(NodeType.IDENTIFIER, enumName, enumName.actualLine()),
+                    new Node(NodeType.IDENTIFIER, foundEnum.get().identifier(), enumName.actualLine()),
                     new Node(NodeType.MEMBER, enumMember, enumMember.actualLine())
             ));
         } else {
@@ -351,7 +351,7 @@ public class ASTExpressionParser {
         }
 
         return new TypedNode(returnType, new Node(NodeType.FUNCTION_CALL, identifier.actualLine(),
-                new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()),
+                new Node(NodeType.IDENTIFIER, foundFunction.get().identifier(), identifier.actualLine()),
                 new Node(NodeType.PARAMETERS, identifier.actualLine(), parsedArgs.stream().map(n ->
                         new Node(NodeType.PARAMETER, n.lineDebugging(),
                                 new Node(NodeType.VALUE, n.lineDebugging(), n.node()),
@@ -378,7 +378,7 @@ public class ASTExpressionParser {
 
                 final TypedNode val = NodeType.of(nextPart).incrementDecrement() ? null : parseExpression();
                 final Node varMutation = new Node(NodeType.MUTATE_VARIABLE, nextPart.actualLine(),
-                        ASTGenerator.variableChange(identifier, val == null ? null : new Node(NodeType.VALUE, val.lineDebugging(), val.node), nextPart));
+                        ASTGenerator.variableChange(variable.get(), identifier, val == null ? null : new Node(NodeType.VALUE, val.lineDebugging(), val.node), nextPart));
 
                 if (MiDatatype.operatorUndefined(nextPart.token(), variable.get().type().name())) {
                     refiner.parser().parserError("Cannot use operator '" + nextPart.token() + "' for " + variable.get().type() + " values.", nextPart);
@@ -391,12 +391,12 @@ public class ASTExpressionParser {
                 return new TypedNode(variable.get().type(), varMutation);
             }
         }
-        if (!variable.get().initialized()) {
+        if (variable.get().uninitialized()) {
             refiner.parser().parserError("Variable '" + identifier.token() + "' might have not been initialized yet", identifier,
                     "Give the variable an explicit value by using the normal set (=) operator");
             return TypedNode.empty();
         }
-        final TypedNode result = new TypedNode(variable.get().type(), new Node(NodeType.IDENTIFIER, identifier, identifier.actualLine()));
+        final TypedNode result = new TypedNode(variable.get().type(), new Node(NodeType.IDENTIFIER, variable.get().identifier(), identifier.actualLine()));
         nextPart();
         return result;
     }

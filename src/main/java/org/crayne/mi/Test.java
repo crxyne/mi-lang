@@ -12,21 +12,12 @@ public class Test {
     public static void main(@NotNull final String... args) {
         final Mi mi = new Mi(System.out, true);
         final List<ByteCodeInstruction> compiled = mi.compile(MiStandardLib.standardLib(), """
-                mod test {pub enum Mat {
-                    Grass, Dirt, Stone
-                }}
-                
                 mod main {
-                
-                    pub enum Mat {
-                        Grass, Dirt, Stone
-                    }
                     
                     pub fn main {
-                        Mat e1 = test.Mat::Grass;
-                        ?e2 = Mat::Grass;
-                    
-                        std.println(e1 == e2);
+                        mut? i = 0;
+                        i--;
+                        std.println(i);
                     }
                     
                 }

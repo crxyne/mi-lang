@@ -465,7 +465,7 @@ public class ByteCodeInterpreter {
 
         final ByteCodeValue newValue = variableStack.get(addr - 1).plus(new ByteCodeValue(ByteDatatype.INT, intVal, this));
         variableStack.set(addr - 1, newValue);
-        popPushStack(2);
+        popPushStack(1);
         if (push) push(newValue);
     }
 

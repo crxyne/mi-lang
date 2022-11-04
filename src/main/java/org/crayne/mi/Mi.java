@@ -47,7 +47,9 @@ public class Mi {
         final Optional<SyntaxTree> tree = parse(stdlib, code, null);
         if (tree.isEmpty()) return new ArrayList<>();
         final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.get(), mainFunctionModule, mainFunction);
-        return compiler.compile();
+        final List<ByteCodeInstruction> result = compiler.compile();
+        //System.out.println(compiler);
+        return result;
     }
 
     public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {

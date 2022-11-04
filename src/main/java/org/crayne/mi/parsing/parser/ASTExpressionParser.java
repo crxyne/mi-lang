@@ -6,10 +6,7 @@ import org.crayne.mi.parsing.ast.NodeType;
 import org.crayne.mi.parsing.lexer.Token;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ASTExpressionParser {
 
@@ -193,6 +190,10 @@ public class ASTExpressionParser {
 
                     if (nodeX.type == null || cannotUseOperator(nodeX, op)) return TypedNode.empty();
                     if (nodeY.type == null || (NodeType.of(op) != NodeType.QUESTION_MARK && cannotUseOperator(nodeY, op))) return TypedNode.empty();
+                    if (!nodeX.type.primitive() && !nodeY.type.primitive() && !nodeX.type.name().equals(nodeY.type.name())) {
+                        refiner.parser().parserError("Enums are not the same; Expected the same enum types for left and right operands", op);
+                        return TypedNode.empty();
+                    }
 
                     nodeX = evalExpression(nodeX, nodeY, op);
                 } else {
@@ -266,7 +267,7 @@ public class ASTExpressionParser {
         if (expectValue(prev)) return TypedNode.empty();
         nextPart();
         final TypedNode factor = parseFactor();
-
+        if (factor.type == null) return TypedNode.empty();
         return castValue(factor, Token.of(datatype), factor.type.nullable() || factor.type.name().equals("null"));
     }
 
@@ -310,13 +311,20 @@ public class ASTExpressionParser {
                         "Did you spell the enum name correctly? Are you sure you are using the right module?");
                 return TypedNode.empty();
             }
+            final Set<MiModifier> enumModifiers = foundEnum.get().modifiers();
+            final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(enumModifiers);
+            if (MiModifier.invalidAccess(enumModifiers, foundEnum.get().module(), module)) {
+                refiner.parser().parserError("Cannot access " + vmodifier.getName() + " enum '" + enumName.token() + "' here", enumName,
+                        "Are you sure you are using the right module? Are you using the correct enum?");
+                return TypedNode.empty();
+            }
             if (!foundEnum.get().members().contains(enumMember.token())) {
                 refiner.parser().parserError("Cannot find an enum member with the name '" + enumMember.token() + "' in the specified enum '" + enumName.token() + "'", enumMember,
                         "Did you spell the enum member name correctly? Are you sure you are using the right enum?");
                 return TypedNode.empty();
             }
 
-            final MiDatatype miDatatype = new MiDatatype(enumName.token(), false);
+            final MiDatatype miDatatype = new MiDatatype(foundEnum.get().identifier().token(), false);
 
             return new TypedNode(miDatatype, new Node(NodeType.GET_ENUM_MEMBER, enumName.actualLine(),
                     new Node(NodeType.IDENTIFIER, foundEnum.get().identifier(), enumName.actualLine()),

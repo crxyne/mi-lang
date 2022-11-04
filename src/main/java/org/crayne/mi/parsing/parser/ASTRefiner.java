@@ -425,7 +425,7 @@ public class ASTRefiner {
         if (value.type() != NodeType.VALUE) throw new RuntimeException("Expected value node for expression");
 
         final ASTExpressionParser.TypedNode result = new ASTExpressionParser(value.children().stream().map(Node::value).toList(), equalsToken, this, container).parse();
-        if (result != null && result.node() != null) {
+        if (result != null && result.node() != null && result.type() != null) {
             value.children().clear();
             value.addChildren(new Node(NodeType.VALUE, -1, result.node()));
             value.addChildren(new Node(NodeType.TYPE, Token.of(result.type().name()), -1));
@@ -527,9 +527,9 @@ public class ASTRefiner {
             return;
         }
         if (!MiDatatype.match(valueType, type)) {
-            parser.parserError("Cannot assign " + valueType + " values to " + type + " variables.", node.child(3).child(0).value(),
+            parser.parserError("Cannot assign " + valueType + " values to " + type + " variables.", node.value(),
                     (valueType != MiDatatype.NULL
-                            ? "Cast the value to " + type.name() + " or change the variable datatype to " + valueType + "."
+                            ? "Cast the value to " + type + " or change the variable datatype to " + valueType + "."
                             : "Mark your variable as nullable or use std.to_nonnull() to safely convert a null-value to a nonnull-value."));
         }
         // initialized when this is global, so using this is possible, but when not initialized it is null.

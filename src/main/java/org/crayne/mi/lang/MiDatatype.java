@@ -135,7 +135,7 @@ public class MiDatatype {
     }
 
     public String name() {
-        return name;
+        return name.startsWith("!PARENT.") ? name.substring("!PARENT.".length()) : name;
     }
 
     public boolean equals(@NotNull final MiDatatype other, final boolean ignoreNullable) {
@@ -155,6 +155,6 @@ public class MiDatatype {
 
     @Override
     public String toString() {
-        return (!name.equals("null") && !name.equals("void") ? (nullable ? "nullable" : "nonnull") + " " : "") + name;
+        return (!name().equals("null") && !name().equals("void") ? (nullable ? "nullable" : "nonnull") + " " : "") + name();
     }
 }

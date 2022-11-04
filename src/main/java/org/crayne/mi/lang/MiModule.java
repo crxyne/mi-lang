@@ -94,6 +94,8 @@ public class MiModule implements MiContainer {
         return filterFunctionsByName(name).stream().filter(f -> {
             final List<MiDatatype> funcParams = f.parameterTypes();
             if (funcParams.size() == parameters.size()) {
+                if (funcParams.stream().anyMatch(Objects::isNull) || parameters.stream().anyMatch(Objects::isNull)) return false;
+
                 final Map<MiDatatype, MiDatatype> matchTypes = IntStream.range(0, funcParams.size())
                         .boxed()
                         .collect(Collectors.toMap(funcParams::get, parameters::get));

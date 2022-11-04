@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +45,8 @@ public class Mi {
 
     public List<ByteCodeInstruction> compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
         final Optional<SyntaxTree> tree = parse(stdlib, code, null);
-        final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.orElseThrow(RuntimeException::new), mainFunctionModule, mainFunction);
+        if (tree.isEmpty()) return new ArrayList<>();
+        final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.get(), mainFunctionModule, mainFunction);
         return compiler.compile();
     }
 

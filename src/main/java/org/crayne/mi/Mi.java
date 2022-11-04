@@ -43,20 +43,20 @@ public class Mi {
         return node == null ? Optional.empty() : Optional.of(new SyntaxTree(node, out, actualCode, tokenizer.stdlibFinishLine(), inputFile));
     }
 
-    public List<ByteCodeInstruction> compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
+    public List<ByteCodeInstruction> compile(@NotNull final String stdlib, @NotNull final String code) {
         final Optional<SyntaxTree> tree = parse(stdlib, code, null);
         if (tree.isEmpty()) return new ArrayList<>();
-        final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.get(), mainFunctionModule, mainFunction);
+        final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.get());
         final List<ByteCodeInstruction> result = compiler.compile();
         System.out.println(compiler);
         return result;
     }
 
-    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
+    public void compile(@NotNull final String stdlib, @NotNull final String code, @NotNull final File file, @NotNull final File inputFile) {
         final Optional<SyntaxTree> tree = parse(stdlib, code, inputFile);
         if (tree.isPresent()) {
             try {
-                tree.get().compile(file, mainFunctionModule, mainFunction);
+                tree.get().compile(file);
             } catch (Throwable e) {
                 tree.get().error("Error encountered when trying to compile: " + e.getClass().getSimpleName() + " " + e.getMessage());
                 e.printStackTrace();

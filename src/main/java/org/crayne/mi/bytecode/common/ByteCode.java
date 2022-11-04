@@ -15,7 +15,6 @@ public enum ByteCode {
 
     INSTRUCT_FINISH((byte) 0xFF),
     PROGRAM_HEADER((byte) 0x01),
-    MAIN_FUNCTION((byte) 0x02),
     JUMP((byte) 0x03),
     JUMP_IF((byte) 0x04),
     PUSH((byte) 0x07),
@@ -359,13 +358,6 @@ public enum ByteCode {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(JUMP_IF.code);
             this.addAll(List.of(ArrayUtils.toObject(intToBytes(to))));
-        }});
-    }
-
-    public static ByteCodeInstruction mainFunction(final long funcId) {
-        return new ByteCodeInstruction(new ArrayList<>() {{
-            this.add(MAIN_FUNCTION.code);
-            this.addAll(List.of(ArrayUtils.toObject(longToBytes(funcId))));
         }});
     }
 

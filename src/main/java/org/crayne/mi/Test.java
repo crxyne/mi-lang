@@ -15,15 +15,15 @@ public class Test {
                 mod main {
                     
                     pub fn main {
-                        
+                        test(2);
                     }
                     
-                    pub fn test () {
-                        
+                    pub fn test (int i) {
+                        std.println(i);
                     }
                     
                 }
-                """, "main", "main");
+                """);
 
         final ByteCodeInterpreter run = new ByteCodeInterpreter(compiled, mi.messageHandler());
         run.run();

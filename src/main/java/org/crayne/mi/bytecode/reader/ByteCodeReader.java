@@ -51,7 +51,7 @@ public class ByteCodeReader {
                 switch (code) {
                     case PUSH -> readPushInstruction(code);
                     case DEFINE_VARIABLE, DECLARE_VARIABLE, CAST -> readVariablar(code);
-                    case JUMP, JUMP_IF, POP, FUNCTION_CALL, MAIN_FUNCTION, STDLIB_FINISH_LINE, TRACEBACK -> readWithInteger(code);
+                    case JUMP, JUMP_IF, POP, FUNCTION_CALL, STDLIB_FINISH_LINE, TRACEBACK -> readWithInteger(code);
                     case NATIVE_FUNCTION_DEFINITION_BEGIN -> readNativeFunctionBegin(code);
                     case FUNCTION_DEFINITION_BEGIN -> readFunctionBegin(code);
                     case ENUM_MEMBER_DEFINITION -> readEnumMemberDefinition(code);

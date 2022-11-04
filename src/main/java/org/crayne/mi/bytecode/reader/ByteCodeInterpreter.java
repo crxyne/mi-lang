@@ -23,7 +23,6 @@ public class ByteCodeInterpreter {
 
     private final List<ByteCodeInstruction> program;
     private final MessageHandler messageHandler;
-    private long mainFunc = -1;
     private int label;
 
     private final Map<Long, ByteCodeRuntimeFunction> functionDefinitions = new ConcurrentHashMap<>();
@@ -87,7 +86,7 @@ public class ByteCodeInterpreter {
     public void run() {
         try {
             preRead();
-            if (mainFunc != -1) read();
+            execute(21L); // the id for the main func in the test program
         } catch (final ByteCodeException e) {
             messageHandler.errorMsg("Runtime µ error: " + e.getMessage());
             messageHandler.errorMsg(traceback.toString());
@@ -101,8 +100,8 @@ public class ByteCodeInterpreter {
         }
     }
 
-    private void read() {
-        final ByteCodeRuntimeFunction mainFunction = functionDefinitions.get(mainFunc);
+    private void execute(final long functionId) {
+        final ByteCodeRuntimeFunction mainFunction = functionDefinitions.get(functionId);
         if (!(mainFunction instanceof final ByteCodeInternFunction mainInternFunc)) throw new ByteCodeException("The main function should be an intern function");
 
         localAddrOffset.add(0);
@@ -172,7 +171,6 @@ public class ByteCodeInterpreter {
             case ENUM_DEFINITION_END -> evalEnumDefEnd();
             case ENUM_MEMBER_DEFINITION -> evalEnumMemberDef(instr);
             case VALUE_AT_ADDRESS -> evalValAtAddr();
-            case MAIN_FUNCTION -> evalMainFunc(instr);
             case CAST -> evalCast(instr);
             case MUTATE_VARIABLE -> evalVariableMut(false);
             case MUTATE_VARIABLE_AND_PUSH -> evalVariableMut(true);
@@ -352,7 +350,9 @@ public class ByteCodeInterpreter {
 
         if (func instanceof final ByteCodeInternFunction internFunc) {
             localAddrOffset.add(0);
+            //System.out.println("RETURN TO " + (label + 1) + " AFTER FINISHING FUNC EXEC");
             returnStack.add(label + 1);
+            //System.out.println("JUMP TO " + internFunc.label());
             label = internFunc.label();
         } else if (func instanceof final ByteCodeNativeFunction nativeFunc) {
             invokeNativeFuncCall(nativeFunc);
@@ -412,13 +412,6 @@ public class ByteCodeInterpreter {
         final int condInt = Ints.fromByteArray(ArrayUtils.toPrimitive(condition.value()));
         if (condInt != 0) label = jumpTo - 2;
         popPushStack(); // pop condition since we dont need it anymore
-    }
-
-    private void evalMainFunc(@NotNull final ByteCodeInstruction instr) {
-        final Byte[] values = instr.codes();
-        final long funcId = readLong(values, 1, values.length - 1);
-        if (mainFunc != -1) throw new ByteCodeException("Redefinition of main function (was id " + mainFunc + " already, trying to set it to " + funcId + ")");
-        mainFunc = funcId;
     }
 
     private void evalPop(@NotNull final ByteCodeInstruction instr) {
@@ -502,8 +495,9 @@ public class ByteCodeInterpreter {
     private void evalInternFunc(@NotNull final ByteCodeInstruction instr) {
         final Byte[] values = instr.codes();
         final String signature = readString(values, 6, values.length - 2);
-        System.out.println("FUNC SIG " + signature);
+
         localAddrOffset.add(0);
+        System.out.println("FUNC LABEL " + label);
         functionDefinitions.put(currentFunctionId, new ByteCodeInternFunction(label));
         currentFunctionId++;
     }

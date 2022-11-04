@@ -40,11 +40,14 @@ public class ByteCodeCompiler {
     private final List<Integer> localScopeVariables;
     private int scope = -1;
 
-    private final String mainFuncMod;
-    private final String mainFunc;
-    private boolean foundMainFunc = false;
+    private static abstract class QueuedFunctionDefinition {
 
-    public ByteCodeCompiler(@NotNull final SyntaxTree tree, @NotNull final String mainFunctionModule, @NotNull final String mainFunction) {
+        public abstract void define(@NotNull final String moduleString, @NotNull final ByteCodeCompiler compiler);
+
+    }
+    private final List<Map.Entry<String, QueuedFunctionDefinition>> defineFunctionScopesLater = new ArrayList<>();
+
+    public ByteCodeCompiler(@NotNull final SyntaxTree tree) {
         this.tree = tree;
         globalVariableStorage = new HashMap<>();
         localScopeVariables = new ArrayList<>();
@@ -56,8 +59,6 @@ public class ByteCodeCompiler {
         functionDefinitions = new ArrayList<>();
         loopBounds = new ArrayList<>();
         result = new ArrayList<>();
-        mainFunc = mainFunction;
-        mainFuncMod = "!PARENT." + mainFunctionModule;
     }
 
     public int getStdlibFinishLine() {
@@ -83,13 +84,9 @@ public class ByteCodeCompiler {
     public List<ByteCodeInstruction> compile() {
         final Node ast = tree.getAST();
         if (ast.type() == NodeType.PARENT) {
-            compileParent(ast, result);
+            compileParent(ast, result, false);
         } else {
             panic("Expected 'PARENT' node at the beginning of syntax tree");
-            return new ArrayList<>();
-        }
-        if (!foundMainFunc) {
-            panic("Could not find main function '" + mainFuncMod + "." + mainFunc + "'. Make sure it exists at the right place, has no arguments and is an intern function.");
             return new ArrayList<>();
         }
         result.addAll(0, functionDefinitions);
@@ -106,8 +103,15 @@ public class ByteCodeCompiler {
     }
 
     private void compileParent(@NotNull final Node parent, @NotNull final List<ByteCodeInstruction> result) {
+        compileParent(parent, result, true);
+    }
+
+    private void compileParent(@NotNull final Node parent, @NotNull final List<ByteCodeInstruction> result, final boolean ignoreFuncScopes) {
         for (final Node instr : parent.children()) {
             compileInstruction(instr, result);
+        }
+        if (!ignoreFuncScopes) for (final Map.Entry<String, QueuedFunctionDefinition> run : defineFunctionScopesLater) {
+            run.getValue().define(run.getKey(), this);
         }
     }
 
@@ -161,7 +165,7 @@ public class ByteCodeCompiler {
 
     private void compileEnumDefinition(@NotNull final Node instr) {
         final String name = instr.child(0).value().token();
-        final List<String> members = instr.child(2).child(0).children().stream().map(n -> n.value().token()).toList();
+        final List<String> members = instr.child(2).children().isEmpty() ? new ArrayList<>() : instr.child(2).child(0).children().stream().map(n -> n.value().token()).toList();
         final ByteCodeEnum enumDef = new ByteCodeEnum(name, enumId, members);
         enumId++;
         final List<ByteCodeInstruction> bytes = defineEnum(enumDef);
@@ -460,38 +464,38 @@ public class ByteCodeCompiler {
     private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final Map<String, ByteDatatype> args, final String javaMethod, final Node scope) {
         functionStorage.add(new ByteCodeFunctionDefinition(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args.values(), functionId));
         if (javaMethod == null) {
-            this.scope = 0;
-            localScopeVariables.add(0);
-            relativeAddress = 0;
+            defineFunctionScopesLater.add(Map.entry(currentModuleName(), new QueuedFunctionDefinition() {
+                @Override
+                public void define(@NotNull final String moduleString, @NotNull final ByteCodeCompiler compiler) {
+                    compiler.scope = 0;
+                    localScopeVariables.add(0);
+                    relativeAddress = 0;
 
-            final List<String> storageArgs = new ArrayList<>(args.keySet().stream().toList());
-            Collections.reverse(storageArgs);
-            storageArgs.forEach(this::addLocalVariableToStorage);
-            functionDefinitions.add(function(currentModuleName() + "." + name + args.values()));
+                    final List<String> storageArgs = new ArrayList<>(args.keySet().stream().toList());
+                    Collections.reverse(storageArgs);
+                    storageArgs.forEach(compiler::addLocalVariableToStorage);
+                    functionDefinitions.add(function(moduleString + "." + name + args.values()));
 
-            final List<ByteDatatype> defineArgs = new ArrayList<>(args.values().stream().toList());
-            Collections.reverse(defineArgs);
-            defineArgs.forEach(d -> rawInstruction(ByteCode.defineVariable(d), functionDefinitions));
+                    final List<ByteDatatype> defineArgs = new ArrayList<>(args.values().stream().toList());
+                    Collections.reverse(defineArgs);
+                    defineArgs.forEach(d -> rawInstruction(ByteCode.defineVariable(d), functionDefinitions));
 
-            relativeAddress = defineArgs.size();
+                    relativeAddress = defineArgs.size();
 
-            label++;
-            if (scope == null) {
-                panic("The function scope of '" + name + "' is null");
-                return;
-            }
-            compileParent(scope, functionDefinitions);
-            final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(this.scope) : 0;
-            if (vars > 0) rawInstruction(ByteCode.pop(vars), functionDefinitions);
-            localVariableStorage.clear();
-            localScopeVariables.clear();
-            relativeAddress = -1;
-            rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
-
-            if (args.isEmpty() && currentModuleName().equals(mainFuncMod) && name.equals(mainFunc)) {
-                rawInstruction(ByteCode.mainFunction(functionId), functionDefinitions);
-                foundMainFunc = true;
-            }
+                    label++;
+                    if (scope == null) {
+                        panic("The function scope of '" + name + "' is null");
+                        return;
+                    }
+                    compileParent(scope, functionDefinitions);
+                    final int vars = !localScopeVariables.isEmpty() ? localScopeVariables.get(compiler.scope) : 0;
+                    if (vars > 0) rawInstruction(ByteCode.pop(vars), functionDefinitions);
+                    localVariableStorage.clear();
+                    localScopeVariables.clear();
+                    relativeAddress = -1;
+                    rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
+                }
+            }));
             functionId++;
             return;
         }

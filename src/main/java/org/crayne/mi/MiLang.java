@@ -5,7 +5,6 @@ import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.reader.ByteCodeReader;
 import org.crayne.mi.log.MessageHandler;
-import org.crayne.mi.parsing.parser.ASTGenerator;
 import org.crayne.mi.stdlib.MiStandardLib;
 import org.jetbrains.annotations.NotNull;
 
@@ -128,7 +127,7 @@ public class MiLang {
 
             final File outputFile = new File(StringUtils.substringBeforeLast(inputFile.get(), ".") + ".mib");
 
-            mi.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()), ASTGenerator.moduleOf(mainFunc), ASTGenerator.identOf(mainFunc));
+            mi.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()));
             return;
         }
         try {

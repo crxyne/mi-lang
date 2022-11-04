@@ -319,12 +319,13 @@ public class ByteCodeCompiler {
     }
 
     private void compileReturnStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
-        deleteAllLocalScopeVars(result);
         if (instr.children().isEmpty()) {
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
+            deleteAllLocalScopeVars(result);
             return;
         }
         compileExpression(instr.child(0).child(0), result);
+        deleteAllLocalScopeVars(result);
         rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
     }
 
@@ -384,7 +385,7 @@ public class ByteCodeCompiler {
         final List<ByteDatatype> args = inputArgs
                 .stream()
                 .map(n -> {
-                    final String type = n.child(0).child(1).value().token();
+                    final String type = (n.children().size() > 1 ? n.child(1) : n.child(0).child(1)).value().token();
                     return ByteDatatype.of(type, findEnumId(type));
                 })
                 .toList();

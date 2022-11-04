@@ -98,7 +98,7 @@ public class MiModule implements MiContainer {
 
                 final Map<MiDatatype, MiDatatype> matchTypes = IntStream.range(0, funcParams.size())
                         .boxed()
-                        .collect(Collectors.toMap(funcParams::get, parameters::get));
+                        .collect(Collectors.toMap(funcParams::get, parameters::get, (p1, p2) -> p1));
 
                 return matchTypes // make sure every datatype matches
                         .keySet()
@@ -106,7 +106,7 @@ public class MiModule implements MiContainer {
                         .allMatch(d -> exactMatch ? matchTypes.get(d).name().equals(d.name()) : MiDatatype.match(matchTypes.get(d), d));
             }
             return false;
-        }).findAny();
+        }).findFirst();
     }
 
     public Token identifier() {

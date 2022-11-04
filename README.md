@@ -18,6 +18,7 @@ java -Xmx2G -Xms2G -jar mi-lang.jar run file='yourfile.mib'
 ```
 
 ## Java usage
+
 ```java
 import org.crayne.mi.bytecode.common.ByteCodeInstruction;
 import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
@@ -37,18 +38,18 @@ public class Tests {
         final MessageHandler messageHandler = mi.messageHandler();
 
         final String code = """
-module testing {
-    
-    fn main {
-        std.println("hello world!");
-    }
-    
-}
-                """;
+                module testing {
+                    
+                    fn main {
+                        std.println("hello world!");
+                    }
+                    
+                }
+                                """;
 
         final List<ByteCodeInstruction> program = mi.compile(MiStandardLib.standardLib(), code, "testing", "main");
         final ByteCodeInterpreter runtime = new ByteCodeInterpreter(program, messageHandler);
-        runtime.run();
+        runtime.prepare();
 
         // or, alternatively compile from and to a file, read from that file and run the binary instead
         final File inputFile = new File("path_to_input_file/file.mi");

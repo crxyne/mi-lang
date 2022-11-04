@@ -1,6 +1,7 @@
 package org.crayne.mi.bytecode.common;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -111,6 +112,10 @@ public class ByteDatatype {
 
     public String toString() {
         return name + ":" + code;
+    }
+
+    public static ByteDatatype fromString(@NotNull final String s) {
+        return new ByteDatatype(Byte.parseByte(StringUtils.substringAfter(s, ":")), StringUtils.substringBefore(s, ":"));
     }
 
 }

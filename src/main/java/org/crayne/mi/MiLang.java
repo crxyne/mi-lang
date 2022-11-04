@@ -133,7 +133,7 @@ public class MiLang {
         try {
             final List<ByteCodeInstruction> instrs = ByteCodeReader.read(new File(inputFile.get()), messageHandler);
             final ByteCodeInterpreter interpreter = new ByteCodeInterpreter(instrs, messageHandler);
-            interpreter.run();
+            interpreter.prepare();
         } catch (final Throwable e) {
             e.printStackTrace();
         }

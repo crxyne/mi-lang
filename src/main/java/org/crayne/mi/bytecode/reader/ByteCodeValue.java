@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 
 public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter runtime) {
 
-    private static ByteCodeValue boolValue(final boolean b, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue boolValue(final boolean b, @NotNull final ByteCodeInterpreter runtime) {
         return new ByteCodeValue(ByteDatatype.BOOL, ArrayUtils.toObject(ByteCode.intToBytes(b ? 1 : 0)), runtime);
     }
 
@@ -25,11 +25,11 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter
         return (char) ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue charValue(final int c, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue charValue(final int c, @NotNull final ByteCodeInterpreter runtime) {
         return new ByteCodeValue(ByteDatatype.CHAR, ArrayUtils.toObject(ByteCode.intToBytes(c)), runtime);
     }
 
-    private static ByteCodeValue intValue(final int i, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue intValue(final int i, @NotNull final ByteCodeInterpreter runtime) {
         return new ByteCodeValue(ByteDatatype.INT, ArrayUtils.toObject(ByteCode.intToBytes(i)), runtime);
     }
 
@@ -37,7 +37,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter
         return ByteCode.bytesToInt(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue longValue(final long l, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue longValue(final long l, @NotNull final ByteCodeInterpreter runtime) {
         return new ByteCodeValue(ByteDatatype.LONG, ArrayUtils.toObject(ByteCode.longToBytes(l)), runtime);
     }
 
@@ -45,7 +45,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter
         return ByteCode.bytesToLong(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue floatValue(final float f, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue floatValue(final float f, @NotNull final ByteCodeInterpreter runtime) {
         return new ByteCodeValue(ByteDatatype.FLOAT, ArrayUtils.toObject(ByteCode.floatToBytes(f)), runtime);
     }
 
@@ -53,7 +53,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter
         return ByteCode.bytesToFloat(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue doubleValue(final double d, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue doubleValue(final double d, @NotNull final ByteCodeInterpreter runtime) {
         return new ByteCodeValue(ByteDatatype.DOUBLE, ArrayUtils.toObject(ByteCode.doubleToBytes(d)), runtime);
     }
 
@@ -61,7 +61,7 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter
         return ByteCode.bytesToDouble(ArrayUtils.toPrimitive(val));
     }
 
-    private static ByteCodeValue stringValue(@NotNull final String s, @NotNull final ByteCodeInterpreter runtime) {
+    public static ByteCodeValue stringValue(@NotNull final String s, @NotNull final ByteCodeInterpreter runtime) {
         final Byte[] codes = ByteCode.string(s).codes();
         return new ByteCodeValue(ByteDatatype.STRING, Arrays.stream(codes).toList().subList(1, codes.length - 1).toArray(new Byte[0]), runtime);
     }

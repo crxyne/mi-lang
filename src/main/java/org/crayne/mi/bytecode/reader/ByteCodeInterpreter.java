@@ -5,6 +5,8 @@ import com.google.common.primitives.Longs;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.crayne.mi.bytecode.common.*;
+import org.crayne.mi.bytecode.communication.MiCommunicator;
+import org.crayne.mi.bytecode.communication.MiExecutionException;
 import org.crayne.mi.bytecode.reader.function.ByteCodeInternFunction;
 import org.crayne.mi.bytecode.reader.function.ByteCodeNativeFunction;
 import org.crayne.mi.bytecode.reader.function.ByteCodeRuntimeFunction;
@@ -24,7 +26,9 @@ public class ByteCodeInterpreter {
     private final List<ByteCodeInstruction> program;
     private final MessageHandler messageHandler;
     private int label;
+    private volatile boolean active;
 
+    private final Map<Integer, Long> funcDefsByNames = new ConcurrentHashMap<>();
     private final Map<Long, ByteCodeRuntimeFunction> functionDefinitions = new ConcurrentHashMap<>();
     private final Map<Integer, ByteCodeEnum> enumDefinitions = new ConcurrentHashMap<>();
     private long currentFunctionId = 0;
@@ -83,10 +87,13 @@ public class ByteCodeInterpreter {
         return ByteCode.bytesToString(primitiveByteArray(arr, subBegin, subEnd));
     }
 
-    public void run() {
+    public MiCommunicator newCommunicator() {
+        return MiCommunicator.of(this);
+    }
+
+    public void prepare() {
         try {
             preRead();
-            execute(21L); // the id for the main func in the test program
         } catch (final ByteCodeException e) {
             messageHandler.errorMsg("Runtime µ error: " + e.getMessage());
             messageHandler.errorMsg(traceback.toString());
@@ -100,15 +107,32 @@ public class ByteCodeInterpreter {
         }
     }
 
-    private void execute(final long functionId) {
-        final ByteCodeRuntimeFunction mainFunction = functionDefinitions.get(functionId);
-        if (!(mainFunction instanceof final ByteCodeInternFunction mainInternFunc)) throw new ByteCodeException("The main function should be an intern function");
+    public Optional<ByteCodeValue> execute(@NotNull final String module, @NotNull final String func, @NotNull final List<ByteCodeValue> inParams) {
+        if (active) throw new MiExecutionException("Cannot run multiple Mi functions at once; Multithreading not implemented");
 
+        final Long foundFunctionId = funcDefsByNames.get(Objects.hash(module + "." + func, inParams.stream().map(ByteCodeValue::type).map(ByteDatatype::name).toList()));
+        if (foundFunctionId == null) throw new MiExecutionException("Could not find the Mi function '" + module + "." + func + "'");
+
+        execute(foundFunctionId, inParams);
+        return pushTop();
+    }
+
+    private void execute(final long functionId, @NotNull final List<ByteCodeValue> inParams) {
+        final ByteCodeRuntimeFunction toExec = functionDefinitions.get(functionId);
+        if (!(toExec instanceof final ByteCodeInternFunction mainInternFunc)) throw new MiExecutionException("The function to execute should be an intern function");
+
+        active = true;
         localAddrOffset.add(0);
+        inParams.forEach(this::push);
+
         for (label = mainInternFunc.label() + 1; label < program.size(); label++) {
             final ByteCodeInstruction instr = program.get(label);
-            if (eval(instr)) return; // eval() returns true if the function should end
+            if (eval(instr)) {
+                active = false;
+                return; // eval() returns true if the function should end
+            }
         }
+        active = false;
     }
 
     private void push(@NotNull final ByteDatatype type, @NotNull final Byte[] values) {
@@ -125,7 +149,8 @@ public class ByteCodeInterpreter {
     }
 
     private Optional<ByteCodeValue> pushTop(final int offset) {
-        return pushStack.size() - offset - 1 >= pushStack.size() ? Optional.empty() : Optional.of(pushStack.get(pushStack.size() - offset - 1));
+        final int index = pushStack.size() - offset - 1;
+        return index >= pushStack.size() || index < 0 ? Optional.empty() : Optional.of(pushStack.get(index));
     }
 
     private Optional<ByteCodeValue> pushTop() {
@@ -375,11 +400,13 @@ public class ByteCodeInterpreter {
                 if (method.isAnnotationPresent(Nonnull.class))
                     throw new ByteCodeException("Null-value returned by native java method " + method + " while also annotated with " + Nonnull.class);
 
-                push(ByteDatatype.NULL, new Byte[0]);
-                return;
             }
 
             if (retType != ByteDatatype.VOID) {
+                if (res == null) {
+                    push(ByteDatatype.NULL, new Byte[0]);
+                    return;
+                }
                 final Byte[] bytes = switch (retType.id()) {
                     case 0x00 -> ArrayUtils.toObject(ByteCode.intToBytes(((boolean) res) ? 1 : 0));
                     case 0x01, 0x02 -> ArrayUtils.toObject(ByteCode.intToBytes((int) res));
@@ -494,11 +521,14 @@ public class ByteCodeInterpreter {
 
     private void evalInternFunc(@NotNull final ByteCodeInstruction instr) {
         final Byte[] values = instr.codes();
-        final String signature = readString(values, 6, values.length - 2);
+        final String sig = readString(values, 6, values.length - 2).substring("!PARENT.".length());
+        final String[] signature = StringUtils.substringBetween(sig, "[", "]").split(", ");
+        final String name = StringUtils.substringBefore(sig, "[");
+        final List<ByteDatatype> params = Arrays.stream(signature).filter(s -> !s.isEmpty()).map(ByteDatatype::fromString).toList();
 
         localAddrOffset.add(0);
-        System.out.println("FUNC LABEL " + label);
         functionDefinitions.put(currentFunctionId, new ByteCodeInternFunction(label));
+        funcDefsByNames.put(Objects.hash(name, params.stream().map(ByteDatatype::name).toList()), currentFunctionId);
         currentFunctionId++;
     }
 

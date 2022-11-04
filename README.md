@@ -6,6 +6,12 @@ Scripting language designed to communicate with java, to allow for easy plugins,
 ## Wiki
 To see all features explained in detail: https://github.com/crxyne/mi-lang/wiki
 
+## NOTES
+#### Currently in ALPHA
+Mi is currently in a very early testing phase and is **extremely** buggy, so make sure to report any bugs to help the development of Mi.
+#### The language is bad but not horrible (ha)
+While this language may be interpreted in java (which is generally a horrible idea), the purpose of this language is not to be fast. However, whenever possible, the code will be optimized to allow for a faster execution. As a sidenote, this compiles to bytecode, meaning anyone could, in theory, write an interpreter for it in another language to get a better performance.
+
 ## Usage
 Make sure you have java 17 or higher installed.
 Download the mi-lang.jar from the releases tab. To compile a .mi file, use your terminal in the directory of your code file. Alternatively, create a script that does the same for you. Command:
@@ -65,12 +71,6 @@ public class Tests {
 
 ```
 
-## NOTES
-#### Currently in ALPHA
-Mi is currently in a very early testing phase and is **extremely** buggy, so make sure to report any bugs to help the development of Mi.
-#### The language is bad but not horrible (ha)
-While this language may be interpreted in java (which is generally a horrible idea), the purpose of this language is not to be fast. However, whenever possible, the code will be optimized to allow for a faster execution. As a sidenote, this compiles to bytecode, meaning anyone could, in theory, write an interpreter for it in another language to get a better performance.
-
 ### helloworld
 ```
 module helloworld {
@@ -87,9 +87,7 @@ module helloworld {
 - (currently one sided) communication with java for easy scripting in any java project
 
 #### TODOS:
-- first and most important todo for now, fix the parser code, its absolutely horrible
 - structs and impls similar to rust
 - macros, to insert code in front of a function
 - assert, typedef and their combination for fast easy types
 - operator overloading as an option for already defined functions
-- calling mi functions from java, to allow for eventhandlers, etc

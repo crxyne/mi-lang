@@ -7,9 +7,19 @@ import org.jetbrains.annotations.NotNull;
 public class Value {
 
     private final ByteCodeValue value;
+    private final Type type;
+    private final ByteCodeInterpreter runtime;
 
-    protected Value(@NotNull final ByteCodeValue value) {
+    protected Value(@NotNull final ByteCodeValue value, @NotNull final Type type, @NotNull final ByteCodeInterpreter runtime) {
         this.value = value;
+        this.type = type;
+        this.runtime = runtime;
+    }
+
+    protected Value(@NotNull final ByteCodeValue value, @NotNull final ByteCodeInterpreter runtime) {
+        this.value = value;
+        this.type = new Type(value.type());
+        this.runtime = runtime;
     }
 
     public static Value of(@NotNull final Type type, @NotNull final Object obj, @NotNull final ByteCodeInterpreter runtime) {
@@ -25,7 +35,7 @@ public class Value {
             case "java.lang.Boolean" -> ByteCodeValue.boolValue((boolean) obj, runtime);
             case "java.lang.String" -> ByteCodeValue.stringValue((String) obj, runtime);
             default -> throw new MiExecutionException("Could not generate value for " + type.byteDatatype().name() + " " + obj);
-        });
+        }, type, runtime);
     }
 
     public static Value of(@NotNull final Object obj, @NotNull final ByteCodeInterpreter runtime) {
@@ -33,7 +43,7 @@ public class Value {
     }
 
     public Type type() {
-        return new Type(value.type());
+        return type;
     }
 
     public Object value() {
@@ -41,7 +51,7 @@ public class Value {
     }
 
     public ByteCodeValue byteCodeValue() {
-        return value;
+        return new ByteCodeValue(type.byteDatatype(), value.value(), runtime);
     }
 
     @Override

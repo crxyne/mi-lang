@@ -117,11 +117,6 @@ public class MiLang {
         if (inputFile.isEmpty()) return;
 
         if (compile) {
-            final Optional<String> omainFunc = findKeyvalueOrElse("main", messageHandler,
-                    "No main function specified (specify using the main=some.module.name.main argument)", params);
-            if (omainFunc.isEmpty()) return;
-
-            final String mainFunc = omainFunc.get();
             final Optional<String> code = readCode(inputFile.get(), messageHandler);
             if (code.isEmpty()) return;
 
@@ -130,6 +125,11 @@ public class MiLang {
             mi.compile(MiStandardLib.standardLib(), code.get(), outputFile, new File(inputFile.get()));
             return;
         }
+        final Optional<String> omainFunc = findKeyvalueOrElse("main", messageHandler,
+                "No main function specified (specify using the main=some.module.name.main argument)", params);
+        if (omainFunc.isEmpty()) return;
+
+        final String mainFunc = omainFunc.get();
         try {
             final List<ByteCodeInstruction> instrs = ByteCodeReader.read(new File(inputFile.get()), messageHandler);
             final ByteCodeInterpreter interpreter = new ByteCodeInterpreter(instrs, messageHandler);

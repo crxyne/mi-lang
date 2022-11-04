@@ -14,11 +14,11 @@ public class Type {
 
     public static Type of(@NotNull final String typename) {
         final ByteDatatype type = ByteDatatype.of(typename);
-        if (type.id() == ByteDatatype.NULL.id()
-                || type.id() == ByteDatatype.VOID.id()
-                || type.id() == ByteDatatype.UNKNOWN.id()) throw new MiExecutionException("Expected definite datatype (void and null are not allowed)");
+        if (type != null && (type.code() == ByteDatatype.NULL.code()
+                || type.code() == ByteDatatype.VOID.code()
+                || type.code() == ByteDatatype.UNKNOWN.code())) throw new MiExecutionException("Expected definite datatype (void and null are not allowed)");
 
-        return type.id() == 7 ? new Type(ByteDatatype.of("!PARENT." + typename)) : new Type(type);
+        return type == null ? new Type(new ByteDatatype(ByteDatatype.ENUM.code(), typename.startsWith("!PARENT.") ? typename : "!PARENT." + typename)) : new Type(type);
     }
 
     public static Type of(@NotNull final Class<?> clazz) {
@@ -50,10 +50,10 @@ public class Type {
         return switch (type.name()) {
             case "double", "float", "long" -> "java.lang." + StringUtils.capitalize(type.name());
             case "char" -> "java.lang.Character";
-            case "int" -> "java.lang.Integer";
             case "bool" -> "java.lang.Boolean";
             case "string" -> "java.lang.String";
-            default -> throw new MiExecutionException("No Java type matching for mi type " + type.name());
+            case "int" -> "java.lang.Integer";
+            default -> "java.lang.Long"; // enum ids are of type long
         };
     }
 

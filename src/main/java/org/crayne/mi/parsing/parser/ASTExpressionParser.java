@@ -191,7 +191,7 @@ public class ASTExpressionParser {
                     if (nodeX.type == null || cannotUseOperator(nodeX, op)) return TypedNode.empty();
                     if (nodeY.type == null || (NodeType.of(op) != NodeType.QUESTION_MARK && cannotUseOperator(nodeY, op))) return TypedNode.empty();
                     if (!nodeX.type.primitive() && !nodeY.type.primitive() && !nodeX.type.name().equals(nodeY.type.name())) {
-                        refiner.parser().parserError("Enums are not the same; Expected the same enum types for left and right operands", op);
+                        refiner.parser().parserError("Enums are not the same; Expected the same enum types for left and right operands (" + nodeX.type + " vs " + nodeY.type + ")", op);
                         return TypedNode.empty();
                     }
 

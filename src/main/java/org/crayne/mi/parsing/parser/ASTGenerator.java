@@ -409,8 +409,8 @@ public class ASTGenerator {
         final Token identifier = parser.getAndExpect(tokens, 1, NodeType.IDENTIFIER);
         final Token retDef = parser.getAndExpect(tokens, 2, NodeType.LPAREN, NodeType.DOUBLE_COLON, NodeType.LBRACE);
         final Token last = parser.getAndExpect(tokens, tokens.size() - 1, NodeType.SEMI, NodeType.LBRACE);
-        if (Parser.anyNull(fnToken, identifier, retDef, last)) return null;
 
+        if (Parser.anyNull(fnToken, identifier, retDef, last)) return null;
         final Optional<Node> firstMutabilityModif = modifiers.stream().filter(m -> m.type().isMutabilityModifier()).findFirst();
         if (firstMutabilityModif.isPresent()) {
             parser.parserError("Cannot declare functions as own, const or mut, they are automatically constant because they cannot be redefined",
@@ -449,9 +449,10 @@ public class ASTGenerator {
         else {
             final Token returnToken = parser.getAndExpect(tokens, 3,
                     Arrays.stream(NodeType.values())
-                            .filter(t -> t.isDatatype() || t == NodeType.LITERAL_VOID)
+                            .filter(t -> t.isDatatype() || t == NodeType.LITERAL_VOID || t == NodeType.IDENTIFIER)
                             .toList()
                             .toArray(new NodeType[0]));
+
             if (returnToken == null) return null;
 
             returnType = MiDatatype.of(returnToken.token(), nullableOptModifiers(modifs));

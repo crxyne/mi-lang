@@ -281,6 +281,8 @@ public class ASTRefiner {
     private void checkReturnStatement(@NotNull final Node child, @NotNull final MiFunctionScope scope) {
         final Node valueNode = child.children().isEmpty() ? null : child.child(0);
         final ASTExpressionParser.TypedNode value = valueNode == null ? null : parseExpression(valueNode, valueNode.value(), scope);
+        if (value != null && value.type() == null) return;
+
         final MiDatatype returnDatatype = value == null ? MiDatatype.VOID : value.type();
         final MiDatatype functionReturnType = scope.function().returnType();
 
@@ -630,7 +632,7 @@ public class ASTRefiner {
 
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return null;
         final List<MiVariable> params = functionParameters(node, currentModule); if (params == null) return null;
-        final MiDatatype type = functionReturnType(node, ident, modifiers);
+        final MiDatatype type = functionReturnType(node, ident, modifiers, currentModule);
 
         final MiInternFunction function = new MiInternFunction(modifiers, ident.token(), type, currentModule, params);
         tryAddFunction(function, ident);
@@ -646,7 +648,7 @@ public class ASTRefiner {
 
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return;
         final List<MiVariable> params = functionParameters(node, currentModule); if (params == null) return;
-        final MiDatatype type = functionReturnType(node, ident, modifiers);
+        final MiDatatype type = functionReturnType(node, ident, modifiers, currentModule);
 
         final Method nativeMethod = functionNativeMethod(node, params, ident); if (nativeMethod == null) return;
 
@@ -681,7 +683,7 @@ public class ASTRefiner {
         }
     }
 
-    private MiDatatype functionReturnType(@NotNull final Node node, @NotNull final Token ident, @NotNull final List<MiModifier> modifiers) {
+    private MiDatatype functionReturnType(@NotNull final Node node, @NotNull final Token ident, @NotNull final List<MiModifier> modifiers, @NotNull final MiModule accessedAt) {
         final Token datatypeToken = node.child(1).value();
         if (NodeType.of(datatypeToken) == NodeType.LITERAL_VOID) {
             final Optional<MiModifier> firstNullability = modifiers.stream().filter(m -> m == MiModifier.NULLABLE || m == MiModifier.NONNULL).findFirst();
@@ -690,7 +692,10 @@ public class ASTRefiner {
                         "Remove the nonnull / nullable modifier to fix this issue.");
             }
         }
-        return MiDatatype.of(datatypeToken.token(), ASTGenerator.nullableModifiers(modifiers));
+        final boolean nullable = ASTGenerator.nullableModifiers(modifiers);
+        final MiDatatype type = MiDatatype.of(datatypeToken.token(), nullable);
+        verifyEnum(type, node.child(1), accessedAt);
+        return MiDatatype.of(node.child(1).value().token(), nullable);
     }
 
     private List<MiVariable> functionParameters(@NotNull final Node node, @NotNull final MiModule accessedAt) {
@@ -755,10 +760,11 @@ public class ASTRefiner {
 
             final List<Optional<MiModifier>> modifs = ASTGenerator.modifiersOfNodes(modifiers);
             final List<MiModifier> modifsDefinite = modifs.stream().map(o -> o.orElseThrow(RuntimeException::new)).toList();
-            final MiDatatype type = MiDatatype.of(n.child(0).value().token(), ASTGenerator.nullableOptModifiers(modifs));
+            final boolean nullable = ASTGenerator.nullableOptModifiers(modifs);
+            final MiDatatype type = MiDatatype.of(n.child(0).value().token(), nullable);
             verifyEnum(type, n.child(0), accessedAt);
 
-            return new MiVariable(n.child(1).value().token(), type, modifsDefinite);
+            return new MiVariable(n.child(1).value().token(), MiDatatype.of(n.child(0).value().token(), nullable), modifsDefinite);
         }).toList();
     }
 

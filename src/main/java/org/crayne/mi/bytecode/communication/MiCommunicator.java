@@ -1,6 +1,7 @@
 package org.crayne.mi.bytecode.communication;
 
 import org.apache.commons.lang3.StringUtils;
+import org.crayne.mi.bytecode.common.ByteDatatype;
 import org.crayne.mi.bytecode.reader.ByteCodeInterpreter;
 import org.crayne.mi.bytecode.reader.ByteCodeValue;
 import org.jetbrains.annotations.NotNull;
@@ -35,7 +36,10 @@ public class MiCommunicator {
 
     public Optional<Value> invoke(@NotNull final String module, @NotNull final String func, @NotNull final Value... params) {
         final Optional<ByteCodeValue> res = runtime.execute(module, func, Arrays.stream(params).map(Value::byteCodeValue).toList());
-        return res.isEmpty() ? Optional.empty() : Optional.of(new Value(res.get()));
+        if (res.isPresent() && res.get().type().code() == ByteDatatype.ENUM.code())
+            throw new MiExecutionException("Enum values are not supported as return values");
+
+        return res.isEmpty() ? Optional.empty() : Optional.of(new Value(res.get(), runtime));
     }
 
     public Optional<Value> invoke(@NotNull final String fullFuncName, @NotNull final Value... params) {

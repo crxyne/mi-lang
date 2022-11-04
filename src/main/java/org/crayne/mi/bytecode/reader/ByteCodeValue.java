@@ -110,11 +110,13 @@ public record ByteCodeValue(ByteDatatype type, Byte[] value, ByteCodeInterpreter
 
     public ByteCodeValue equal(@NotNull final ByteCodeValue other) {
         final ByteDatatype heavier = heavier(type, other.type);
-        final boolean comparingEnums = type.id() == ByteDatatype.ENUM.id() && other.type.id() == ByteDatatype.ENUM.id();
+        final boolean comparingEnums = type.code() == ByteDatatype.ENUM.code() && other.type.code() == ByteDatatype.ENUM.code();
+
         if (comparingEnums) return boolValue(Arrays.equals(value, other.value), runtime);
         if (heavier == null) return boolValue(false, runtime);
         final ByteCodeValue safeCastX = cast(heavier);
         final ByteCodeValue safeCastY = other.cast(heavier);
+
         return boolValue(Arrays.equals(safeCastX.value, safeCastY.value), runtime);
     }
 

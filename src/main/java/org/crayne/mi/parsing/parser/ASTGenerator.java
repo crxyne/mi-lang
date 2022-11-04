@@ -75,7 +75,7 @@ public class ASTGenerator {
 
             if (tokenType == NodeType.COMMA) {
                 if (currentType == null) {
-                    parser.parserError("Unexpected token ','", token);
+                    parser.parserError("Unexpected token ','.", token);
                     return null;
                 }
                 result.add(current);
@@ -83,11 +83,11 @@ public class ASTGenerator {
                 continue;
             }
             if (current != null) {
-                parser.parserError("Expected ','", token);
+                parser.parserError("Expected ','.", token);
                 return null;
             }
             if (tokenType != NodeType.IDENTIFIER) {
-                parser.parserError("Expected identifier", token);
+                parser.parserError("Expected identifier.", token);
                 return null;
             }
             current = token;
@@ -200,6 +200,7 @@ public class ASTGenerator {
             case STANDARDLIB_MI_FINISH_CODE -> evalStdLibFinish(withoutModifiers, modifiers);
             case LITERAL_BREAK -> evalBreak(withoutModifiers, modifiers);
             case LITERAL_CONTINUE -> evalContinue(withoutModifiers, modifiers);
+            case LITERAL_ELSE -> evalElseStatement(withoutModifiers, modifiers, false);
             case LITERAL_RETURN -> evalReturnStatement(withoutModifiers, modifiers);
             case LITERAL_INT, LITERAL_DOUBLE, LITERAL_LONG, LITERAL_FLOAT,
                     LITERAL_CHAR, LITERAL_STRING, LITERAL_BOOL, QUESTION_MARK ->
@@ -221,6 +222,7 @@ public class ASTGenerator {
         return first == null ? null : switch (first) {
             case LITERAL_FN -> evalFunctionDefinition(withoutModifiers, modifiers);
             case LITERAL_IF -> evalIfStatement(withoutModifiers, modifiers);
+            case LITERAL_ELSE -> evalElseStatement(withoutModifiers, modifiers, true);
             case LITERAL_WHILE -> evalWhileStatement(withoutModifiers, modifiers, false);
             case LITERAL_FOR -> evalForStatement(withoutModifiers, modifiers);
             case LITERAL_ENUM -> evalEnumDefinition(withoutModifiers, modifiers);
@@ -499,6 +501,19 @@ public class ASTGenerator {
         return evalConditional(tokens, modifiers, NodeType.LITERAL_IF, false);
     }
 
+    public Node evalElseStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final boolean scope) {
+        if (unexpectedModifiers(modifiers)) return null;
+        final Token elseToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_ELSE);
+        final Token op = parser.getAndExpect(tokens, 1, NodeType.LBRACE, NodeType.SEMI);
+        if (Parser.anyNull(elseToken, op)) return null;
+
+        final Node instr = tokens.size() == 2
+                ? new Node(NodeType.NOOP, op, op.actualLine())
+                : (scope ? evalScoped(tokens.subList(1, tokens.size())) : evalUnscoped(tokens.subList(1, tokens.size())));
+
+        return new Node(NodeType.ELSE_STATEMENT, elseToken, elseToken.actualLine(), instr);
+    }
+
     public Node evalWhileStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final boolean unscoped) {
         return evalConditional(tokens, modifiers, NodeType.LITERAL_WHILE, unscoped);
     }
@@ -597,13 +612,15 @@ public class ASTGenerator {
         if (unexpectedModifiers(modifiers)) return null;
         final Token first = parser.getAndExpect(tokens, 0, condType);
         if (Parser.anyNull(first)) return null;
+        if (tokens.size() == 2) {
+            parser.parserError("Expected condition after '" + condType.getAsString() + "'.", first, "Add a boolean condition to resolve the issue.");
+            return null;
+        }
 
         final Node expr = parseExpression(first, tokens.subList(1, tokens.size() - 1));
 
-        return new Node(parser.currentNode(), NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")), first.actualLine(),
-                new Node(NodeType.CONDITION, first.actualLine(),
-                        new Node(NodeType.VALUE, first.actualLine(), expr)
-                )
+        return new Node(parser.currentNode(), NodeType.valueOf(condType.getAsString().toUpperCase() + "_STATEMENT" + (unscoped ? "_UNSCOPED" : "")), first.actualLine(), first,
+                new Node(NodeType.CONDITION, first.actualLine(), expr)
         );
     }
 

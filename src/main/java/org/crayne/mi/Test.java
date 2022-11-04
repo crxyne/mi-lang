@@ -14,6 +14,9 @@ public class Test {
     public static void main(@NotNull final String... args) {
         final String code =
 """
+pub? true = 1b;
+pub? false = 0b;
+
 mod std {
 
     pub? Pi = 3.14159265358979323;
@@ -30,8 +33,12 @@ mod std {
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
-    fn main {
-        
+    fn main :: int() {
+        if true {
+            return 0;
+        } else {
+            return 1;
+        }
     }
 
 }

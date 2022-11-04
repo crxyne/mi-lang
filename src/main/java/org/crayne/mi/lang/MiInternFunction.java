@@ -13,7 +13,7 @@ public class MiInternFunction extends MiFunctionScope implements MiFunction {
     private final List<MiVariable> parameters;
 
     public MiInternFunction(@NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final Collection<MiVariable> parameters) {
-        super();
+        super(MiScopeType.FUNCTION_ROOT);
         addAll(parameters.stream().peek(v -> v.container(this)).toList());
         this.parameters = new ArrayList<>(parameters);
         this.name = name;
@@ -24,7 +24,7 @@ public class MiInternFunction extends MiFunctionScope implements MiFunction {
     }
 
     public MiInternFunction(@NotNull final Collection<MiModifier> modifiers, @NotNull final String name, @NotNull final MiDatatype returnType, @NotNull final MiModule module, @NotNull final MiVariable... parameters) {
-        super();
+        super(MiScopeType.FUNCTION_ROOT);
         addAll(Arrays.stream(parameters).peek(v -> v.container(this)).toList());
         this.parameters = new ArrayList<>(List.of(parameters));
         this.name = name;

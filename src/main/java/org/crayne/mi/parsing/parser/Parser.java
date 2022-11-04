@@ -125,13 +125,23 @@ public class Parser {
                 case LBRACE -> {
                     final Node sm = astGenerator.evalScoped(statement);
                     if (sm == null) {
-                        parserError("Not a statement.", lastToken);
+                        parserError("Not a statement. err2", lastToken);
                         return null;
                     }
-
                     final Node scope = new Node(currentNode, NodeType.SCOPE, lastToken.actualLine(), lastToken);
-                    sm.addChildren(scope);
-                    currentNode.addChildren(sm);
+
+                    if (lastScopedNode != null && sm.type() == NodeType.ELSE_STATEMENT) {
+                        if (lastScopedNode.type() != NodeType.IF_STATEMENT) {
+                            parserError("Not a statement. err3", lastToken);
+                            return null;
+                        }
+                        sm.child(0).addChildren(scope);
+                        lastScopedNode.addChildren(sm);
+                    } else {
+                        sm.addChildren(scope);
+                        currentNode.addChildren(sm);
+                    }
+
                     currentNode = scope;
                     lastScopedNode = sm;
                     openedBrace++;
@@ -139,17 +149,29 @@ public class Parser {
                 case SEMI -> {
                     final Node sm = astGenerator.evalUnscoped(statement);
                     if (sm == null) {
-                        parserError("Not a statement.", lastToken);
+                        parserError("Not a statement. err4", lastToken);
                         return null;
                     }
                     // put the unscoped while statement into the actual do statement if there is one
-                    if (lastScopedNode != null && sm.type() == NodeType.WHILE_STATEMENT_UNSCOPED) {
-                        if (lastScopedNode.type() != NodeType.DO_STATEMENT) {
-                            parserError("Not a statement.", lastToken);
-                            return null;
+                    if (lastScopedNode != null) {
+                        switch (sm.type()) {
+                            case WHILE_STATEMENT_UNSCOPED -> {
+                                if (lastScopedNode.type() != NodeType.DO_STATEMENT) {
+                                    parserError("Not a statement. err5", lastToken);
+                                    return null;
+                                }
+                                lastScopedNode.addChildren(sm);
+                                continue;
+                            }
+                            case ELSE_STATEMENT -> {
+                                if (lastScopedNode.type() != NodeType.IF_STATEMENT) {
+                                    parserError("Not a statement. err6", lastToken);
+                                    return null;
+                                }
+                                lastScopedNode.addChildren(sm);
+                                continue;
+                            }
                         }
-                        lastScopedNode.addChildren(sm);
-                        continue;
                     }
                     currentNode.addChildren(sm);
                 }
@@ -159,7 +181,7 @@ public class Parser {
                     if (!previousStatement.isEmpty() && lastTokenPrevStatement != NodeType.SEMI && lastTokenPrevStatement != NodeType.LBRACE && lastTokenPrevStatement != NodeType.RBRACE) {
                         final Node sm = astGenerator.evalEnumMembers(previousStatement);
                         if (sm == null) {
-                            parserError("Not a statement.", lastToken);
+                            parserError("Not a statement. err7", lastToken);
                             return null;
                         }
                         currentNode.addChildren(sm);

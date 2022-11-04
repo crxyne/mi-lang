@@ -157,13 +157,14 @@ public class ASTRefiner {
             }
             switch (child.type()) {
                 case FUNCTION_CALL -> checkFunctionCall(child, function);
-                case NOOP -> checkInnerScope(child, function, functionScope);
+                case NOOP -> checkInnerScope(child, function, functionScope, false, false);
                 case RETURN_STATEMENT -> checkReturnStatement(child, functionScope);
+                case IF_STATEMENT -> checkIfStatement(child, function, functionScope);
                 case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
                 case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
                 case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
                 default -> {
-                    parser.parserError("Not a statement.", first);
+                    parser.parserError("Not a statement. err1", first);
                     return;
                 }
             }
@@ -174,12 +175,40 @@ public class ASTRefiner {
         }
     }
 
-    private void checkInnerScope(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
+    private void checkIfStatement(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
+        final Token ifToken = child.value();
+        final ASTExpressionParser.TypedNode condition = parseExpression(child.child(0).child(0), ifToken, scope);
+        if (!condition.type().equals(MiDatatype.BOOL)) { // expect nonnull bool, nullable wont work here
+            if (condition.type().name().equals(MiDatatype.BOOL.name()) && condition.type().nullable()) {
+                parser.parserError("Expected a nonnull bool condition for if statement, but got a " + condition.type() + ".", ifToken,
+                        "Put a different condition for the if statement or cast the current condition to bool.",
+                        "The condition appears to already be a boolean, but it is nullable. Use std.to_nonnull() to safely convert the condition to a nonnull bool."
+                );
+                return;
+            }
+            parser.parserError("Expected a nonnull bool condition for if statement, but got a " + condition.type() + ".", ifToken,
+                    "Put a different condition for the if statement or cast the current condition to bool.");
+            return;
+        }
+        final Node ifScope = child.child(1);
+        final Node elseStatement = child.children().size() > 2 ? child.child(2) : null;
+
+        final MiFunctionScope ifFunctionScope = new MiFunctionScope(MiScopeType.IF, function, scope, true);
+        scope.childScope(ifFunctionScope);
+        checkLocal(ifScope, ifFunctionScope);
+        ifFunctionScope.pop();
+
+        if (elseStatement != null) checkInnerScope(elseStatement, function, scope, true, ifFunctionScope.rawReachedEnd()); // else is designed to look exactly like an inner scope
+    }
+
+    private void checkInnerScope(@NotNull final Node child, @NotNull final MiInternFunction function,
+                                 @NotNull final MiFunctionScope scope, final boolean elseScope, final boolean ifReachedEnd) {
         if (child.children().isEmpty()) return; // normal noop, no scope here
 
-        final MiFunctionScope localScope = new MiFunctionScope(function, scope);
+        final MiFunctionScope localScope = new MiFunctionScope(elseScope ? MiScopeType.ELSE : MiScopeType.FUNCTION_LOCAL, function, scope);
+        if (ifReachedEnd) localScope.ifReachedEnd();
         scope.childScope(localScope);
-        checkLocal(child.child(0), localScope);
+        checkLocal(elseScope ? child : child.child(0), localScope);
         localScope.pop();
     }
 
@@ -205,9 +234,12 @@ public class ASTRefiner {
             parser.parserError(err, at, "Cast the return value to " + functionReturnType + " or change the function return type to fix this problem.");
             return;
         }
+        if (scope.type() == MiScopeType.ELSE) {
+            if (scope.ifHasReachedEnd()) scope.reachedScopeEnd();
+            return;
+        }
+        //System.out.println("RET STATEMENT " + child + " " + scope.type());
         scope.reachedScopeEnd();
-        // TODO missing return statements & unreachable statement checking
-        // TODO add conditional scopes, break and continue for those and make it all work together
     }
 
     protected void checkVariableMutation(@NotNull final Node child, final MiFunctionScope scope, @NotNull final MiModule module) {

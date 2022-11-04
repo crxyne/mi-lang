@@ -11,28 +11,57 @@ public class MiFunctionScope implements MiContainer {
     private final MiFunctionScope parent;
     private MiInternFunction function;
     private boolean reachedScopeEnd;
+    private final boolean conditional;
+    private boolean ifReachedEnd;
+    private final MiScopeType scopeType;
 
-    public MiFunctionScope() {
+    public MiFunctionScope(@NotNull final MiScopeType scopeType) {
         this.variables = new HashSet<>();
         this.children = new ArrayList<>();
         this.parent = null;
         reachedScopeEnd = false;
+        conditional = false;
+        this.scopeType = scopeType;
     }
 
-    public MiFunctionScope(@NotNull final MiInternFunction function) {
-        this.variables = new HashSet<>();
-        this.children = new ArrayList<>();
-        this.parent = null;
-        this.function = function;
-        reachedScopeEnd = false;
-    }
-
-    public MiFunctionScope(@NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent) {
+    public MiFunctionScope(@NotNull final MiScopeType scopeType, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent) {
         this.variables = new HashSet<>();
         this.children = new ArrayList<>();
         this.parent = parent;
         this.function = function;
         reachedScopeEnd = false;
+        conditional = false;
+        if (parent().isPresent() && scopeType == MiScopeType.FUNCTION_LOCAL) {
+            this.scopeType = parent().get().scopeType == MiScopeType.FUNCTION_ROOT ? MiScopeType.FUNCTION_LOCAL : parent().get().type();
+            return;
+        }
+        this.scopeType = scopeType;
+    }
+
+    public MiFunctionScope(@NotNull final MiScopeType scopeType, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent, final boolean conditional) {
+        this.variables = new HashSet<>();
+        this.children = new ArrayList<>();
+        this.parent = parent;
+        this.function = function;
+        reachedScopeEnd = false;
+        this.conditional = conditional;
+        if (parent().isPresent() && scopeType == MiScopeType.FUNCTION_LOCAL) {
+            this.scopeType = parent().get().scopeType == MiScopeType.FUNCTION_ROOT ? MiScopeType.FUNCTION_LOCAL : parent().get().type();
+            return;
+        }
+        this.scopeType = scopeType;
+    }
+
+    public void ifReachedEnd() {
+        if (scopeType == MiScopeType.ELSE) ifReachedEnd = true; // for else scopes specifically
+    }
+
+    public boolean ifHasReachedEnd() {
+        return ifReachedEnd || (parent().isPresent() && parent().get().ifHasReachedEnd());
+    }
+
+    public MiScopeType type() {
+        return scopeType;
     }
 
     public void childScope(@NotNull final MiFunctionScope scope) {
@@ -79,8 +108,12 @@ public class MiFunctionScope implements MiContainer {
         reachedScopeEnd = true;
     }
 
-    public boolean hasReachedScopeEndSingle() {
+    public boolean rawReachedEnd() {
         return reachedScopeEnd;
+    }
+
+    public boolean hasReachedScopeEndSingle() {
+        return (!conditional || ifReachedEnd) && reachedScopeEnd;
     }
 
     public boolean hasReachedScopeEnd() {

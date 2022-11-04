@@ -467,7 +467,7 @@ public class ByteCodeCompiler {
             final List<String> storageArgs = new ArrayList<>(args.keySet().stream().toList());
             Collections.reverse(storageArgs);
             storageArgs.forEach(this::addLocalVariableToStorage);
-            functionDefinitions.add(function());
+            functionDefinitions.add(function(currentModuleName() + "." + name + args.values()));
 
             final List<ByteDatatype> defineArgs = new ArrayList<>(args.values().stream().toList());
             Collections.reverse(defineArgs);
@@ -492,10 +492,11 @@ public class ByteCodeCompiler {
                 rawInstruction(ByteCode.mainFunction(functionId), functionDefinitions);
                 foundMainFunc = true;
             }
-        } else {
-            functionDefinitions.add(nativeFunction(javaMethod));
-            label++;
+            functionId++;
+            return;
         }
+        functionDefinitions.add(nativeFunction(javaMethod));
+        label++;
         functionId++;
     }
 

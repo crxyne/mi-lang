@@ -15,9 +15,11 @@ public class Test {
                 mod main {
                     
                     pub fn main {
-                        mut? i = 0;
-                        i--;
-                        std.println(i);
+                        
+                    }
+                    
+                    pub fn test () {
+                        
                     }
                     
                 }

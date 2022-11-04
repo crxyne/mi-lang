@@ -306,9 +306,10 @@ public enum ByteCode {
         }});
     }
 
-    public static ByteCodeInstruction function() {
+    public static ByteCodeInstruction function(@NotNull final String name) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(FUNCTION_DEFINITION_BEGIN.code);
+            this.addAll(Arrays.stream(string(name).codes()).toList());
         }});
     }
 

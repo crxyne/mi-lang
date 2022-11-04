@@ -167,7 +167,7 @@ public class ByteCodeInterpreter {
             case DEFINE_VARIABLE -> defineVar();
             case DECLARE_VARIABLE -> evalVarDeclare(instr);
             case NATIVE_FUNCTION_DEFINITION_BEGIN -> evalNatFunc(instr);
-            case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
+            case FUNCTION_DEFINITION_BEGIN -> evalInternFunc(instr);
             case ENUM_DEFINITION_BEGIN -> evalEnumDefBegin();
             case ENUM_DEFINITION_END -> evalEnumDefEnd();
             case ENUM_MEMBER_DEFINITION -> evalEnumMemberDef(instr);
@@ -189,7 +189,7 @@ public class ByteCodeInterpreter {
             case DEFINE_VARIABLE -> defineVar();
             case DECLARE_VARIABLE -> evalVarDeclare(instr);
             case NATIVE_FUNCTION_DEFINITION_BEGIN -> evalNatFunc(instr);
-            case FUNCTION_DEFINITION_BEGIN -> evalInternFunc();
+            case FUNCTION_DEFINITION_BEGIN -> evalInternFunc(instr);
             case FUNCTION_DEFINITION_END, RETURN_STATEMENT -> {
                 evalFuncEnd();
                 if (returnStack.isEmpty()) return true;
@@ -499,7 +499,10 @@ public class ByteCodeInterpreter {
         return variableStack.get(relativeToAbsoluteAddr(addr));
     }
 
-    private void evalInternFunc() {
+    private void evalInternFunc(@NotNull final ByteCodeInstruction instr) {
+        final Byte[] values = instr.codes();
+        final String signature = readString(values, 6, values.length - 2);
+        System.out.println("FUNC SIG " + signature);
         localAddrOffset.add(0);
         functionDefinitions.put(currentFunctionId, new ByteCodeInternFunction(label));
         currentFunctionId++;

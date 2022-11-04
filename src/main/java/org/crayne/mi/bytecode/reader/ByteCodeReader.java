@@ -53,8 +53,9 @@ public class ByteCodeReader {
                     case DEFINE_VARIABLE, DECLARE_VARIABLE, CAST -> readVariablar(code);
                     case JUMP, JUMP_IF, POP, FUNCTION_CALL, MAIN_FUNCTION, STDLIB_FINISH_LINE, TRACEBACK -> readWithInteger(code);
                     case NATIVE_FUNCTION_DEFINITION_BEGIN -> readNativeFunctionBegin(code);
+                    case FUNCTION_DEFINITION_BEGIN -> readFunctionBegin(code);
                     case ENUM_MEMBER_DEFINITION -> readEnumMemberDefinition(code);
-                    case FUNCTION_DEFINITION_BEGIN, FUNCTION_DEFINITION_END, VALUE_AT_ADDRESS, EQUALS, NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
+                    case FUNCTION_DEFINITION_END, VALUE_AT_ADDRESS, EQUALS, NOT, PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
                             BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, LOGICAL_AND, LOGICAL_OR, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL, RELATIVE_TO_ABSOLUTE_ADDRESS,
                             MUTATE_VARIABLE, MUTATE_VARIABLE_AND_PUSH, BITSHIFT_LEFT, BITSHIFT_RIGHT, VALUE_AT_RELATIVE_ADDRESS, RETURN_STATEMENT, ENUM_DEFINITION_END, ENUM_DEFINITION_BEGIN
                         // any of the instructions that dont pass any arguments in should just be added to instruction set
@@ -109,6 +110,18 @@ public class ByteCodeReader {
             expect(ByteCode.INSTRUCT_FINISH, ByteCode.FUNCTION_DEFINITION_END);
             l.add(ByteCode.INSTRUCT_FINISH.code());
             l.add(ByteCode.FUNCTION_DEFINITION_END.code());
+        });
+    }
+
+    private void readFunctionBegin(@NotNull final ByteCode code) {
+        expect(ByteCode.STRING_VALUE);
+        final Byte[] functionSignature = readStringValue();
+
+        instruction(code, (l) -> {
+            l.add(ByteCode.STRING_VALUE.code());
+            l.addAll(listOfByteArray(functionSignature));
+            expect(ByteCode.INSTRUCT_FINISH);
+            l.add(ByteCode.INSTRUCT_FINISH.code());
         });
     }
 

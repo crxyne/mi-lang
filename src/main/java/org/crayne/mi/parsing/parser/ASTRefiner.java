@@ -480,6 +480,27 @@ public class ASTRefiner {
         };
     }
 
+    protected boolean verifyEnum(@NotNull final MiDatatype type, @NotNull final Node enumIdentNode, @NotNull final MiModule accessedAt) {
+        final Token tok = enumIdentNode.value();
+        final Optional<MiEnum> foundEnum = findEnumByName(tok, accessedAt);
+        if (!type.primitive()) {
+            if (foundEnum.isEmpty()) {
+                parser.parserError("Cannot find an enum called '" + tok.token() + "' here", tok,
+                        "Did you spell the enum name correctly? Are you sure you are using the right module?");
+                return true;
+            }
+            final Set<MiModifier> enumModifiers = foundEnum.get().modifiers();
+            final MiModifier vmodifier = MiModifier.effectiveVisibilityModifier(enumModifiers);
+            if (MiModifier.invalidAccess(enumModifiers, foundEnum.get().module(), accessedAt)) {
+                parser.parserError("Cannot access " + vmodifier.getName() + " enum '" + tok.token() + "' here", tok,
+                        "Are you sure you are using the right module? Are you using the correct enum?");
+                return true;
+            }
+            enumIdentNode.value(foundEnum.get().identifier());
+        }
+        return false;
+    }
+
     private void defineVariable(@NotNull final Node node, @NotNull final MiContainer container, final boolean initialized, final boolean global) {
         final Token ident = node.child(1).value();
         if (ident.token().contains(".")) {
@@ -500,6 +521,7 @@ public class ASTRefiner {
         }
         final Token originalType = node.child(2).value();
         final MiDatatype type = MiDatatype.of(originalType.token(), modifiers.contains(MiModifier.NULLABLE));
+        if (verifyEnum(type, node.child(2), container instanceof final MiFunctionScope scope ? scope.function().module() : ((MiModule) container))) return;
 
         if (!initialized) {
             final MiVariable variable = new MiVariable(container, name, type, modifiers, !(container instanceof MiFunctionScope));
@@ -607,7 +629,7 @@ public class ASTRefiner {
         }
 
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return null;
-        final List<MiVariable> params = functionParameters(node); if (params == null) return null;
+        final List<MiVariable> params = functionParameters(node, currentModule); if (params == null) return null;
         final MiDatatype type = functionReturnType(node, ident, modifiers);
 
         final MiInternFunction function = new MiInternFunction(modifiers, ident.token(), type, currentModule, params);
@@ -623,7 +645,7 @@ public class ASTRefiner {
         }
 
         final List<MiModifier> modifiers = functionModifiers(node); if (modifiers == null) return;
-        final List<MiVariable> params = functionParameters(node); if (params == null) return;
+        final List<MiVariable> params = functionParameters(node, currentModule); if (params == null) return;
         final MiDatatype type = functionReturnType(node, ident, modifiers);
 
         final Method nativeMethod = functionNativeMethod(node, params, ident); if (nativeMethod == null) return;
@@ -671,10 +693,10 @@ public class ASTRefiner {
         return MiDatatype.of(datatypeToken.token(), ASTGenerator.nullableModifiers(modifiers));
     }
 
-    private List<MiVariable> functionParameters(@NotNull final Node node) {
+    private List<MiVariable> functionParameters(@NotNull final Node node, @NotNull final MiModule accessedAt) {
         final List<Node> paramNodes = node.child(3).children();
         if (checkInvalidParameterModifiers(paramNodes)) return null;
-        return parameters(paramNodes);
+        return parameters(paramNodes, accessedAt);
     }
 
     private boolean checkFunctionAlreadyExists(@NotNull final MiFunction function, @NotNull final Token ident) {
@@ -727,14 +749,16 @@ public class ASTRefiner {
         return node.child(0).value();
     }
 
-    private List<MiVariable> parameters(@NotNull final List<Node> paramNodes) {
+    private List<MiVariable> parameters(@NotNull final List<Node> paramNodes, @NotNull final MiModule accessedAt) {
         return paramNodes.stream().map(n -> {
             final List<Node> modifiers = n.child(2).children();
 
             final List<Optional<MiModifier>> modifs = ASTGenerator.modifiersOfNodes(modifiers);
             final List<MiModifier> modifsDefinite = modifs.stream().map(o -> o.orElseThrow(RuntimeException::new)).toList();
+            final MiDatatype type = MiDatatype.of(n.child(0).value().token(), ASTGenerator.nullableOptModifiers(modifs));
+            verifyEnum(type, n.child(0), accessedAt);
 
-            return new MiVariable(n.child(1).value().token(), MiDatatype.of(n.child(0).value().token(), ASTGenerator.nullableOptModifiers(modifs)), modifsDefinite);
+            return new MiVariable(n.child(1).value().token(), type, modifsDefinite);
         }).toList();
     }
 

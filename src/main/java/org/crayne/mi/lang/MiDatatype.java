@@ -53,7 +53,7 @@ public class MiDatatype {
     }};
 
     public boolean primitive() {
-        return datatypeRanking.containsKey(name);
+        return name.equals("?") || name.equals("void") || datatypeRanking.containsKey(name);
     }
 
     public static MiDatatype heavier(@NotNull final MiDatatype d1, @NotNull final MiDatatype d2) {

@@ -11,6 +11,7 @@ public class MiFunctionScope implements MiContainer {
     private final MiFunctionScope parent;
     private MiInternFunction function;
     private boolean reachedScopeEnd;
+    private boolean reachedLoopScopeEnd;
     private final boolean conditional;
     private boolean ifReachedEnd;
     private final MiScopeType scopeType;
@@ -30,26 +31,13 @@ public class MiFunctionScope implements MiContainer {
         this.parent = parent;
         this.function = function;
         reachedScopeEnd = false;
-        conditional = false;
         if (parent().isPresent() && scopeType == MiScopeType.FUNCTION_LOCAL) {
             this.scopeType = parent().get().scopeType == MiScopeType.FUNCTION_ROOT ? MiScopeType.FUNCTION_LOCAL : parent().get().type();
+            conditional = scopeType.conditional();
             return;
         }
         this.scopeType = scopeType;
-    }
-
-    public MiFunctionScope(@NotNull final MiScopeType scopeType, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope parent, final boolean conditional) {
-        this.variables = new HashSet<>();
-        this.children = new ArrayList<>();
-        this.parent = parent;
-        this.function = function;
-        reachedScopeEnd = false;
-        this.conditional = conditional;
-        if (parent().isPresent() && scopeType == MiScopeType.FUNCTION_LOCAL) {
-            this.scopeType = parent().get().scopeType == MiScopeType.FUNCTION_ROOT ? MiScopeType.FUNCTION_LOCAL : parent().get().type();
-            return;
-        }
-        this.scopeType = scopeType;
+        conditional = scopeType.conditional();
     }
 
     public void ifReachedEnd() {
@@ -120,6 +108,32 @@ public class MiFunctionScope implements MiContainer {
         return hasReachedScopeEndSingle() || children
                 .stream()
                 .anyMatch(MiFunctionScope::hasReachedScopeEnd);
+    }
+
+    public void reachedLoopEnd() {
+        if (looping()) reachedLoopScopeEnd = true;
+    }
+
+    public boolean rawReachedLoopEnd() {
+        return reachedLoopScopeEnd;
+    }
+
+    public boolean hasReachedLoopEndSingle() {
+        return ((!conditional || scopeType.looping()) || ifReachedEnd) && reachedLoopScopeEnd;
+    }
+
+    public boolean hasReachedLoopEnd() {
+        return hasReachedLoopEndSingle() || (looping() && children
+                .stream()
+                .anyMatch(MiFunctionScope::hasReachedLoopEnd));
+    }
+
+    public boolean conditional() {
+        return conditional || parent().isPresent() && parent().get().scopeType != MiScopeType.FUNCTION_LOCAL && parent().get().conditional();
+    }
+
+    public boolean looping() {
+        return scopeType.looping() || parent().isPresent() && parent().get().scopeType != MiScopeType.FUNCTION_LOCAL && parent().get().looping();
     }
 
     public Optional<MiVariable> find(@NotNull final String name) {

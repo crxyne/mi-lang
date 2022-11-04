@@ -87,7 +87,7 @@ public class ASTGenerator {
                 return null;
             }
             if (tokenType != NodeType.IDENTIFIER) {
-                parser.parserError("Expected identifier.", token);
+                parser.parserError("Expected ';'", token);
                 return null;
             }
             current = token;
@@ -182,7 +182,7 @@ public class ASTGenerator {
         return result;
     }
 
-    private static List<Node> modifiers(@NotNull final Collection<Token> tokens) {
+    protected static List<Node> modifiers(@NotNull final Collection<Token> tokens) {
         final List<Node> result = new ArrayList<>();
         for (@NotNull final Token token : tokens) {
             if (!NodeType.of(token).isModifier()) break;
@@ -504,7 +504,7 @@ public class ASTGenerator {
     public Node evalElseStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers, final boolean scope) {
         if (unexpectedModifiers(modifiers)) return null;
         final Token elseToken = parser.getAndExpect(tokens, 0, NodeType.LITERAL_ELSE);
-        final Token op = parser.getAndExpect(tokens, 1, NodeType.LBRACE, NodeType.SEMI);
+        final Token op = parser.getAndExpect(tokens, tokens.size() - 1, NodeType.LBRACE, NodeType.SEMI);
         if (Parser.anyNull(elseToken, op)) return null;
 
         final Node instr = tokens.size() == 2
@@ -524,7 +524,7 @@ public class ASTGenerator {
         final Token scopeToken = parser.getAndExpect(tokens, 1, NodeType.LBRACE);
         if (Parser.anyNull(doToken, scopeToken)) return null;
 
-        return new Node(parser.currentNode(), NodeType.DO_STATEMENT, doToken.actualLine());
+        return new Node(parser.currentNode(), NodeType.DO_STATEMENT, doToken.actualLine(), doToken);
     }
 
     public Node evalForStatement(@NotNull final List<Token> tokens, @NotNull final List<Node> modifiers) {
@@ -535,8 +535,8 @@ public class ASTGenerator {
             return null;
         }
         return switch (exprs.size()) {
-            case 2 -> evalTransitionalForStatement(exprs);
-            case 3 -> evalTraditionalForStatement(exprs);
+            case 2 -> evalTransitionalForStatement(tokens.get(0), exprs);
+            case 3 -> evalTraditionalForStatement(tokens.get(0), exprs);
             default -> {
                 final int atIndex = exprs.subList(0, exprs.size() - 1).stream().map(l -> l.size() + 1).reduce(0, Integer::sum) - 1;
                 final Token at = tokens.get(atIndex);
@@ -547,11 +547,11 @@ public class ASTGenerator {
     }
 
     // for mut? i = 0, i < 10, i++
-    public Node evalTraditionalForStatement(@NotNull final List<List<Token>> exprs) {
+    public Node evalTraditionalForStatement(@NotNull final Token forToken, @NotNull final List<List<Token>> exprs) {
         final Node createVariable = evalUnscoped(exprs.get(0));
         if (createVariable == null) return null;
         if (createVariable.type() != NodeType.DEFINE_VARIABLE) {
-            parser.parserError("Expected variable definition", exprs.get(0).get(0));
+            parser.parserError("Expected variable definition", forToken);
             return null;
         }
         final Node condition = parseExpression(exprs.get(1).get(0), exprs.get(1).subList(0, exprs.get(1).size() - 1));
@@ -563,7 +563,7 @@ public class ASTGenerator {
             return null;
         }
         return new Node(parser.currentNode(), NodeType.FOR_FAKE_SCOPE, exprs.get(0).get(0).actualLine(),
-                new Node(NodeType.FOR_STATEMENT, exprs.get(0).get(0).actualLine(),
+                new Node(NodeType.FOR_STATEMENT, forToken, exprs.get(0).get(0).actualLine(),
                         createVariable,
                         new Node(NodeType.CONDITION, exprs.get(1).get(0).actualLine(), condition),
                         new Node(NodeType.FOR_INSTRUCT, exprs.get(2).get(0).actualLine(), loopStatement)
@@ -572,7 +572,7 @@ public class ASTGenerator {
     }
 
     // for mut? i = 0, i -> 10 // i goes in a transition to 10, exactly the same as above example but written differently
-    public Node evalTransitionalForStatement(@NotNull final List<List<Token>> exprs) {
+    public Node evalTransitionalForStatement(@NotNull final Token forToken, @NotNull final List<List<Token>> exprs) {
         final List<Token> transition = exprs.get(1);
         final Token identifier = parser.getAndExpect(transition, 0, NodeType.IDENTIFIER);
         final Token arrow = parser.getAndExpect(transition, 1, NodeType.DOUBLE_DOT);
@@ -584,7 +584,7 @@ public class ASTGenerator {
         condition.addAll(val);
         condition.addAll(Arrays.asList(Token.of(")"), Token.of(";"))); // semicolon needed as splitByComma() automatically puts those & evalTraditionalForStatement thinks there always is a semicolon
 
-        return evalTraditionalForStatement(Arrays.asList(
+        return evalTraditionalForStatement(forToken, Arrays.asList(
                 exprs.get(0),
                 condition,
                 Arrays.asList(identifier, Token.of("++"))

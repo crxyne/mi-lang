@@ -70,7 +70,8 @@ public class ASTRefiner {
         final Node parentFunctionScope = functionScope.getKey();
         final MiInternFunction function = functionScope.getValue();
 
-        checkLocal(parentFunctionScope, function);
+        parser.reachedStdlibFinish(parentFunctionScope.value().actualLine() > parser.stdlibFinishLine());
+        checkLocal(parentFunctionScope, function, false);
         function.pop();
     }
 
@@ -145,13 +146,13 @@ public class ASTRefiner {
         return accessModule.get().find(ASTGenerator.identOf(name));
     }
 
-    private void checkLocal(@NotNull final Node scope, @NotNull final MiFunctionScope functionScope) {
+    private void checkLocal(@NotNull final Node scope, @NotNull final MiFunctionScope functionScope, final boolean ignoreMissingReturns) {
         final MiInternFunction function = functionScope.function();
 
         for (@NotNull final Node child : scope.children()) {
             if (parser.encounteredError()) return;
             final Token first = child.value() == null ? child.child(0).value() : child.value();
-            if (functionScope.hasReachedScopeEnd()) {
+            if (functionScope.hasReachedScopeEnd() || functionScope.hasReachedLoopEnd()) {
                 parser.parserError("Unreachable statement", first,
                         "Delete the unreachable statement or move it above a return statement.");
             }
@@ -159,46 +160,111 @@ public class ASTRefiner {
                 case FUNCTION_CALL -> checkFunctionCall(child, function);
                 case NOOP -> checkInnerScope(child, function, functionScope, false, false);
                 case RETURN_STATEMENT -> checkReturnStatement(child, functionScope);
-                case IF_STATEMENT -> checkIfStatement(child, function, functionScope);
+                case IF_STATEMENT -> checkConditionalStatement(child, function, functionScope, MiScopeType.IF);
+                case WHILE_STATEMENT -> checkConditionalStatement(child, function, functionScope, MiScopeType.WHILE);
+                case DO_STATEMENT -> checkDoWhileStatement(child, function, functionScope);
+                case FOR_FAKE_SCOPE -> checkForStatement(child, function, functionScope);
+                case BREAK_STATEMENT, CONTINUE_STATEMENT -> checkLoopStop(child, functionScope);
                 case DECLARE_VARIABLE -> defineVariable(child, functionScope, false, false);
                 case DEFINE_VARIABLE -> defineVariable(child, functionScope, true, false);
                 case MUTATE_VARIABLE -> checkVariableMutation(child, functionScope, function.module());
                 default -> {
-                    parser.parserError("Not a statement. err1", first);
+                    parser.parserError("Not a statement.", first);
                     return;
                 }
             }
         }
-        if (functionScope.parent().isEmpty() && !functionScope.hasReachedScopeEnd() && !function.returnType().equals(MiDatatype.VOID)) {
+        if (functionScope.parent().isEmpty() && !functionScope.hasReachedScopeEnd() && !function.returnType().equals(MiDatatype.VOID) && !ignoreMissingReturns) {
             parser.parserError("Missing return statement", scope.value(),
                     "Add a return statement at the end of the function definition scope");
         }
     }
 
-    private void checkIfStatement(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
-        final Token ifToken = child.value();
-        final ASTExpressionParser.TypedNode condition = parseExpression(child.child(0).child(0), ifToken, scope);
+    private boolean expectBooleanCondition(@NotNull final ASTExpressionParser.TypedNode condition, @NotNull final String cond, @NotNull final Token condToken) {
         if (!condition.type().equals(MiDatatype.BOOL)) { // expect nonnull bool, nullable wont work here
             if (condition.type().name().equals(MiDatatype.BOOL.name()) && condition.type().nullable()) {
-                parser.parserError("Expected a nonnull bool condition for if statement, but got a " + condition.type() + ".", ifToken,
-                        "Put a different condition for the if statement or cast the current condition to bool.",
+                parser.parserError("Expected a nonnull bool condition for " + cond + " statement, but got a " + condition.type() + ".", condToken,
+                        "Put a different condition for the " + cond + " statement or cast the current condition to bool.",
                         "The condition appears to already be a boolean, but it is nullable. Use std.to_nonnull() to safely convert the condition to a nonnull bool."
                 );
-                return;
+                return true;
             }
-            parser.parserError("Expected a nonnull bool condition for if statement, but got a " + condition.type() + ".", ifToken,
-                    "Put a different condition for the if statement or cast the current condition to bool.");
+            parser.parserError("Expected a nonnull bool condition for " + cond + " statement, but got a " + condition.type() + ".", condToken,
+                    "Put a different condition for the " + cond + " statement or cast the current condition to bool.");
+            return true;
+        }
+        return false;
+    }
+
+    private void checkLoopStop(@NotNull final Node child, @NotNull final MiFunctionScope scope) {
+        final Token statement = child.value();
+        if (!scope.looping()) {
+            parser.parserError("Unexpected " + statement.token() + "; Expected it inside of a loop scope", statement,
+                    "Remove the " + statement.token() + " statement.");
             return;
         }
-        final Node ifScope = child.child(1);
-        final Node elseStatement = child.children().size() > 2 ? child.child(2) : null;
+        scope.reachedLoopEnd();
+    }
 
-        final MiFunctionScope ifFunctionScope = new MiFunctionScope(MiScopeType.IF, function, scope, true);
-        scope.childScope(ifFunctionScope);
-        checkLocal(ifScope, ifFunctionScope);
-        ifFunctionScope.pop();
+    private void checkConditionalStatement(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope, @NotNull final MiScopeType conditional) {
+        final Token condToken = child.value();
+        final String cond = conditional.name().toLowerCase();
+        final ASTExpressionParser.TypedNode condition = parseExpression(child.child(0).child(0), condToken, scope);
+        if (expectBooleanCondition(condition, cond, condToken)) return;
 
-        if (elseStatement != null) checkInnerScope(elseStatement, function, scope, true, ifFunctionScope.rawReachedEnd()); // else is designed to look exactly like an inner scope
+        final Node conditionalScopeNode = child.child(1);
+        final Node elseStatement = child.children().size() > 2 && conditional == MiScopeType.IF ? child.child(2) : null;
+
+        final MiFunctionScope conditionalScope = new MiFunctionScope(conditional, function, scope);
+        scope.childScope(conditionalScope);
+        checkLocal(conditionalScopeNode, conditionalScope, false);
+        conditionalScope.pop();
+
+        if (elseStatement != null) checkInnerScope(elseStatement, function, scope, true, conditionalScope.rawReachedEnd()); // else is designed to look exactly like an inner scope
+    }
+
+    private void checkDoWhileStatement(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
+        final Token doToken = child.value();
+        final Node doScopeNode = child.child(0);
+        final Node whileStatement = child.children().size() != 2 || child.child(1).type() != NodeType.WHILE_STATEMENT_UNSCOPED ? null : child.child(1);
+        if (whileStatement == null) {
+            parser.parserError("Expected 'while' without a scope after 'do' scope", doToken,
+                    "Add a condition after the do statement scope to resolve the issue.");
+            return;
+        }
+        final ASTExpressionParser.TypedNode condition = parseExpression(whileStatement.child(0).child(0), whileStatement.value(), scope);
+        if (expectBooleanCondition(condition, "do", whileStatement.value())) return;
+
+        final MiFunctionScope conditionalScope = new MiFunctionScope(MiScopeType.DO, function, scope);
+        scope.childScope(conditionalScope);
+        checkLocal(doScopeNode, conditionalScope, false);
+        conditionalScope.pop();
+    }
+
+    private void checkForStatement(@NotNull final Node child, @NotNull final MiInternFunction function, @NotNull final MiFunctionScope scope) {
+        final Node statement = child.child(0);
+        final Node varDef = statement.child(0);
+        final MiFunctionScope fakeScope = new MiFunctionScope(MiScopeType.FUNCTION_LOCAL, function, scope);
+        // create a fake scope, embracing the for statement to allow for the index variable name to be reused (we simply delete the index variable after the for statement scope ends)
+        scope.childScope(fakeScope);
+
+        defineVariable(varDef, fakeScope, true, false);
+
+        final Node conditionNode = statement.child(1).child(0);
+        final ASTExpressionParser.TypedNode condition = parseExpression(conditionNode, conditionNode.value(), fakeScope);
+        if (condition == null || condition.type() == null || expectBooleanCondition(condition, "for", statement.value())) return;
+
+        final Node forInstruct = statement.child(2);
+        checkLocal(forInstruct, fakeScope, true);
+
+        final Node forScopeNode = child.child(1);
+
+        final MiFunctionScope forScope = new MiFunctionScope(MiScopeType.FOR, function, fakeScope);
+        fakeScope.childScope(forScope);
+        checkLocal(forScopeNode, forScope, false);
+        forScope.pop();
+
+        fakeScope.pop();
     }
 
     private void checkInnerScope(@NotNull final Node child, @NotNull final MiInternFunction function,
@@ -208,7 +274,7 @@ public class ASTRefiner {
         final MiFunctionScope localScope = new MiFunctionScope(elseScope ? MiScopeType.ELSE : MiScopeType.FUNCTION_LOCAL, function, scope);
         if (ifReachedEnd) localScope.ifReachedEnd();
         scope.childScope(localScope);
-        checkLocal(elseScope ? child : child.child(0), localScope);
+        checkLocal(elseScope ? child : child.child(0), localScope, false);
         localScope.pop();
     }
 
@@ -238,7 +304,6 @@ public class ASTRefiner {
             if (scope.ifHasReachedEnd()) scope.reachedScopeEnd();
             return;
         }
-        //System.out.println("RET STATEMENT " + child + " " + scope.type());
         scope.reachedScopeEnd();
     }
 
@@ -273,7 +338,7 @@ public class ASTRefiner {
         globalVariable.get().initialize();
     }
 
-    protected Optional<MiVariable> findVariable(@NotNull final Token ident, @NotNull final MiModule module, final MiInternFunction function) {
+    protected Optional<MiVariable> findVariable(@NotNull final Token ident, @NotNull final MiModule module, final MiFunctionScope function) {
         if (function == null) return findGlobalVariableByAccess(ident, module);
         final Optional<MiVariable> localVariable = function.find(ident.token());
         if (localVariable.isPresent()) return localVariable;

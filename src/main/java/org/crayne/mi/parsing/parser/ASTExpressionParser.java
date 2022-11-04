@@ -19,7 +19,7 @@ public class ASTExpressionParser {
     private final List<Token> expr;
     private final ASTRefiner refiner;
     private final MiModule module;
-    private final MiInternFunction function;
+    private final MiFunctionScope function;
 
     public record TypedNode(MiDatatype type, Node node) {
         public static TypedNode empty() {
@@ -61,7 +61,7 @@ public class ASTExpressionParser {
         }
         if (container instanceof final MiFunctionScope functionScope) {
             this.module = functionScope.function().module();
-            this.function = functionScope.function();
+            this.function = functionScope;
             return;
         }
         if (container instanceof final MiModule miModule) {
@@ -205,7 +205,7 @@ public class ASTExpressionParser {
     }
 
     private void cannotUseOperatorError(@NotNull final TypedNode fact, @NotNull final Token prev) {
-        refiner.parser().parserError("Cannot use operator '" + prev.token() + "' for " + fact.type + " values", prev);
+        refiner.parser().parserError("Cannot use operator '" + prev.token() + "' for " + fact.type + " values", equalsToken);
     }
 
     private boolean cannotUseOperator(@NotNull final TypedNode fact, @NotNull final Token prev) {

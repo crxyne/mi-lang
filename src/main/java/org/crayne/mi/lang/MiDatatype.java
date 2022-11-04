@@ -82,6 +82,9 @@ public class MiDatatype {
         this.put("/=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
         this.put("%=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
 
+        this.put("++", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+        this.put("--", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name));
+
         this.put(">", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
         this.put("<", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
         this.put(">=", List.of(INT.name, DOUBLE.name, FLOAT.name, LONG.name, CHAR.name, STRING.name));
@@ -111,7 +114,7 @@ public class MiDatatype {
 
     public static boolean operatorUndefined(@NotNull final String operator, @NotNull final String type) {
         return (!operator.equals("==") && !operator.equals("!=") && !operator.equals("="))
-                && (!operatorsDefined.containsKey(operator) || operatorsDefined.get(operator).stream().noneMatch(d -> match(MiDatatype.of(type), MiDatatype.of(d))));
+                && (!operatorsDefined.containsKey(operator) || operatorsDefined.get(operator).stream().noneMatch(type::equals));
     }
 
     public boolean nullable() {

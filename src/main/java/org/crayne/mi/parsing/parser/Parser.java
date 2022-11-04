@@ -28,6 +28,10 @@ public class Parser {
         return encounteredError;
     }
 
+    public int stdlibFinishLine() {
+        return stdlibFinishLine;
+    }
+
     public void parserError(@NotNull final String message, @NotNull final Token token, @NotNull final String... quickFixes) {
         parserError(message, token, false, quickFixes);
     }
@@ -83,7 +87,10 @@ public class Parser {
                     parsingValue = false;
                 }
                 case SET, SET_ADD, SET_AND, SET_OR, SET_DIV, SET_LSHIFT,
-                        SET_MOD, SET_MULT, SET_RSHIFT, SET_SUB, SET_XOR -> parsingValue = true;
+                        SET_MOD, SET_MULT, SET_RSHIFT, SET_SUB, SET_XOR -> {
+                    if (NodeType.of(current.subList(ASTGenerator.modifiers(current).size(), current.size()).get(0)).isDatatype())
+                        parsingValue = true;
+                }
                 case LPAREN -> paren++;
                 case RPAREN -> {
                     if (paren == 0) {
@@ -125,14 +132,14 @@ public class Parser {
                 case LBRACE -> {
                     final Node sm = astGenerator.evalScoped(statement);
                     if (sm == null) {
-                        parserError("Not a statement. err2", lastToken);
+                        parserError("Not a statement.", lastToken);
                         return null;
                     }
                     final Node scope = new Node(currentNode, NodeType.SCOPE, lastToken.actualLine(), lastToken);
 
                     if (lastScopedNode != null && sm.type() == NodeType.ELSE_STATEMENT) {
                         if (lastScopedNode.type() != NodeType.IF_STATEMENT) {
-                            parserError("Not a statement. err3", lastToken);
+                            parserError("Not a statement.", lastToken);
                             return null;
                         }
                         sm.child(0).addChildren(scope);
@@ -149,7 +156,7 @@ public class Parser {
                 case SEMI -> {
                     final Node sm = astGenerator.evalUnscoped(statement);
                     if (sm == null) {
-                        parserError("Not a statement. err4", lastToken);
+                        parserError("Not a statement.", lastToken);
                         return null;
                     }
                     // put the unscoped while statement into the actual do statement if there is one
@@ -157,7 +164,7 @@ public class Parser {
                         switch (sm.type()) {
                             case WHILE_STATEMENT_UNSCOPED -> {
                                 if (lastScopedNode.type() != NodeType.DO_STATEMENT) {
-                                    parserError("Not a statement. err5", lastToken);
+                                    parserError("Not a statement.", lastToken);
                                     return null;
                                 }
                                 lastScopedNode.addChildren(sm);
@@ -165,7 +172,7 @@ public class Parser {
                             }
                             case ELSE_STATEMENT -> {
                                 if (lastScopedNode.type() != NodeType.IF_STATEMENT) {
-                                    parserError("Not a statement. err6", lastToken);
+                                    parserError("Not a statement.", lastToken);
                                     return null;
                                 }
                                 lastScopedNode.addChildren(sm);
@@ -181,7 +188,7 @@ public class Parser {
                     if (!previousStatement.isEmpty() && lastTokenPrevStatement != NodeType.SEMI && lastTokenPrevStatement != NodeType.LBRACE && lastTokenPrevStatement != NodeType.RBRACE) {
                         final Node sm = astGenerator.evalEnumMembers(previousStatement);
                         if (sm == null) {
-                            parserError("Not a statement. err7", lastToken);
+                            parserError("Not a statement.", lastToken);
                             return null;
                         }
                         currentNode.addChildren(sm);

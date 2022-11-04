@@ -33,12 +33,8 @@ mod std {
 STANDARDLIB_MI_FINISH_CODE;
 mod main {
 
-    fn main :: int() {
-        if true {
-            return 0;
-        } else {
-            return 1;
-        }
+    fn main {
+        
     }
 
 }

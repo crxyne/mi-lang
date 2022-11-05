@@ -20,6 +20,10 @@ public class LimitedSizeQueue <T> implements Collection<T> {
         this.limitedSize = limitedSize;
     }
 
+    public List<T> queue() {
+        return queue;
+    }
+
     public int size() {
         return queue.size();
     }

@@ -134,8 +134,8 @@ public class ASTExpressionParser {
         if (ternaryIfElseNotEqual(z, y)) return TypedNode.empty();
         if (ternaryConditionNotBoolean(x)) return TypedNode.empty();
 
-        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, x.node.child(0).value(), x.lineDebugging(),
-                new Node(NodeType.CONDITION, x.node.child(0).value(), x.lineDebugging(), x.node),
+        return new TypedNode(y.type, new Node(NodeType.TERNARY_OPERATOR, x.node.value(), x.lineDebugging(),
+                new Node(NodeType.CONDITION, x.node.value(), x.lineDebugging(), x.node),
                 new Node(NodeType.TERNARY_OPERATOR_IF, y.lineDebugging(), y.node),
                 new Node(NodeType.TERNARY_OPERATOR_ELSE, z.lineDebugging(), z.node)
         ));

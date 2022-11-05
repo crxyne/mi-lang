@@ -17,8 +17,6 @@ import java.util.function.Predicate;
 
 public class MiLang {
 
-    // TODO big big issue, cant access enum values from other modules, as it just cant "find the variable"
-
     public record Argument(String key, String value) {}
 
     public static List<String> sanitizeArgs(@NotNull final String[] args) {

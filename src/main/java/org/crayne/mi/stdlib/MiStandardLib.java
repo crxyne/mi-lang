@@ -45,6 +45,12 @@ mod termion {
 	
 }
 
+mod test {
+    
+    pub fn n :: int (int i) {return i;}
+    
+}
+
 STANDARDLIB_MI_FINISH_CODE;
 """
                 .replace("$stdclass", MiStandardLib.class.getName())

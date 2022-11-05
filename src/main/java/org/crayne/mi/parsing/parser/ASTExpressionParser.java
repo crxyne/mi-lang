@@ -491,7 +491,7 @@ public class ASTExpressionParser {
             return null;
         }
         nextPart();
-        return parseParametersCallFunction(expr.subList(start + 1, foundEndingParen), module);
+        return parseParametersCallFunction(expr.subList(start + 1, foundEndingParen), function == null ? module : function);
     }
 
     public static List<TypedNode> parseParametersCallFunction(@NotNull final List<Token> tokens, @NotNull final ASTRefiner refiner,

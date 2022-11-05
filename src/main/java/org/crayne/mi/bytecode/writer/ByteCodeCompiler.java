@@ -217,7 +217,7 @@ public class ByteCodeCompiler {
         final int afterElseJumpIndex = result.size() + 1; // save the index in the result, to add the other label later
         final int elseJumpLabel = label + 2; // then get the label of where the else scope starts (+ 2, because 2 jumps have to be added)
         if (hasElse) { // check if there even is an else scope
-            final Node elseScope = instr.child(2).child(0);
+            final Node elseScope = instr.child(2);
             label++;
             compileLocalScope(elseScope, result); // parse the else scope like normal here
         }
@@ -321,7 +321,6 @@ public class ByteCodeCompiler {
     private void compileReturnStatement(@NotNull final Node instr, @NotNull final List<ByteCodeInstruction> result) {
         if (instr.children().isEmpty()) {
             rawInstruction(new ByteCodeInstruction(RETURN_STATEMENT.code()), result);
-            deleteAllLocalScopeVars(result);
             return;
         }
         compileExpression(instr.child(0).child(0), result);
@@ -340,7 +339,7 @@ public class ByteCodeCompiler {
 
         final MiEqualOperator equalOperation = MiEqualOperator.of(operator).orElse(null);
 
-        if (equalOperation != MiEqualOperator.SET && value != null) compileExpression(instr.child(0).child(0), result);
+        if (equalOperation != MiEqualOperator.SET && value != null) compileExpression(instr.child(0), result);
         if (value != null) compileExpression(value.child(0), result);
 
         if (equalOperation != null) switch (equalOperation) {
@@ -450,7 +449,7 @@ public class ByteCodeCompiler {
         if (compilingFunction()) {
             addLocalVariableToStorage(name.token());
         } else {
-            globalVariableStorage.put(currentModuleName() + "." + name.token(), absoluteAddress);
+            globalVariableStorage.put(name.token(), absoluteAddress);
         }
         absoluteAddress++;
         return type;

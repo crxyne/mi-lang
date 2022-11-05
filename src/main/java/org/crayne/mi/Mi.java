@@ -48,6 +48,7 @@ public class Mi {
         if (tree.isEmpty()) return new ArrayList<>();
         final ByteCodeCompiler compiler = new ByteCodeCompiler(tree.get());
         final List<ByteCodeInstruction> result = compiler.compile();
+        //System.out.println(compiler);
         return result;
     }
 

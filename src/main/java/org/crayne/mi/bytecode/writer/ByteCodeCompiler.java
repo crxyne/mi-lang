@@ -42,9 +42,16 @@ public class ByteCodeCompiler {
 
     private static abstract class QueuedFunctionDefinition {
 
-        public abstract void define(@NotNull final String moduleString, @NotNull final ByteCodeCompiler compiler);
+        private final long functionId;
+
+        public QueuedFunctionDefinition(final long functionId) {
+            this.functionId = functionId;
+        }
+
+        public abstract void define(@NotNull final String moduleString, final long functionId, @NotNull final ByteCodeCompiler compiler);
 
     }
+
     private final List<Map.Entry<String, QueuedFunctionDefinition>> defineFunctionScopesLater = new ArrayList<>();
 
     public ByteCodeCompiler(@NotNull final SyntaxTree tree) {
@@ -111,7 +118,7 @@ public class ByteCodeCompiler {
             compileInstruction(instr, result);
         }
         if (!ignoreFuncScopes) for (final Map.Entry<String, QueuedFunctionDefinition> run : defineFunctionScopesLater) {
-            run.getValue().define(run.getKey(), this);
+            run.getValue().define(run.getKey(), run.getValue().functionId, this);
         }
     }
 
@@ -464,9 +471,9 @@ public class ByteCodeCompiler {
     private void defineFunction(@NotNull final String name, @NotNull final String returnType, @NotNull final Map<String, ByteDatatype> args, final String javaMethod, final Node scope) {
         functionStorage.add(new ByteCodeFunctionDefinition(currentModuleName() + "." + name, ByteDatatype.of(returnType, findEnumId(returnType)), args.values(), functionId));
         if (javaMethod == null) {
-            defineFunctionScopesLater.add(Map.entry(currentModuleName(), new QueuedFunctionDefinition() {
+            defineFunctionScopesLater.add(Map.entry(currentModuleName(), new QueuedFunctionDefinition(functionId) {
                 @Override
-                public void define(@NotNull final String moduleString, @NotNull final ByteCodeCompiler compiler) {
+                public void define(@NotNull String moduleString, final long functionId, @NotNull ByteCodeCompiler compiler) {
                     compiler.scope = 0;
                     localScopeVariables.add(0);
                     relativeAddress = 0;
@@ -474,7 +481,9 @@ public class ByteCodeCompiler {
                     final List<String> storageArgs = new ArrayList<>(args.keySet().stream().toList());
                     Collections.reverse(storageArgs);
                     storageArgs.forEach(compiler::addLocalVariableToStorage);
-                    functionDefinitions.add(function(moduleString + "." + name + args.values()));
+
+                    final ByteCodeInstruction internFunc = function(moduleString + "." + name + args.values(), functionId);
+                    functionDefinitions.add(internFunc);
 
                     final List<ByteDatatype> defineArgs = new ArrayList<>(args.values().stream().toList());
                     Collections.reverse(defineArgs);
@@ -496,10 +505,11 @@ public class ByteCodeCompiler {
                     rawInstruction(new ByteCodeInstruction(FUNCTION_DEFINITION_END.code()), functionDefinitions);
                 }
             }));
+
             functionId++;
             return;
         }
-        functionDefinitions.add(nativeFunction(javaMethod));
+        functionDefinitions.add(nativeFunction(javaMethod, functionId));
         label++;
         functionId++;
     }

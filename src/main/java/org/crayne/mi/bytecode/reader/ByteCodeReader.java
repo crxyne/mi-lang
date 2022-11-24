@@ -102,10 +102,14 @@ public class ByteCodeReader {
     }
 
     private void readNativeFunctionBegin(@NotNull final ByteCode code) {
+        expect(ByteCode.LONG_INTEGER_VALUE);
+        final Byte[] functionId = readLongIntegerValue();
         expect(ByteCode.STRING_VALUE);
         final Byte[] nativeFunction = readStringValue();
 
         instruction(code, (l) -> {
+            l.add(ByteCode.LONG_INTEGER_VALUE.code());
+            l.addAll(listOfByteArray(functionId));
             l.add(ByteCode.STRING_VALUE.code());
             l.addAll(listOfByteArray(nativeFunction));
             expect(ByteCode.INSTRUCT_FINISH, ByteCode.FUNCTION_DEFINITION_END);
@@ -115,10 +119,14 @@ public class ByteCodeReader {
     }
 
     private void readFunctionBegin(@NotNull final ByteCode code) {
+        expect(ByteCode.LONG_INTEGER_VALUE);
+        final Byte[] functionId = readLongIntegerValue();
         expect(ByteCode.STRING_VALUE);
         final Byte[] functionSignature = readStringValue();
 
         instruction(code, (l) -> {
+            l.add(ByteCode.LONG_INTEGER_VALUE.code());
+            l.addAll(listOfByteArray(functionId));
             l.add(ByteCode.STRING_VALUE.code());
             l.addAll(listOfByteArray(functionSignature));
             expect(ByteCode.INSTRUCT_FINISH);

@@ -305,16 +305,18 @@ public enum ByteCode {
         }});
     }
 
-    public static ByteCodeInstruction function(@NotNull final String name) {
+    public static ByteCodeInstruction function(@NotNull final String name, final long functionId) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(FUNCTION_DEFINITION_BEGIN.code);
+            this.addAll(Arrays.stream(longInteger(functionId).codes()).toList().subList(0, 9));
             this.addAll(Arrays.stream(string(name).codes()).toList());
         }});
     }
 
-    public static ByteCodeInstruction nativeFunction(@NotNull final String javaMethod) {
+    public static ByteCodeInstruction nativeFunction(@NotNull final String javaMethod, final long functionId) {
         return new ByteCodeInstruction(new ArrayList<>() {{
             this.add(NATIVE_FUNCTION_DEFINITION_BEGIN.code);
+            this.addAll(Arrays.stream(longInteger(functionId).codes()).toList().subList(0, 9));
             this.addAll(Arrays.stream(string(javaMethod).codes()).toList());
             this.add(FUNCTION_DEFINITION_END.code);
         }});

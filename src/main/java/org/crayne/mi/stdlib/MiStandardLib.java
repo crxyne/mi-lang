@@ -45,9 +45,9 @@ mod termion {
 	
 }
 
-mod test {
+mod math {
     
-    pub fn n :: int (int i) {return i;}
+    
     
 }
 

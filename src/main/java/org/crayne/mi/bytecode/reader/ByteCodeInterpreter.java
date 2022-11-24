@@ -20,6 +20,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class ByteCodeInterpreter {
 
@@ -521,15 +522,17 @@ public class ByteCodeInterpreter {
 
     private void evalInternFunc(@NotNull final ByteCodeInstruction instr) {
         final Byte[] values = instr.codes();
-        final String sig = readString(values, 6, values.length - 2).substring("!PARENT.".length());
+
+        final long id = readLong(values, 2, 10);
+        final String sig = readString(values, 15, values.length - 2).substring("!PARENT.".length());
+
         final String[] signature = StringUtils.substringBetween(sig, "[", "]").split(", ");
         final String name = StringUtils.substringBefore(sig, "[");
-        final List<ByteDatatype> params = Arrays.stream(signature).filter(s -> !s.isEmpty()).map(ByteDatatype::fromString).toList();
+        final List<ByteDatatype> params = Arrays.stream(signature).filter(s -> !s.isEmpty()).map(ByteDatatype::fromString).collect(Collectors.toList());
 
         localAddrOffset.add(0);
-        functionDefinitions.put(currentFunctionId, new ByteCodeInternFunction(label));
-        funcDefsByNames.put(Objects.hash(name, params.stream().map(ByteDatatype::name).toList()), currentFunctionId);
-        currentFunctionId++;
+        functionDefinitions.put(id, new ByteCodeInternFunction(label));
+        funcDefsByNames.put(Objects.hash(name, params.stream().map(ByteDatatype::name).collect(Collectors.toList())), id);
     }
 
     private static Class<?> argStringToArgClass(@NotNull final String argType) {
@@ -566,7 +569,10 @@ public class ByteCodeInterpreter {
 
     private void evalNatFunc(@NotNull final ByteCodeInstruction instr) {
         final Byte[] values = instr.codes();
-        final String signature = readString(values, 6, values.length - 3);
+
+        final long id = readLong(values, 2, 10);
+        final String signature = readString(values, 15, values.length - 3);
+
         final String clazzWithMethod = StringUtils.substringBefore(signature, "(");
         final String returnType = StringUtils.substringAfterLast(signature, ")");
         final String[] argTypes = signature.substring(clazzWithMethod.length() + 1, signature.length() - returnType.length() - 1).split("\\|");
@@ -577,8 +583,7 @@ public class ByteCodeInterpreter {
         try {
             final Class<?> clazz = Class.forName(clazzStr);
             final Method method = clazz.getMethod(methodStr, argStringToArgClasses(argTypes));
-            functionDefinitions.put(currentFunctionId, new ByteCodeNativeFunction(method));
-            currentFunctionId++;
+            functionDefinitions.put(id, new ByteCodeNativeFunction(method));
         } catch (final ClassNotFoundException e) {
             throw new ByteCodeException("Cannot find class '" + clazzStr + "'");
         } catch (NoSuchMethodException e) {

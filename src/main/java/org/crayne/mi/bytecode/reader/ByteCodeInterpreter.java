@@ -32,7 +32,6 @@ public class ByteCodeInterpreter {
     private final Map<Integer, Long> funcDefsByNames = new ConcurrentHashMap<>();
     private final Map<Long, ByteCodeRuntimeFunction> functionDefinitions = new ConcurrentHashMap<>();
     private final Map<Integer, ByteCodeEnum> enumDefinitions = new ConcurrentHashMap<>();
-    private long currentFunctionId = 0;
     private int currentEnumId = 0;
     private final List<Integer> localAddrOffset = new ArrayList<>();
     private final List<ByteCodeValue> variableStack = new ArrayList<>();
@@ -106,7 +105,7 @@ public class ByteCodeInterpreter {
     }
 
     private void preRead() {
-        for (label = 0; label < program.size() && active; label++) {
+        for (label = 0; label < program.size(); label++) {
             final ByteCodeInstruction instr = program.get(label);
             evalPre(instr);
         }

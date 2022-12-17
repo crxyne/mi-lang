@@ -58,6 +58,9 @@ public class MiCommunicator {
         return identifier.contains(".") ? StringUtils.substringAfterLast(identifier, ".") : identifier;
     }
 
+    public void forceShutdown() {
+        runtime.shutdown();
+    }
 
 
 }

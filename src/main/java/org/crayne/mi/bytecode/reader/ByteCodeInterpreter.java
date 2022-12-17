@@ -92,6 +92,10 @@ public class ByteCodeInterpreter {
         return MiCommunicator.of(this);
     }
 
+    public void shutdown() {
+        active = false;
+    }
+
     public void prepare() {
         try {
             preRead();
@@ -102,7 +106,7 @@ public class ByteCodeInterpreter {
     }
 
     private void preRead() {
-        for (label = 0; label < program.size(); label++) {
+        for (label = 0; label < program.size() && active; label++) {
             final ByteCodeInstruction instr = program.get(label);
             evalPre(instr);
         }
@@ -126,7 +130,7 @@ public class ByteCodeInterpreter {
         localAddrOffset.add(0);
         inParams.forEach(this::push);
 
-        for (label = mainInternFunc.label() + 1; label < program.size(); label++) {
+        for (label = mainInternFunc.label() + 1; label < program.size() && active; label++) {
             final ByteCodeInstruction instr = program.get(label);
             if (eval(instr)) {
                 active = false;
